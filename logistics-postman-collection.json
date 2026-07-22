@@ -1,0 +1,348 @@
+{
+  "info": {
+    "name": "Logistics Delivery Platform API",
+    "description": "API endpoints for the microservices-based logistics platform behind the Nginx API Gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Identity Service",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"admin@logistics.com\",\n  \"password\": \"password123\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set(\"jwt_token\", jsonData.data.token);",
+                  "    console.log(\"JWT Token set automatically!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@logistics.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Topology Service",
+      "item": [
+        {
+          "name": "Create Franchise",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mumbai Central Hub\",\n  \"region\": \"West\",\n  \"basePinCode\": \"400001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/topology/franchises",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "topology",
+                "franchises"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Assign Pincode",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pinCode\": \"400001\",\n  \"franchiseId\": \"6696a000000000000000000f\",\n  \"city\": \"Mumbai\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/topology/pincodes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "topology",
+                "pincodes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check Serviceability",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/topology/serviceability?pin=400001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "topology",
+                "serviceability"
+              ],
+              "query": [
+                {
+                  "key": "pin",
+                  "value": "400001"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Fleet Service",
+      "item": [
+        {
+          "name": "Create Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"MH-01-TR-9999\",\n  \"franchiseId\": \"6696a000000000000000000f\",\n  \"capacity\": {\n    \"maxWeightKg\": 2500,\n    \"maxVolumeCm3\": 9000000\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fleet/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fleet",
+                "vehicles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Vehicles by Franchise",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/fleet/vehicles/franchise/6696a000000000000000000f",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fleet",
+                "vehicles",
+                "franchise",
+                "6696a000000000000000000f"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Order Service",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"6696a0000000000000000001\",\n  \"pickupAddress\": {\n    \"pinCode\": \"110001\",\n    \"lat\": 28.6139,\n    \"lng\": 77.2090,\n    \"fullAddress\": \"Connaught Place, New Delhi\"\n  },\n  \"deliveryAddress\": {\n    \"pinCode\": \"400001\",\n    \"lat\": 18.9388,\n    \"lng\": 72.8354,\n    \"fullAddress\": \"Fort, Mumbai\"\n  },\n  \"parcelDetails\": {\n    \"weightKg\": 5.5,\n    \"dimensions\": {\n      \"lengthCm\": 40,\n      \"widthCm\": 30,\n      \"heightCm\": 20\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Track Order Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/6696a000000000000000000o/tracking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "6696a000000000000000000o",
+                "tracking"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Dispatch Service",
+      "item": [
+        {
+          "name": "Trigger Dispatch Engine",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dispatch/run/6696a000000000000000000f",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dispatch",
+                "run",
+                "6696a000000000000000000f"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Agent Manifest",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dispatch/agent/6696a000000000000000000a/manifest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dispatch",
+                "agent",
+                "6696a000000000000000000a",
+                "manifest"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
