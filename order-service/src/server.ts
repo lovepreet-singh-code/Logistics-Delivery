@@ -5,9 +5,9 @@ import morgan from "morgan";
 
 import config from "./config";
 import connectDB from "./config/database";
-import topologyRoutes from "./routes/topologyRoutes";
 import { producer } from "./config/kafka";
-import { startOrderRoutingWorker } from "./workers/orderRoutingWorker";
+import orderRoutes from "./routes/orderRoutes";
+import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
 
 // ──── Initialize Express App ────
 const app = express();
@@ -26,14 +26,14 @@ if (config.nodeEnv === "development") {
 app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
-    message: "Topology Service is running.",
+    message: "Order Service is running.",
     environment: config.nodeEnv,
     timestamp: new Date().toISOString(),
   });
 });
 
 // ──── API Routes ────
-app.use("/api/topology", topologyRoutes);
+app.use("/api/orders", orderRoutes);
 
 // ──── 404 Handler ────
 app.use((_req: Request, res: Response) => {
@@ -49,15 +49,15 @@ const startServer = async (): Promise<void> => {
 
   // ──── Connect Kafka Producer ────
   await producer.connect();
-  console.log("✅ Kafka producer connected (topology-service)");
+  console.log("✅ Kafka producer connected (order-service)");
 
   // ──── Start Background Workers ────
-  await startOrderRoutingWorker();
+  await startOrderRoutedWorker();
 
   app.listen(config.port, () => {
     console.log(`
     ╔══════════════════════════════════════════╗
-    ║   🗺️   Topology Service                 ║
+    ║   📦  Order Service                     ║
     ║   📡  Port: ${String(config.port).padEnd(27)}║
     ║   🌍  Env:  ${config.nodeEnv.padEnd(27)}║
     ╚══════════════════════════════════════════╝

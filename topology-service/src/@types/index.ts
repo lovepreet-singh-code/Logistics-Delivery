@@ -38,6 +38,24 @@ export interface IServiceabilityResult {
   };
 }
 
+// ──── Kafka Event: Order Created ────
+export interface IOrderCreatedEvent {
+  orderId: string;
+  pickupPinCode: string;
+  deliveryPinCode: string;
+  customerId: string;
+  timestamp: string;
+}
+
+// ──── Kafka Event: Order Routed ────
+export interface IOrderRoutedEvent {
+  orderId: string;
+  originFranchiseId: string;
+  destinationFranchiseId: string;
+  isInterFranchise: boolean;
+  timestamp: string;
+}
+
 // ──── API Response Envelope ────
 export interface ApiResponse<T = unknown> {
   success: boolean;

@@ -1,0 +1,180 @@
+import { Request, Response } from "express";
+import Order from "../models/Order";
+import { producer } from "../config/kafka";
+import { ApiResponse, IOrderCreatedEvent } from "../@types";
+
+// ═══════════════════════════════════════════════
+//  ORDER ENDPOINTS
+// ═══════════════════════════════════════════════
+
+// POST /api/orders
+export const createOrder = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { customerId, pickupAddress, deliveryAddress, parcelDetails } =
+      req.body;
+
+    // Validate required fields
+    if (!customerId || !pickupAddress || !deliveryAddress || !parcelDetails) {
+      res.status(400).json({
+        success: false,
+        message:
+          "Please provide customerId, pickupAddress, deliveryAddress, and parcelDetails.",
+      } as ApiResponse);
+      return;
+    }
+
+    // Create order (status defaults to PENDING, volume auto-calculated by pre-save hook)
+    const order = await Order.create({
+      customerId,
+      pickupAddress,
+      deliveryAddress,
+      parcelDetails,
+    });
+
+    // Publish event to Kafka
+    const event: IOrderCreatedEvent = {
+      orderId: order._id.toString(),
+      pickupPinCode: order.pickupAddress.pinCode,
+      deliveryPinCode: order.deliveryAddress.pinCode,
+      customerId: order.customerId.toString(),
+      timestamp: new Date().toISOString(),
+    };
+
+    await producer.send({
+      topic: "orders.created",
+      messages: [
+        {
+          key: order._id.toString(),
+          value: JSON.stringify(event),
+        },
+      ],
+    });
+
+    console.log(
+      `📤 [order] Published orders.created: ${order._id} | ${order.pickupAddress.pinCode} → ${order.deliveryAddress.pinCode}`
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Order created successfully. Routing in progress.",
+      data: order,
+    } as ApiResponse);
+  } catch (error: any) {
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map(
+        (e: any) => e.message
+      );
+      res
+        .status(400)
+        .json({
+          success: false,
+          message: messages.join(". "),
+        } as ApiResponse);
+      return;
+    }
+    console.error("Create order error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    } as ApiResponse);
+  }
+};
+
+// GET /api/orders
+export const getAllOrders = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { status, customerId } = req.query;
+
+    const filter: Record<string, any> = {};
+    if (status) filter.status = status;
+    if (customerId) filter.customerId = customerId;
+
+    const orders = await Order.find(filter).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "Orders retrieved successfully.",
+      count: orders.length,
+      data: orders,
+    } as ApiResponse);
+  } catch (error) {
+    console.error("Get orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    } as ApiResponse);
+  }
+};
+
+// GET /api/orders/:id
+export const getOrderById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      } as ApiResponse);
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Order retrieved successfully.",
+      data: order,
+    } as ApiResponse);
+  } catch (error) {
+    console.error("Get order error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    } as ApiResponse);
+  }
+};
+
+// GET /api/orders/:id/status
+export const getOrderStatus = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const order = await Order.findById(req.params.id).select(
+      "status routing updatedAt"
+    );
+
+    if (!order) {
+      res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      } as ApiResponse);
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Order status retrieved.",
+      data: {
+        orderId: order._id,
+        status: order.status,
+        routing: order.routing,
+        lastUpdated: order.updatedAt,
+      },
+    } as ApiResponse);
+  } catch (error) {
+    console.error("Get order status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    } as ApiResponse);
+  }
+};
