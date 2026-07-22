@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: logistics-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin_secret
+      MONGO_INITDB_DATABASE: logistics_platform
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - logistics-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: logistics-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass redis_secret
+    volumes:
+      - redis_data:/data
+    networks:
+      - logistics-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  logistics-network:
+    driver: bridge
