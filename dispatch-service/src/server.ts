@@ -6,9 +6,8 @@ import morgan from "morgan";
 import config from "./config";
 import connectDB from "./config/database";
 import { producer } from "./config/kafka";
-import orderRoutes from "./routes/orderRoutes";
-import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
-import { startDispatchManifestedWorker } from "./workers/dispatchManifestedWorker";
+import dispatchRoutes from "./routes/dispatchRoutes";
+import { startDailyDispatchCron } from "./cron/dailyDispatch";
 
 // ──── Initialize Express App ────
 const app = express();
@@ -27,14 +26,14 @@ if (config.nodeEnv === "development") {
 app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
-    message: "Order Service is running.",
+    message: "Dispatch Service is running.",
     environment: config.nodeEnv,
     timestamp: new Date().toISOString(),
   });
 });
 
 // ──── API Routes ────
-app.use("/api/orders", orderRoutes);
+app.use("/api/dispatch", dispatchRoutes);
 
 // ──── 404 Handler ────
 app.use((_req: Request, res: Response) => {
@@ -50,16 +49,15 @@ const startServer = async (): Promise<void> => {
 
   // ──── Connect Kafka Producer ────
   await producer.connect();
-  console.log("✅ Kafka producer connected (order-service)");
+  console.log("✅ Kafka producer connected (dispatch-service)");
 
-  // ──── Start Background Workers ────
-  await startOrderRoutedWorker();
-  await startDispatchManifestedWorker();
+  // ──── Start Daily Dispatch Cron ────
+  startDailyDispatchCron();
 
   app.listen(config.port, () => {
     console.log(`
     ╔══════════════════════════════════════════╗
-    ║   📦  Order Service                     ║
+    ║   📋  Dispatch Service                  ║
     ║   📡  Port: ${String(config.port).padEnd(27)}║
     ║   🌍  Env:  ${config.nodeEnv.padEnd(27)}║
     ╚══════════════════════════════════════════╝

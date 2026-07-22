@@ -71,6 +71,15 @@ export interface IOrderRoutedEvent {
   timestamp: string;
 }
 
+// ──── Kafka Event: Dispatch Manifested ────
+export interface IDispatchManifestedEvent {
+  manifestId: string;
+  franchiseId: string;
+  vehicleId: string;
+  orderIds: string[];
+  timestamp: string;
+}
+
 // ──── API Response Envelope ────
 export interface ApiResponse<T = unknown> {
   success: boolean;

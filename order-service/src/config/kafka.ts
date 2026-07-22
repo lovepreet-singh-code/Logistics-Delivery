@@ -8,8 +8,14 @@ const kafka = new Kafka({
 });
 
 export const producer: Producer = kafka.producer();
+
 export const consumer: Consumer = kafka.consumer({
   groupId: config.kafka.groupId,
+});
+
+// Second consumer for dispatch.manifested (KafkaJS requires separate instances)
+export const dispatchConsumer: Consumer = kafka.consumer({
+  groupId: `${config.kafka.groupId}-dispatch`,
 });
 
 export default kafka;

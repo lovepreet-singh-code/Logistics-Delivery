@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Order from "../models/Order";
 import { producer } from "../config/kafka";
-import { ApiResponse, IOrderCreatedEvent } from "../@types";
+import { ApiResponse, IOrderCreatedEvent, OrderStatus } from "../@types";
 
 // ═══════════════════════════════════════════════
 //  ORDER ENDPOINTS
@@ -172,6 +173,46 @@ export const getOrderStatus = async (
     } as ApiResponse);
   } catch (error) {
     console.error("Get order status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    } as ApiResponse);
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  INTERNAL API — Used by Dispatch Service
+// ═══════════════════════════════════════════════
+
+// GET /api/orders/routed/:franchiseId
+export const getRoutedOrdersByFranchise = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { franchiseId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(franchiseId)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid franchise ID format.",
+      } as ApiResponse);
+      return;
+    }
+
+    const orders = await Order.find({
+      status: OrderStatus.ROUTED,
+      "routing.originFranchiseId": franchiseId,
+    }).sort({ createdAt: 1 });
+
+    res.status(200).json({
+      success: true,
+      message: "Routed orders retrieved successfully.",
+      count: orders.length,
+      data: orders,
+    } as ApiResponse);
+  } catch (error) {
+    console.error("Get routed orders error:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error.",
