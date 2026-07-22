@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+  # ──── INFRASTRUCTURE ────
   mongodb:
     image: mongo:7.0
     container_name: logistics-mongodb
@@ -53,7 +54,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_DELETE_TOPIC_ENABLE: "true"
@@ -62,6 +65,91 @@ services:
       - kafka_data:/var/lib/kafka/data
     networks:
       - logistics-network
+
+  # ──── MICROSERVICES ────
+  # (No ports mapped to host machine, only accessible via the internal network)
+
+  identity-service:
+    build: ./identity-service
+    container_name: logistics-identity-service
+    restart: unless-stopped
+    networks:
+      - logistics-network
+    depends_on:
+      - mongodb
+      - redis
+
+  topology-service:
+    build: ./topology-service
+    container_name: logistics-topology-service
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=kafka:29092
+      - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
+      - REDIS_HOST=redis
+    networks:
+      - logistics-network
+    depends_on:
+      - mongodb
+      - redis
+      - kafka
+
+  fleet-service:
+    build: ./fleet-service
+    container_name: logistics-fleet-service
+    restart: unless-stopped
+    environment:
+      - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
+      - REDIS_HOST=redis
+    networks:
+      - logistics-network
+    depends_on:
+      - mongodb
+      - redis
+
+  order-service:
+    build: ./order-service
+    container_name: logistics-order-service
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=kafka:29092
+      - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
+    networks:
+      - logistics-network
+    depends_on:
+      - mongodb
+      - kafka
+
+  dispatch-service:
+    build: ./dispatch-service
+    container_name: logistics-dispatch-service
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=kafka:29092
+      - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
+      - ORDER_SERVICE_URL=http://order-service:4004
+      - FLEET_SERVICE_URL=http://fleet-service:4003
+    networks:
+      - logistics-network
+    depends_on:
+      - mongodb
+      - kafka
+
+  # ──── API GATEWAY ────
+  api-gateway:
+    build: ./api-gateway
+    container_name: logistics-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - logistics-network
+    depends_on:
+      - identity-service
+      - topology-service
+      - fleet-service
+      - order-service
+      - dispatch-service
 
 volumes:
   mongodb_data:
