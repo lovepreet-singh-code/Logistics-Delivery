@@ -11,7 +11,7 @@ let activeFranchiseIds: string[] = [];
 const refreshFranchises = async (): Promise<void> => {
   try {
     const response = await axios.get(
-      `http://localhost:4002/api/topology/franchises`
+      `http://topology-service:4002/api/topology/franchises`
     );
     const franchises = response.data.data || [];
     activeFranchiseIds = franchises.map((f: any) => f._id);

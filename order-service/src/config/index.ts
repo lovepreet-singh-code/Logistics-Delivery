@@ -17,9 +17,9 @@ const config: IConfig = {
   nodeEnv: process.env.NODE_ENV || "development",
   mongoUri:
     process.env.MONGO_URI ||
-    "mongodb://localhost:27017/logistics_platform",
+    "mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin",
   kafka: {
-    brokers: (process.env.KAFKA_BROKERS || "localhost:9092").split(","),
+    brokers: (process.env.KAFKA_BROKERS || "kafka:29092").split(","),
     clientId: process.env.KAFKA_CLIENT_ID || "order-service",
     groupId: process.env.KAFKA_GROUP_ID || "order-group",
   },

@@ -20,14 +20,14 @@ const config: IConfig = {
   nodeEnv: process.env.NODE_ENV || "development",
   mongoUri:
     process.env.MONGO_URI ||
-    "mongodb://localhost:27017/logistics_platform",
+    "mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin",
   kafka: {
-    brokers: (process.env.KAFKA_BROKERS || "localhost:9092").split(","),
+    brokers: (process.env.KAFKA_BROKERS || "kafka:29092").split(","),
     clientId: process.env.KAFKA_CLIENT_ID || "dispatch-service",
   },
   services: {
-    orderServiceUrl: process.env.ORDER_SERVICE_URL || "http://localhost:4004",
-    fleetServiceUrl: process.env.FLEET_SERVICE_URL || "http://localhost:4003",
+    orderServiceUrl: process.env.ORDER_SERVICE_URL || "http://order-service:4004",
+    fleetServiceUrl: process.env.FLEET_SERVICE_URL || "http://fleet-service:4003",
   },
 };
 

@@ -12,7 +12,7 @@ const config: IConfig = {
   nodeEnv: process.env.NODE_ENV || "development",
   mongoUri:
     process.env.MONGO_URI ||
-    "mongodb://localhost:27017/logistics_platform",
+    "mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin",
 };
 
 export default config;

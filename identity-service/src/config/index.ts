@@ -17,8 +17,8 @@ const config: IConfig = {
   nodeEnv: process.env.NODE_ENV || "development",
   mongoUri:
     process.env.MONGO_URI ||
-    "mongodb://localhost:27017/logistics_platform",
-  redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
+    "mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin",
+  redisUrl: process.env.REDIS_URL || "redis://:redis_secret@redis:6379",
   jwt: {
     secret: process.env.JWT_SECRET || "fallback_secret_do_not_use",
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",

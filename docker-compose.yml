@@ -75,6 +75,10 @@ services:
     restart: unless-stopped
     networks:
       - logistics-network
+    environment:
+      - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
+      - REDIS_URL=redis://:redis_secret@redis:6379
+      - JWT_SECRET=fallback_secret_for_docker
     depends_on:
       - mongodb
       - redis
