@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiIdentity } from "@/lib/api";
+import axios from "axios";
 import { Package, Truck, Lock, Mail, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
@@ -12,13 +12,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
       setError("");
       
-      const res = await apiIdentity.post("/login", { email, password });
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const res = await axios.post(`${apiUrl}/api/auth/login`, { email, password });
+      
       const { token, user } = res.data.data;
       
       localStorage.setItem("token", token);
@@ -33,6 +35,7 @@ export default function LoginPage() {
         router.push("/");
       }
     } catch (err: any) {
+      console.error("Login error:", err);
       setError(err.response?.data?.message || "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
@@ -65,7 +68,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-6 relative z-10">
+        <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
           <div>
             <div className="relative">
               <input
