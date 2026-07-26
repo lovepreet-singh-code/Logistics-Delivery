@@ -56,7 +56,7 @@ const startServer = async (): Promise<void> => {
   await startOrderRoutedWorker();
   await startDispatchManifestedWorker();
 
-  app.listen(config.port, () => {
+  app.listen(config.port, '0.0.0.0', () => {
     console.log(`
     ╔══════════════════════════════════════════╗
     ║   📦  Order Service                     ║

@@ -45,7 +45,7 @@ app.use((_req: Request, res: Response) => {
 const startServer = async (): Promise<void> => {
   await connectDB();
 
-  app.listen(config.port, () => {
+  app.listen(config.port, '0.0.0.0', () => {
     console.log(`
     ╔══════════════════════════════════════════╗
     ║   🚀  Identity Service                  ║

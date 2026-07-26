@@ -54,7 +54,7 @@ const startServer = async (): Promise<void> => {
   // ──── Start Background Workers ────
   await startOrderRoutingWorker();
 
-  app.listen(config.port, () => {
+  app.listen(config.port, '0.0.0.0', () => {
     console.log(`
     ╔══════════════════════════════════════════╗
     ║   🗺️   Topology Service                 ║

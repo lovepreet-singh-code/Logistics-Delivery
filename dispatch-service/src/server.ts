@@ -54,7 +54,7 @@ const startServer = async (): Promise<void> => {
   // ──── Start Daily Dispatch Cron ────
   startDailyDispatchCron();
 
-  app.listen(config.port, () => {
+  app.listen(config.port, '0.0.0.0', () => {
     console.log(`
     ╔══════════════════════════════════════════╗
     ║   📋  Dispatch Service                  ║
