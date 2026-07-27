@@ -19,7 +19,10 @@ export default function LoginPage() {
       setError("");
       
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      console.log(`Attempting login to: ${apiUrl}/api/auth/login`);
+      
       const res = await axios.post(`${apiUrl}/api/auth/login`, { email, password });
+      console.log("Login successful!", res.data);
       
       const { token, user } = res.data.data;
       
