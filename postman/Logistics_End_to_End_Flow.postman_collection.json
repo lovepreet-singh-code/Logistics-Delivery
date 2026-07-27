@@ -9,6 +9,19 @@
       "item": [
         {
           "name": "Register Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200, 201 or 409\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 409]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
@@ -91,6 +104,19 @@
         },
         {
           "name": "Add Pincode to Franchise",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200, 201 or 409\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 409]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -116,6 +142,9 @@
               "listen": "test",
               "script": {
                 "exec": [
+                  "pm.test(\"Status is 200, 201 or 409\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 409]);",
+                  "});",
                   "var jsonData = pm.response.json();",
                   "if (jsonData.data && jsonData.data._id) {",
                   "    pm.environment.set(\"vehicleId\", jsonData.data._id);",
@@ -150,6 +179,19 @@
       "item": [
         {
           "name": "Register Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200, 201 or 409\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 409]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
@@ -222,8 +264,9 @@
               "script": {
                 "exec": [
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.data && jsonData.data._id) {",
-                  "    pm.environment.set(\"orderId\", jsonData.data._id);",
+                  "if (jsonData.data) {",
+                  "    var orderId = jsonData.data._id || jsonData.data.id;",
+                  "    if (orderId) { pm.environment.set(\"orderId\", orderId); }",
                   "}"
                 ],
                 "type": "text/javascript"
