@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
-import { Package, Truck, Lock, Mail, ArrowRight } from "lucide-react";
+import { Truck, Lock, Mail, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,22 +18,16 @@ export default function LoginPage() {
       setLoading(true);
       setError("");
       
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      console.log(`Attempting login to: ${apiUrl}/api/auth/login`);
-      
-      const res = await axios.post(`${apiUrl}/api/auth/login`, { email, password });
-      console.log("Login successful!", res.data);
+      const res = await axios.post("http://localhost:8080/api/auth/login", { email, password });
       
       const { token, user } = res.data.data;
       
       localStorage.setItem("token", token);
       
       if (user.role === "ADMIN") {
-        router.push("/dashboard");
+        router.push("/admin");
       } else if (user.role === "CUSTOMER") {
-        router.push("/track");
-      } else if (user.role === "AGENT") {
-        router.push("/manifest");
+        router.push("/customer");
       } else {
         router.push("/");
       }
