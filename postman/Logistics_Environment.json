@@ -1,0 +1,14 @@
+{
+  "id": "e9b2512f-6421-4f9e-8c3b-51c33f2a1b1b",
+  "name": "Logistics Platform Local",
+  "values": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "default", "enabled": true },
+    { "key": "adminToken", "value": "", "type": "secret", "enabled": true },
+    { "key": "customerToken", "value": "", "type": "secret", "enabled": true },
+    { "key": "franchiseId", "value": "", "type": "default", "enabled": true },
+    { "key": "vehicleId", "value": "", "type": "default", "enabled": true },
+    { "key": "orderId", "value": "", "type": "default", "enabled": true },
+    { "key": "manifestId", "value": "", "type": "default", "enabled": true }
+  ],
+  "_postman_variable_scope": "environment"
+}
