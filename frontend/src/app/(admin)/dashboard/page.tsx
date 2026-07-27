@@ -1,158 +1,98 @@
 "use client";
+import { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 
-import { useEffect, useState } from "react";
-import { apiFleet, apiOrder, apiDispatch } from "@/lib/api";
-import { Truck, Package, Route, Activity, BarChart3, AlertCircle, RefreshCcw } from "lucide-react";
-import { cn } from "@/lib/utils";
-
+/** 
+ * Admin Dashboard - Live API Connected Version
+ */
 export default function AdminDashboard() {
+  const [stats, setStats] = useState({ active: 0, pending: 0, delivered: 0 });
   const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState({
-    totalVehicles: 0,
-    availableVehicles: 0,
-    ordersPendingRouting: 0,
-    ordersRouted: 0,
-    activeManifests: 0,
-  });
-  const [error, setError] = useState("");
-
-  const fetchMetrics = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      
-      // We wrap in Promise.allSettled to handle partial failures gracefully if some services are down
-      const [fleetRes, ordersPendingRes, ordersRoutedRes, manifestsRes] = await Promise.allSettled([
-        apiFleet.get("/"), // Assuming / returns all vehicles (would need specific endpoint in production)
-        apiOrder.get("?status=PENDING"),
-        apiOrder.get("?status=ROUTED"),
-        apiDispatch.get("/manifests?status=ACTIVE")
-      ]);
-
-      setMetrics({
-        totalVehicles: fleetRes.status === "fulfilled" ? fleetRes.value.data.count || 0 : 0,
-        availableVehicles: fleetRes.status === "fulfilled" ? 
-          (fleetRes.value.data.data?.filter((v: any) => v.status === "AVAILABLE").length || 0) : 0,
-        ordersPendingRouting: ordersPendingRes.status === "fulfilled" ? ordersPendingRes.value.data.count || 0 : 0,
-        ordersRouted: ordersRoutedRes.status === "fulfilled" ? ordersRoutedRes.value.data.count || 0 : 0,
-        activeManifests: manifestsRes.status === "fulfilled" ? manifestsRes.value.data.count || 0 : 0,
-      });
-
-    } catch (err: any) {
-      setError("Failed to load dashboard metrics. Ensure all microservices are running.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchMetrics();
-    // Optional polling could go here
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        
+        // Headers for authenticated requests
+        const headers = { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
+
+        // Fetching data from API Gateway
+        // Ensure backend microservices are running on 8080
+        const [fleetRes, orderRes] = await Promise.all([
+          fetch('http://localhost:8080/api/fleet/stats', { headers }).catch(() => ({ json: () => ({ count: 0 }) })),
+          fetch('http://localhost:8080/api/orders/stats', { headers }).catch(() => ({ json: () => ({ pending: 0, delivered: 0 }) }))
+        ]);
+
+        const fleetData = await fleetRes.json();
+        const orderData = await orderRes.json();
+
+        setStats({
+          active: fleetData.count || 0,
+          pending: orderData.pending || 0,
+          delivered: orderData.delivered || 0
+        });
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const MetricCard = ({ title, value, icon: Icon, trend, colorClass }: any) => (
-    <div className="glass rounded-2xl p-6 shadow-xl border border-slate-100 dark:border-slate-800 transform transition-all hover:-translate-y-1 hover:shadow-2xl bg-white/80 dark:bg-slate-900/80">
-      <div className="flex justify-between items-start mb-4">
-        <div className={cn("p-3 rounded-xl", colorClass)}>
-          <Icon className="w-6 h-6" />
-        </div>
-        {trend && (
-          <span className="text-sm font-medium text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-lg">
-            {trend}
-          </span>
-        )}
-      </div>
-      <div>
-        <h3 className="text-slate-500 dark:text-slate-400 font-medium mb-1">{title}</h3>
-        <p className="text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">{value}</p>
-      </div>
-    </div>
-  );
+  const chartData = [
+    { name: 'Active', value: stats.active },
+    { name: 'Pending', value: stats.pending },
+    { name: 'Delivered', value: stats.delivered },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
+    <div className="p-8 bg-[#0B0E14] min-h-screen text-white font-sans">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Operations Command</h1>
+        <p className="text-slate-400">Real-time logistics platform overview</p>
+      </div>
       
-      {/* Topbar */}
-      <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3 text-primary">
-            <Activity className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-wider uppercase">Central Command</h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={fetchMetrics}
-              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Refresh Data"
-            >
-              <RefreshCcw className={cn("w-5 h-5 text-slate-500", loading && "animate-spin")} />
-            </button>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-blue-600 border-2 border-white dark:border-slate-800 shadow-md"></div>
-          </div>
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-900/20 to-blue-900/10 border border-blue-500/20">
+          <p className="text-slate-400 text-sm font-medium">Active Fleet</p>
+          <h2 className="text-4xl font-bold mt-2">{loading ? '...' : stats.active}</h2>
         </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        
-        {error && (
-          <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3 text-red-600 dark:text-red-400">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <p className="font-medium">{error}</p>
-          </div>
-        )}
-
-        <div className="flex justify-between items-end mb-8">
-          <div>
-            <h2 className="text-3xl font-bold mb-2">Platform Overview</h2>
-            <p className="text-slate-500">Real-time metrics from microservices.</p>
-          </div>
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-900/20 to-amber-900/10 border border-amber-500/20">
+          <p className="text-slate-400 text-sm font-medium">Pending Orders</p>
+          <h2 className="text-4xl font-bold mt-2">{loading ? '...' : stats.pending}</h2>
         </div>
-
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
-          
-          <MetricCard 
-            title="Available Fleet" 
-            value={loading ? "..." : metrics.availableVehicles} 
-            icon={Truck}
-            colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
-            trend="Active"
-          />
-          
-          <MetricCard 
-            title="Orders Pending" 
-            value={loading ? "..." : metrics.ordersPendingRouting} 
-            icon={Package}
-            colorClass="bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400"
-          />
-
-          <MetricCard 
-            title="Ready for Dispatch" 
-            value={loading ? "..." : metrics.ordersRouted} 
-            icon={Route}
-            colorClass="bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400"
-          />
-
-          <MetricCard 
-            title="Active Manifests" 
-            value={loading ? "..." : metrics.activeManifests} 
-            icon={BarChart3}
-            colorClass="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400"
-            trend="En Route"
-          />
-          
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-900/20 to-emerald-900/10 border border-emerald-500/20">
+          <p className="text-slate-400 text-sm font-medium">Delivered Today</p>
+          <h2 className="text-4xl font-bold mt-2">{loading ? '...' : stats.delivered}</h2>
         </div>
+      </div>
 
-        {/* Dummy Chart Section for Aesthetics */}
-        <div className="glass rounded-3xl p-8 border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 h-96 flex flex-col items-center justify-center text-slate-400 shadow-inner">
-          <BarChart3 className="w-16 h-16 mb-4 opacity-20" />
-          <p className="text-lg font-medium">Analytics Engine Visualization Placeholder</p>
-          <p className="text-sm">Historical dispatch and routing efficiency charts will appear here.</p>
-        </div>
-
-      </main>
+      {/* Chart Section */}
+      <div className="p-6 rounded-2xl bg-[#151921] border border-slate-800 h-[400px]">
+        <h3 className="text-xl font-bold mb-6">Delivery Performance</h3>
+        <ResponsiveContainer width="100%" height="90%">
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <XAxis dataKey="name" stroke="#94a3b8" />
+            <YAxis stroke="#94a3b8" />
+            <Tooltip 
+              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }} 
+            />
+            <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={['#3b82f6', '#f59e0b', '#10b981'][index]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
