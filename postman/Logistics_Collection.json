@@ -22,13 +22,13 @@
               "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/admin/register",
+              "raw": "{{baseUrl}}/api/auth/register",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "admin",
+                "auth",
                 "register"
               ]
             }
@@ -64,13 +64,13 @@
               "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/admin/login",
+              "raw": "{{baseUrl}}/api/auth/login",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "admin",
+                "auth",
                 "login"
               ]
             }
@@ -223,13 +223,13 @@
               "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"pass123\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/customer/register",
+              "raw": "{{baseUrl}}/api/auth/register",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "customer",
+                "auth",
                 "register"
               ]
             }
@@ -265,13 +265,13 @@
               "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"pass123\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/customer/login",
+              "raw": "{{baseUrl}}/api/auth/login",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "customer",
+                "auth",
                 "login"
               ]
             }
