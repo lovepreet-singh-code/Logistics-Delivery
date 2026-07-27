@@ -281,7 +281,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"pickupAddress\": {\n    \"pinCode\": \"10001\",\n    \"street\": \"123 Pickup St\",\n    \"city\": \"Metropolis\",\n    \"state\": \"NY\"\n  },\n  \"deliveryAddress\": {\n    \"pinCode\": \"10001\",\n    \"street\": \"456 Delivery Ave\",\n    \"city\": \"Metropolis\",\n    \"state\": \"NY\"\n  },\n  \"parcelDetails\": {\n    \"weightKg\": 5,\n    \"volumeCm3\": 200,\n    \"description\": \"Electronics Box\"\n  }\n}"
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"pickupAddress\": {\n    \"pinCode\": \"10001\",\n    \"lat\": 40.7128,\n    \"lng\": -74.0060,\n    \"fullAddress\": \"123 Pickup St, Metropolis, NY\"\n  },\n  \"deliveryAddress\": {\n    \"pinCode\": \"10001\",\n    \"lat\": 40.7306,\n    \"lng\": -73.9352,\n    \"fullAddress\": \"456 Delivery Ave, Metropolis, NY\"\n  },\n  \"parcelDetails\": {\n    \"weightKg\": 5,\n    \"dimensions\": {\n      \"lengthCm\": 10,\n      \"widthCm\": 10,\n      \"heightCm\": 10\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/orders",

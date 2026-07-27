@@ -36,6 +36,10 @@ export const createFranchise = async (
       data: franchise,
     } as ApiResponse);
   } catch (error: any) {
+    if (error.code === 11000) {
+      res.status(409).json({ success: false, message: "This franchise already exists." } as ApiResponse);
+      return;
+    }
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((e: any) => e.message);
       res.status(400).json({ success: false, message: messages.join(". ") } as ApiResponse);
