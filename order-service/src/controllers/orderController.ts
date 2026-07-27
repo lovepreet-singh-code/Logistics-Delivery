@@ -181,6 +181,54 @@ export const getOrderStatus = async (
 };
 
 // ═══════════════════════════════════════════════
+//  UPDATE ORDER STATUS
+// ═══════════════════════════════════════════════
+
+// PUT /api/orders/:id/status
+export const updateOrderStatus = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { status } = req.body;
+
+    if (!status || !Object.values(OrderStatus).includes(status)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid or missing status.",
+      } as ApiResponse);
+      return;
+    }
+
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true, runValidators: true }
+    );
+
+    if (!order) {
+      res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      } as ApiResponse);
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Order status updated to ${status}.`,
+      data: order,
+    } as ApiResponse);
+  } catch (error) {
+    console.error("Update order status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    } as ApiResponse);
+  }
+};
+
+// ═══════════════════════════════════════════════
 //  INTERNAL API — Used by Dispatch Service
 // ═══════════════════════════════════════════════
 

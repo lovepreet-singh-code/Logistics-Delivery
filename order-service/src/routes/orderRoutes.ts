@@ -4,6 +4,7 @@ import {
   getAllOrders,
   getOrderById,
   getOrderStatus,
+  updateOrderStatus,
   getRoutedOrdersByFranchise,
 } from "../controllers/orderController";
 
@@ -20,5 +21,6 @@ router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);
 // ──── Order Detail Endpoints ────
 router.get("/:id", getOrderById);
 router.get("/:id/status", getOrderStatus);
+router.put("/:id/status", updateOrderStatus);
 
 export default router;
