@@ -49,6 +49,8 @@ export default function DeliveryAgentDashboard() {
       );
 
       const result = await response.json();
+      console.log("API Response:", result);
+      
       if (result.success && result.data?.routeSequence) {
         const mappedOrders = result.data.routeSequence.map((seq: any) => seq.orderId || seq);
         setOrders(mappedOrders);

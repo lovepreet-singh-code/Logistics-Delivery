@@ -46,7 +46,22 @@ export const generateDailyManifests = async (
     vehiclesResponse.data.data?.vehicles || [];
 
   if (vehicles.length === 0) {
-    console.log(`ℹ️  [dispatch] No available vehicles for franchise ${franchiseId}`);
+    console.log(`ℹ️  [dispatch] No available vehicles returned by fleet-service for franchise ${franchiseId}`);
+    
+    // DEBUG LOGGING: Let's query the raw DB to see what vehicles actually exist for this franchise
+    try {
+      const allVehicles = await mongoose.connection.db!.collection('vehicles').find({ 
+        franchiseId: new mongoose.Types.ObjectId(franchiseId) 
+      }).toArray();
+      
+      console.log(`[DEBUG] Found ${allVehicles.length} total vehicles registered to this franchise in MongoDB:`);
+      allVehicles.forEach(v => {
+        console.log(`  -> Vehicle: ${v.registrationNumber} | Status: '${v.status}'`);
+      });
+    } catch (err: any) {
+      console.log(`[DEBUG] Could not fetch raw vehicles from DB: ${err.message}`);
+    }
+    
     return [];
   }
 
@@ -84,7 +99,10 @@ export const generateDailyManifests = async (
     }
 
     // Skip vehicles with no assigned orders
-    if (assignedOrders.length === 0) continue;
+    if (assignedOrders.length === 0) {
+      console.log(`⚠️  [dispatch] Vehicle ${vehicle.registrationNumber} (Max: ${vehicle.capacity.maxWeightKg}kg / ${vehicle.capacity.maxVolumeCm3}cm3) was skipped. NO orders fit its capacity constraints.`);
+      continue;
+    }
 
     // ──────────────────────────────────────────
     //  STEP 3: Route Optimization + LIFO
