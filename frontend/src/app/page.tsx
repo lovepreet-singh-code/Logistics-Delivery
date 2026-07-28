@@ -22,15 +22,25 @@ export default function LoginPage() {
       
       const { token, user } = res.data.data;
       
+      // 1. Set localStorage for client-side API requests
       localStorage.setItem("token", token);
       
-      if (user.role === "ADMIN") {
-        router.push("/admin");
-      } else if (user.role === "CUSTOMER") {
-        router.push("/customer");
-      } else {
-        router.push("/");
-      }
+      // 2. Set the secure cookie for Next.js Middleware route protection BEFORE routing
+      document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax; Secure`;
+      
+      // 3. Force Next.js router to refresh its cache so the middleware recognizes the new cookie instantly
+      router.refresh();
+      
+      // 4. Add a tiny delay to ensure the browser has fully registered the cookie (prevents race conditions)
+      setTimeout(() => {
+        if (user.role === "ADMIN") {
+          router.push("/admin");
+        } else if (user.role === "CUSTOMER") {
+          router.push("/customer");
+        } else {
+          router.push("/");
+        }
+      }, 100);
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.response?.data?.message || "Invalid credentials. Please try again.");
