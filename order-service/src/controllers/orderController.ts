@@ -1,8 +1,18 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
+import { createClient } from "redis";
 import Order from "../models/Order";
 import { producer } from "../config/kafka";
 import { ApiResponse, IOrderCreatedEvent, OrderStatus } from "../@types";
+
+// Initialize Redis Client
+const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
+
+redisClient.on('error', (err) => console.error('Redis Client Error:', err));
+redisClient.connect().catch(console.error);
+
 
 // ═══════════════════════════════════════════════
 //  ORDER ENDPOINTS
@@ -119,7 +129,28 @@ export const getOrderById = async (
   res: Response
 ): Promise<void> => {
   try {
-    const order = await Order.findById(req.params.id);
+    const orderId = req.params.id;
+    const cacheKey = `track_order:${orderId}`;
+
+    // 1. Attempt to fetch from Redis Cache first
+    try {
+      if (redisClient.isOpen) {
+        const cachedOrder = await redisClient.get(cacheKey);
+        if (cachedOrder) {
+          res.status(200).json({
+            success: true,
+            message: "Order retrieved successfully. (Cache Hit)",
+            data: JSON.parse(cachedOrder),
+          } as ApiResponse);
+          return;
+        }
+      }
+    } catch (redisError) {
+      console.error("Redis fetch error (falling back to DB):", redisError);
+    }
+
+    // 2. Fallback: Fetch from DB (Cache Miss)
+    const order = await Order.findById(orderId);
 
     if (!order) {
       res.status(404).json({
@@ -129,9 +160,18 @@ export const getOrderById = async (
       return;
     }
 
+    // 3. Save the result to Redis with 60s TTL
+    try {
+      if (redisClient.isOpen) {
+        await redisClient.setEx(cacheKey, 60, JSON.stringify(order));
+      }
+    } catch (redisError) {
+      console.error("Redis set error:", redisError);
+    }
+
     res.status(200).json({
       success: true,
-      message: "Order retrieved successfully.",
+      message: "Order retrieved successfully. (Cache Miss)",
       data: order,
     } as ApiResponse);
   } catch (error) {
