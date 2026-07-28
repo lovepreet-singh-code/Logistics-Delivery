@@ -224,3 +224,22 @@ export const getAvailableVehiclesByFranchise = async (
     res.status(500).json({ success: false, message: "Internal server error." } as ApiResponse);
   }
 };
+
+// GET /api/fleet/stats
+export const getFleetStats = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const count = await Vehicle.countDocuments();
+    // Returning both flat and nested to satisfy generic frontend expectations
+    res.status(200).json({
+      success: true,
+      count,
+      data: { count }
+    });
+  } catch (error) {
+    console.error("Get fleet stats error:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};

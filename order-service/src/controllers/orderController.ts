@@ -400,3 +400,28 @@ export const getRoutedOrdersByFranchise = async (
     } as ApiResponse);
   }
 };
+
+// ═══════════════════════════════════════════════
+//  DASHBOARD METRICS
+// ═══════════════════════════════════════════════
+
+// GET /api/orders/stats
+export const getOrderStats = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const pending = await Order.countDocuments({ status: "PENDING" });
+    const delivered = await Order.countDocuments({ status: "DELIVERED" });
+    
+    res.status(200).json({
+      success: true,
+      pending,
+      delivered,
+      data: { pending, delivered }
+    });
+  } catch (error) {
+    console.error("Get order stats error:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};

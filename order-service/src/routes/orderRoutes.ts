@@ -7,9 +7,13 @@ import {
   updateOrderStatus,
   getRoutedOrdersByFranchise,
   manualAssignOrder,
+  getOrderStats,
 } from "../controllers/orderController";
 
 const router = Router();
+
+// ──── Dashboard Stats ────
+router.get("/stats", getOrderStats);
 
 // ──── Order Endpoints ────
 router.route("/")

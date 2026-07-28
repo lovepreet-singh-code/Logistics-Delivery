@@ -6,12 +6,16 @@ import {
   updateVehicle,
   deleteVehicle,
   getAvailableVehiclesByFranchise,
+  getFleetStats,
 } from "../controllers/fleetController";
 
 const router = Router();
 
 // ──── Available Vehicles by Franchise (capacity planning) ────
 router.get("/franchise/:franchiseId/available", getAvailableVehiclesByFranchise);
+
+// ──── Fleet Stats (Admin Dashboard) ────
+router.get("/stats", getFleetStats);
 
 // ──── Vehicle CRUD ────
 router.route("/vehicles")

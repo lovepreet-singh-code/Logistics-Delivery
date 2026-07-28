@@ -83,13 +83,15 @@ export const createMockManifest = async (
       vehicleId: new mongoose.Types.ObjectId(),   // Mock Vehicle
       agentId: new mongoose.Types.ObjectId(agentId),
       status: "ACTIVE",
+      date: new Date(),
       routeSequence: [
         {
           orderId: new mongoose.Types.ObjectId(orderId),
-          stopNumber: 1,
-          estimatedDeliveryTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
+          lat: 40.7128,
+          lng: -74.0060
         }
-      ]
+      ],
+      loadingSequence: [new mongoose.Types.ObjectId(orderId)]
     });
 
     res.status(201).json({
