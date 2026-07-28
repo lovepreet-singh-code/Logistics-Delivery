@@ -19,7 +19,8 @@ export default function CustomerDashboard() {
       setError('');
       setOrderData(null);
       
-      const res = await axios.get(`http://localhost:8080/api/orders/${orderIdInput.trim()}/track`);
+      const res = await axios.get(`http://localhost:8080/api/orders/${orderIdInput.trim()}`);
+      // Ensure we extract the data object according to standard backend response { success: true, data: { ... } }
       setOrderData(res.data.data || res.data);
     } catch (err: any) {
       console.error(err);
