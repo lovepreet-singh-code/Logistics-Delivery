@@ -54,6 +54,55 @@ export const getAgentManifest = async (
   }
 };
 
+// ═══════════════════════════════════════════════
+//  DEBUG ENDPOINTS
+// ═══════════════════════════════════════════════
+
+// POST /api/dispatch/debug/create-mock-manifest
+export const createMockManifest = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { agentId, orderId } = req.body;
+
+    if (!agentId || !orderId) {
+      res.status(400).json({ success: false, message: "agentId and orderId are required" } as ApiResponse);
+      return;
+    }
+
+    // Deactivate any existing active manifests for this agent to avoid conflicts
+    await Manifest.updateMany(
+      { agentId: new mongoose.Types.ObjectId(agentId), status: "ACTIVE" },
+      { $set: { status: "COMPLETED" } }
+    );
+
+    // Create a new active manifest
+    const manifest = await Manifest.create({
+      franchiseId: new mongoose.Types.ObjectId(), // Mock Franchise
+      vehicleId: new mongoose.Types.ObjectId(),   // Mock Vehicle
+      agentId: new mongoose.Types.ObjectId(agentId),
+      status: "ACTIVE",
+      routeSequence: [
+        {
+          orderId: new mongoose.Types.ObjectId(orderId),
+          stopNumber: 1,
+          estimatedDeliveryTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
+        }
+      ]
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Mock manifest created successfully.",
+      data: manifest,
+    } as ApiResponse);
+  } catch (error: any) {
+    console.error("Create mock manifest error:", error);
+    res.status(500).json({ success: false, message: error.message || "Internal server error" } as ApiResponse);
+  }
+};
+
 // POST /api/dispatch/run/:franchiseId
 export const runDispatch = async (
   req: Request,
