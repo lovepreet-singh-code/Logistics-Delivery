@@ -6,6 +6,7 @@ import {
   getOrderStatus,
   updateOrderStatus,
   getRoutedOrdersByFranchise,
+  manualAssignOrder,
 } from "../controllers/orderController";
 
 const router = Router();
@@ -22,5 +23,7 @@ router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);
 router.get("/:id", getOrderById);
 router.get("/:id/status", getOrderStatus);
 router.put("/:id/status", updateOrderStatus);
+router.patch("/:id/status", updateOrderStatus);
+router.put("/:orderId/assign", manualAssignOrder);
 
 export default router;

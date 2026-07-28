@@ -3,7 +3,9 @@ import {
   runDispatch,
   getAllManifests,
   getManifestById,
+  getAgentManifest,
 } from "../controllers/dispatchController";
+import { requireAuth } from "../middleware/authMiddleware";
 
 const router = Router();
 
@@ -11,6 +13,7 @@ const router = Router();
 router.post("/run/:franchiseId", runDispatch);
 
 // ──── Manifest Endpoints ────
+router.get("/agent/manifest", requireAuth, getAgentManifest);
 router.get("/manifests", getAllManifests);
 router.get("/manifests/:id", getManifestById);
 

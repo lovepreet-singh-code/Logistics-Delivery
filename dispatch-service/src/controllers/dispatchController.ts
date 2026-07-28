@@ -9,6 +9,47 @@ import { ApiResponse } from "../@types";
 // ═══════════════════════════════════════════════
 
 // POST /api/dispatch/run/:franchiseId
+export const getAgentManifest = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const agentId = (req as any).user?.id;
+    if (!agentId) {
+      res.status(401).json({ success: false, message: "Unauthorized" } as ApiResponse);
+      return;
+    }
+
+    // 1. Find the ACTIVE manifest assigned to this agent
+    const manifest = await Manifest.findOne({ agentId, status: "ACTIVE" }).lean();
+    if (!manifest || manifest.routeSequence.length === 0) {
+      res.status(200).json({ success: true, data: [] } as ApiResponse);
+      return;
+    }
+
+    // 2. Extract order IDs from the route sequence
+    const orderIds = manifest.routeSequence.map((seq) => seq.orderId);
+
+    // 3. Query the shared MongoDB 'orders' collection directly for speed
+    const orders = await mongoose.connection.db!.collection("orders")
+      .find({ _id: { $in: orderIds.map((id: any) => new mongoose.Types.ObjectId(id.toString())) } })
+      .project({ _id: 1, trackingId: 1, deliveryAddress: 1, status: 1, customerPhone: 1, updatedAt: 1 })
+      .toArray();
+
+    // Map order details back to the sequence order (LIFO - reverse)
+    const reversedSequence = [...manifest.routeSequence].reverse();
+    const orderedOrders = reversedSequence.map(seq => {
+      return orders.find(o => o._id.toString() === seq.orderId.toString());
+    }).filter(Boolean);
+
+    res.status(200).json({ success: true, data: orderedOrders } as ApiResponse);
+  } catch (error) {
+    console.error("Error fetching agent manifest:", error);
+    res.status(500).json({ success: false, message: "Internal server error" } as ApiResponse);
+  }
+};
+
+// POST /api/dispatch/run/:franchiseId
 export const runDispatch = async (
   req: Request,
   res: Response

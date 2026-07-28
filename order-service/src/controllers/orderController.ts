@@ -231,6 +231,7 @@ export const getOrderStatus = async (
 // ═══════════════════════════════════════════════
 
 // PUT /api/orders/:id/status
+// PATCH /api/orders/:id/status
 export const updateOrderStatus = async (
   req: Request,
   res: Response
@@ -260,9 +261,33 @@ export const updateOrderStatus = async (
       return;
     }
 
+    // ── Cache Invalidation ──
+    try {
+      const cacheKey = `track_order:${order._id}`;
+      if (redisClient.isOpen) {
+        await redisClient.del(cacheKey);
+        console.log(`🧹 [Cache] Invalidated ${cacheKey}`);
+      }
+    } catch (cacheErr) {
+      console.error("Failed to invalidate cache (Graceful Degradation):", cacheErr);
+    }
+
+    // ── Kafka Event Publishing ──
+    try {
+      if (status === OrderStatus.DELIVERED) {
+        await publishOrderEvent("logistics.orders", {
+          event: "ORDER_DELIVERED",
+          data: order,
+        });
+        console.log(`📤 [Kafka] Published ORDER_DELIVERED for ${order._id}`);
+      }
+    } catch (kafkaErr) {
+      console.error("Failed to publish Kafka event (Graceful Degradation):", kafkaErr);
+    }
+
     res.status(200).json({
       success: true,
-      message: `Order status updated to ${status}.`,
+      message: "Order status updated successfully.",
       data: order,
     } as ApiResponse);
   } catch (error) {
@@ -271,6 +296,68 @@ export const updateOrderStatus = async (
       success: false,
       message: "Internal server error.",
     } as ApiResponse);
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  MANUAL ASSIGNMENT (TESTING BYPASS)
+// ═══════════════════════════════════════════════
+
+// PUT /api/orders/:orderId/assign
+export const manualAssignOrder = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { orderId } = req.params;
+    const { agentId, franchiseId, vehicleId, assignmentType, status } = req.body;
+
+    // 1. Validate Order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" } as ApiResponse);
+      return;
+    }
+
+    // 2. Query Agent in shared DB
+    const usersCollection = mongoose.connection.db!.collection("users");
+    const agent = await usersCollection.findOne({ 
+      _id: new mongoose.Types.ObjectId(agentId),
+      franchiseId: new mongoose.Types.ObjectId(franchiseId)
+    });
+
+    if (!agent) {
+      res.status(404).json({ success: false, message: "Agent not found or does not belong to this franchise" } as ApiResponse);
+      return;
+    }
+
+    // 3. Update Order
+    order.status = status || OrderStatus.OUT_FOR_DELIVERY;
+    
+    // Make sure routing object exists
+    if (!order.routing) {
+      order.routing = {};
+    }
+    order.routing.agentId = new mongoose.Types.ObjectId(agentId);
+    order.routing.vehicleId = new mongoose.Types.ObjectId(vehicleId);
+    order.routing.assignmentType = assignmentType || "MANUAL";
+    
+    await order.save();
+
+    // 4. Update Agent Availability
+    await usersCollection.updateOne(
+      { _id: new mongoose.Types.ObjectId(agentId) },
+      { $set: { availabilityStatus: "ON_DUTY", updatedAt: new Date() } }
+    );
+
+    res.status(200).json({ 
+      success: true, 
+      message: "Order assigned successfully (Manual Bypass)", 
+      data: order 
+    } as ApiResponse);
+  } catch (error: any) {
+    console.error("Manual assign error:", error);
+    res.status(500).json({ success: false, message: error.message || "Internal server error" } as ApiResponse);
   }
 };
 

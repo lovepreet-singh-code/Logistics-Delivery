@@ -6,6 +6,7 @@ export enum OrderStatus {
   ROUTED = "ROUTED",
   MANIFESTED = "MANIFESTED",
   IN_TRANSIT = "IN_TRANSIT",
+  OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY",
   DELIVERED = "DELIVERED",
 }
 
@@ -36,6 +37,9 @@ export interface IRouting {
   originFranchiseId?: Types.ObjectId;
   destinationFranchiseId?: Types.ObjectId;
   isInterFranchise?: boolean;
+  agentId?: Types.ObjectId;
+  vehicleId?: Types.ObjectId;
+  assignmentType?: string;
 }
 
 // ──── Order ────

@@ -85,6 +85,20 @@ const routingSchema = new Schema(
       type: Boolean,
       default: null,
     },
+    agentId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    vehicleId: {
+      type: Schema.Types.ObjectId,
+      ref: "Vehicle",
+      default: null,
+    },
+    assignmentType: {
+      type: String,
+      default: null,
+    },
   },
   { _id: false }
 );
@@ -117,7 +131,7 @@ const orderSchema = new Schema<IOrderDocument>(
       type: String,
       enum: {
         values: Object.values(OrderStatus),
-        message: "Status must be one of: PENDING, ROUTED, MANIFESTED, IN_TRANSIT, DELIVERED",
+        message: "Status must be one of: PENDING, ROUTED, MANIFESTED, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED",
       },
       default: OrderStatus.PENDING,
     },
