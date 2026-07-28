@@ -5,7 +5,7 @@ import morgan from "morgan";
 
 import config from "./config";
 import connectDB from "./config/database";
-import { producer } from "./config/kafka";
+import { connectProducer, startConsumer, disconnectKafka } from "./config/kafka";
 import orderRoutes from "./routes/orderRoutes";
 import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
 import { startDispatchManifestedWorker } from "./workers/dispatchManifestedWorker";
@@ -48,15 +48,15 @@ app.use((_req: Request, res: Response) => {
 const startServer = async (): Promise<void> => {
   await connectDB();
 
-  // ──── Connect Kafka Producer ────
-  await producer.connect();
-  console.log("✅ Kafka producer connected (order-service)");
+  // ──── Connect Kafka ────
+  await connectProducer();
+  await startConsumer();
 
   // ──── Start Background Workers ────
   await startOrderRoutedWorker();
   await startDispatchManifestedWorker();
 
-  app.listen(config.port, '0.0.0.0', () => {
+  const server = app.listen(config.port, '0.0.0.0', () => {
     console.log(`
     ╔══════════════════════════════════════════╗
     ║   📦  Order Service                     ║
@@ -65,6 +65,16 @@ const startServer = async (): Promise<void> => {
     ╚══════════════════════════════════════════╝
     `);
   });
+
+  const shutdown = async () => {
+    console.log("Shutting down server gracefully...");
+    server.close();
+    await disconnectKafka();
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 };
 
 startServer();

@@ -116,7 +116,8 @@ services:
     container_name: logistics-order-service
     restart: unless-stopped
     environment:
-      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_BROKER=kafka:9092
+      - REDIS_URL=redis://redis:6379
       - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
     networks:
       - logistics-network

@@ -2,12 +2,12 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { createClient } from "redis";
 import Order from "../models/Order";
-import { producer } from "../config/kafka";
+import { producer, publishOrderEvent } from "../config/kafka";
 import { ApiResponse, IOrderCreatedEvent, OrderStatus } from "../@types";
 
 // Initialize Redis Client
 const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
+  url: process.env.REDIS_URL || 'redis://redis:6379'
 });
 
 redisClient.on('error', (err) => console.error('Redis Client Error:', err));
@@ -67,6 +67,9 @@ export const createOrder = async (
     console.log(
       `📤 [order] Published orders.created: ${order._id} | ${order.pickupAddress.pinCode} → ${order.deliveryAddress.pinCode}`
     );
+
+    // Publish custom event to logistics.orders as requested
+    await publishOrderEvent('logistics.orders', { event: 'ORDER_CREATED', data: order });
 
     res.status(201).json({
       success: true,
