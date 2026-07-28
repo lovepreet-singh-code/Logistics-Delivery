@@ -23,9 +23,12 @@ export const getAgentManifest = async (
     // 1. Find the ACTIVE manifest assigned to this agent
     const manifest = await Manifest.findOne({ agentId, status: "ACTIVE" }).lean();
     if (!manifest || manifest.routeSequence.length === 0) {
+      console.log(`[Manifest API] No active manifest found for agent: ${agentId}`);
       res.status(200).json({ success: true, data: [] } as ApiResponse);
       return;
     }
+
+    console.log(`[Manifest API] Found active manifest for agent ${agentId} with ${manifest.routeSequence.length} orders in sequence.`);
 
     // 2. Extract order IDs from the route sequence
     const orderIds = manifest.routeSequence.map((seq) => seq.orderId);
@@ -41,6 +44,8 @@ export const getAgentManifest = async (
     const orderedOrders = reversedSequence.map(seq => {
       return orders.find(o => o._id.toString() === seq.orderId.toString());
     }).filter(Boolean);
+
+    console.log(`[Manifest API] Successfully populated and returning ${orderedOrders.length} orders for agent ${agentId}.`);
 
     res.status(200).json({ success: true, data: orderedOrders } as ApiResponse);
   } catch (error) {
