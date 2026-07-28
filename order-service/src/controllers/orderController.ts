@@ -54,19 +54,22 @@ export const createOrder = async (
       timestamp: new Date().toISOString(),
     };
 
-    await producer.send({
-      topic: "orders.created",
-      messages: [
-        {
-          key: order._id.toString(),
-          value: JSON.stringify(event),
-        },
-      ],
-    });
-
-    console.log(
-      `📤 [order] Published orders.created: ${order._id} | ${order.pickupAddress.pinCode} → ${order.deliveryAddress.pinCode}`
-    );
+    try {
+      await producer.send({
+        topic: "orders.created",
+        messages: [
+          {
+            key: order._id.toString(),
+            value: JSON.stringify(event),
+          },
+        ],
+      });
+      console.log(
+        `📤 [order] Published orders.created: ${order._id} | ${order.pickupAddress.pinCode} → ${order.deliveryAddress.pinCode}`
+      );
+    } catch (kafkaError) {
+      console.error("Kafka Publish Failed (orders.created):", kafkaError);
+    }
 
     // Publish custom event to logistics.orders as requested
     await publishOrderEvent('logistics.orders', { event: 'ORDER_CREATED', data: order });
