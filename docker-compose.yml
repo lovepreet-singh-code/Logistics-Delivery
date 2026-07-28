@@ -54,9 +54,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_DELETE_TOPIC_ENABLE: "true"
@@ -88,7 +88,7 @@ services:
     container_name: logistics-topology-service
     restart: unless-stopped
     environment:
-      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_BROKERS=kafka:9092
       - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
       - REDIS_HOST=redis
     networks:
@@ -117,7 +117,7 @@ services:
     restart: unless-stopped
     environment:
       - KAFKA_BROKER=kafka:9092
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://:redis_secret@redis:6379
       - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
     networks:
       - logistics-network
@@ -130,7 +130,7 @@ services:
     container_name: logistics-dispatch-service
     restart: unless-stopped
     environment:
-      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_BROKERS=kafka:9092
       - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
       - ORDER_SERVICE_URL=http://order-service:4004
       - FLEET_SERVICE_URL=http://fleet-service:4003
