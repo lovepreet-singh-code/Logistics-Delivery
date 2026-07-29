@@ -1,0 +1,14 @@
+{
+  "id": "e2e-env-uuid",
+  "name": "Logistics Local",
+  "values": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "enabled": true },
+    { "key": "adminToken", "value": "", "enabled": true },
+    { "key": "customerToken", "value": "", "enabled": true },
+    { "key": "franchiseId", "value": "", "enabled": true },
+    { "key": "vehicleId", "value": "", "enabled": true },
+    { "key": "orderId", "value": "", "enabled": true },
+    { "key": "manifestId", "value": "", "enabled": true },
+    { "key": "deliveryId", "value": "", "enabled": true }
+  ]
+}

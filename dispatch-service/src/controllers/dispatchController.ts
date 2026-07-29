@@ -96,7 +96,7 @@ export const createMockManifest = async (
     });
 
     // Automatically create a corresponding Delivery record for the Agent Portal
-    await Delivery.create({
+    const delivery = await Delivery.create({
       orderId: new mongoose.Types.ObjectId(orderId),
       agentId: new mongoose.Types.ObjectId(agentId),
       status: "PENDING",
@@ -105,7 +105,10 @@ export const createMockManifest = async (
     res.status(201).json({
       success: true,
       message: "Mock manifest created successfully.",
-      data: manifest,
+      data: {
+        manifest,
+        deliveryId: delivery._id
+      },
     } as ApiResponse);
   } catch (error: any) {
     console.error("Create mock manifest error:", error);
