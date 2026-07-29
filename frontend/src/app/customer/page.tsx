@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import dynamic from 'next/dynamic';
-import { Package, Truck, CheckCircle, Search, AlertTriangle } from 'lucide-react';
+import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText } from 'lucide-react';
 
 const LogisticsMap = dynamic(() => import('@/components/LogisticsMap'), {
   ssr: false,
@@ -34,6 +34,12 @@ export default function CustomerDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadInvoice = () => {
+    if (!orderData) return;
+    const url = `http://localhost:8080/api/orders/${orderData._id || orderData.id}/invoice`;
+    window.open(url, '_blank');
   };
 
   // Helper to determine step states
@@ -196,6 +202,16 @@ export default function CustomerDashboard() {
                     getStepStatus('DELIVERED', orderData.status) === 'completed' ? 'text-slate-800' : 'text-slate-400'
                   }`}>Delivered</h3>
                   <p className="text-slate-500 mt-2 leading-relaxed">Your package has been successfully delivered to the destination.</p>
+                  
+                  {getStepStatus('DELIVERED', orderData.status) === 'completed' && (
+                    <button
+                      onClick={handleDownloadInvoice}
+                      className="mt-6 flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
+                    >
+                      <FileText className="w-5 h-5" />
+                      Download Invoice
+                    </button>
+                  )}
                 </div>
               </div>
 

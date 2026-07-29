@@ -8,6 +8,7 @@ import {
   getRoutedOrdersByFranchise,
   manualAssignOrder,
   getOrderStats,
+  generateInvoice,
 } from "../controllers/orderController";
 
 const router = Router();
@@ -25,6 +26,7 @@ router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);
 
 // ──── Order Detail Endpoints ────
 router.get("/:id", getOrderById);
+router.get("/:id/invoice", generateInvoice);
 router.get("/:id/status", getOrderStatus);
 router.put("/:id/status", updateOrderStatus);
 router.patch("/:id/status", updateOrderStatus);

@@ -5,6 +5,7 @@ import Order from "../models/Order";
 import { producer, publishOrderEvent } from "../config/kafka";
 import { ApiResponse, IOrderCreatedEvent, OrderStatus } from "../@types";
 import { geocodeAddress } from "../utils/geocoder";
+import { generateInvoicePDF } from "../utils/invoiceGenerator";
 
 // Initialize Redis Client
 const redisClient = createClient({
@@ -192,6 +193,45 @@ export const getOrderById = async (
     } as ApiResponse);
   } catch (error) {
     console.error("Get order error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    } as ApiResponse);
+  }
+};
+
+// GET /api/orders/:id/invoice
+export const generateInvoice = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      res.status(404).json({
+        success: false,
+        message: "Order not found",
+      } as ApiResponse);
+      return;
+    }
+
+    // Only allow for DELIVERED orders
+    if (order.status !== OrderStatus.DELIVERED) {
+      res.status(400).json({
+        success: false,
+        message: "Invoice can only be generated for DELIVERED orders",
+      } as ApiResponse);
+      return;
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=invoice-${order._id}.pdf`);
+
+    const doc = generateInvoicePDF(order);
+    doc.pipe(res);
+  } catch (error) {
+    console.error("Generate invoice error:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error.",
