@@ -2,7 +2,13 @@
 
 import React, { useState } from 'react';
 import axios from 'axios';
+import dynamic from 'next/dynamic';
 import { Package, Truck, CheckCircle, Search, AlertTriangle } from 'lucide-react';
+
+const LogisticsMap = dynamic(() => import('@/components/LogisticsMap'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-slate-100 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Loading Map Engine...</div>
+});
 
 export default function CustomerDashboard() {
   const [orderIdInput, setOrderIdInput] = useState('');
@@ -131,8 +137,11 @@ export default function CustomerDashboard() {
               </div>
             </div>
 
-            {/* Vertical Timeline */}
-            <div className="relative pl-8 py-4 z-10 max-w-md mx-auto sm:mx-0">
+            {/* Grid Layout for Timeline and Map */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              
+              {/* Vertical Timeline */}
+              <div className="relative pl-8 py-4 z-10 w-full max-w-md mx-auto sm:mx-0">
               
               {/* Vertical line connecting steps */}
               <div className="absolute left-[47px] top-8 bottom-8 w-1 bg-slate-100 rounded-full"></div>
@@ -188,6 +197,16 @@ export default function CustomerDashboard() {
                   }`}>Delivered</h3>
                   <p className="text-slate-500 mt-2 leading-relaxed">Your package has been successfully delivered to the destination.</p>
                 </div>
+              </div>
+
+            </div>
+
+              {/* Map Container */}
+              <div className="w-full h-80 lg:h-auto min-h-[350px] rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200 relative z-10">
+                <LogisticsMap 
+                  pickupCoords={orderData.pickupAddress?.lat ? [orderData.pickupAddress.lat, orderData.pickupAddress.lng] : undefined}
+                  deliveryCoords={orderData.deliveryAddress?.lat ? [orderData.deliveryAddress.lat, orderData.deliveryAddress.lng] : undefined}
+                />
               </div>
 
             </div>
