@@ -84,6 +84,15 @@ export interface IDispatchManifestedEvent {
   timestamp: string;
 }
 
+// ──── Kafka Event: Delivery Completed ────
+export interface IDeliveryCompletedEvent {
+  orderId: string;
+  agentId?: string;
+  status: string;
+  proofOfDelivery?: string;
+  timestamp: string;
+}
+
 // ──── API Response Envelope ────
 export interface ApiResponse<T = unknown> {
   success: boolean;

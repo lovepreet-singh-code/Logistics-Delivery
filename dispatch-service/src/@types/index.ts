@@ -7,6 +7,15 @@ export enum ManifestStatus {
   COMPLETED = "COMPLETED",
 }
 
+// ──── Delivery Status ────
+export enum DeliveryStatus {
+  PENDING = "PENDING",
+  IN_TRANSIT = "IN_TRANSIT",
+  OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY",
+  DELIVERED = "DELIVERED",
+  FAILED = "FAILED",
+}
+
 // ──── Route Sequence Entry ────
 export interface IRouteSequenceEntry {
   orderId: Types.ObjectId;
@@ -30,12 +39,38 @@ export interface IManifest {
 
 export interface IManifestDocument extends Omit<IManifest, "_id">, Document {}
 
+// ──── Delivery ────
+export interface IDelivery {
+  _id: Types.ObjectId;
+  orderId: Types.ObjectId;
+  agentId?: Types.ObjectId;
+  status: DeliveryStatus;
+  currentLocation?: {
+    lat: number;
+    lng: number;
+  };
+  proofOfDelivery?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IDeliveryDocument extends Omit<IDelivery, "_id">, Document {}
+
 // ──── Kafka Event: Dispatch Manifested ────
 export interface IDispatchManifestedEvent {
   manifestId: string;
   franchiseId: string;
   vehicleId: string;
   orderIds: string[];
+  timestamp: string;
+}
+
+// ──── Kafka Event: Delivery Completed ────
+export interface IDeliveryCompletedEvent {
+  orderId: string;
+  agentId?: string;
+  status: string;
+  proofOfDelivery?: string;
   timestamp: string;
 }
 

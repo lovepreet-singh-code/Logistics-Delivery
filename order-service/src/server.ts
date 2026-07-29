@@ -9,6 +9,7 @@ import { connectProducer, startConsumer, disconnectKafka } from "./config/kafka"
 import orderRoutes from "./routes/orderRoutes";
 import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
 import { startDispatchManifestedWorker } from "./workers/dispatchManifestedWorker";
+import { startDeliveryCompletedWorker } from "./workers/deliveryCompletedWorker";
 
 // ──── Initialize Express App ────
 const app = express();
@@ -55,6 +56,7 @@ const startServer = async (): Promise<void> => {
   // ──── Start Background Workers ────
   await startOrderRoutedWorker();
   await startDispatchManifestedWorker();
+  await startDeliveryCompletedWorker();
 
   const server = app.listen(config.port, '0.0.0.0', () => {
     console.log(`

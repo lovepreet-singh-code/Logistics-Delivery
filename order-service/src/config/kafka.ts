@@ -18,6 +18,11 @@ export const dispatchConsumer: Consumer = kafka.consumer({
   groupId: `${config.kafka.groupId}-dispatch`,
 });
 
+// Third consumer for delivery.completed
+export const deliveryConsumer: Consumer = kafka.consumer({
+  groupId: `${config.kafka.groupId}-delivery`,
+});
+
 export const connectProducer = async () => {
   try {
     await producer.connect();
@@ -61,6 +66,7 @@ export const disconnectKafka = async () => {
     await producer.disconnect();
     await consumer.disconnect();
     await dispatchConsumer.disconnect();
+    await deliveryConsumer.disconnect();
     console.log("🛑 Kafka connections closed");
   } catch (err) {
     console.error("Error disconnecting Kafka:", err);

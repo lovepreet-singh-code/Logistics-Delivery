@@ -7,6 +7,7 @@ import config from "./config";
 import connectDB from "./config/database";
 import { producer } from "./config/kafka";
 import dispatchRoutes from "./routes/dispatchRoutes";
+import deliveryRoutes from "./routes/deliveryRoutes";
 import { startDailyDispatchCron } from "./cron/dailyDispatch";
 
 // ──── Initialize Express App ────
@@ -34,6 +35,7 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // ──── API Routes ────
 app.use("/api/dispatch", dispatchRoutes);
+app.use("/api/deliveries", deliveryRoutes);
 
 // ──── 404 Handler ────
 app.use((_req: Request, res: Response) => {
