@@ -4,6 +4,7 @@ import { createClient } from "redis";
 import Order from "../models/Order";
 import { producer, publishOrderEvent } from "../config/kafka";
 import { ApiResponse, IOrderCreatedEvent, OrderStatus } from "../@types";
+import { geocodeAddress } from "../utils/geocoder";
 
 // Initialize Redis Client
 const redisClient = createClient({
@@ -36,6 +37,15 @@ export const createOrder = async (
       } as ApiResponse);
       return;
     }
+
+    // Geocode addresses
+    const [pLat, pLng] = await geocodeAddress(pickupAddress.fullAddress || "");
+    const [dLat, dLng] = await geocodeAddress(deliveryAddress.fullAddress || "");
+
+    pickupAddress.lat = pLat;
+    pickupAddress.lng = pLng;
+    deliveryAddress.lat = dLat;
+    deliveryAddress.lng = dLng;
 
     // Create order (status defaults to PENDING, volume auto-calculated by pre-save hook)
     const order = await Order.create({
