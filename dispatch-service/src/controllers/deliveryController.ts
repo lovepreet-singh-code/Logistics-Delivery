@@ -94,7 +94,7 @@ export const updateDeliveryStatus = async (
       deliveryId,
       { status },
       { new: true }
-    );
+    ).populate({ path: "orderId", select: "pickupAddress deliveryAddress customerId customerPhone" });
 
     if (!delivery) {
       res.status(404).json({ success: false, message: "Delivery not found" });
@@ -157,7 +157,7 @@ export const startDelivery = async (
       deliveryId,
       { status: DeliveryStatus.OUT_FOR_DELIVERY },
       { new: true }
-    );
+    ).populate({ path: "orderId", select: "pickupAddress deliveryAddress customerId customerPhone" });
 
     if (!delivery) {
       res.status(404).json({ success: false, message: "Delivery not found" });
@@ -195,7 +195,7 @@ export const completeDelivery = async (
       deliveryId,
       { status: DeliveryStatus.DELIVERED },
       { new: true }
-    );
+    ).populate({ path: "orderId", select: "pickupAddress deliveryAddress customerId customerPhone" });
 
     if (!delivery) {
       res.status(404).json({ success: false, message: "Delivery not found" });

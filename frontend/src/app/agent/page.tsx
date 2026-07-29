@@ -215,6 +215,7 @@ export default function DeliveryAgentPortal() {
                 // Fallback rendering in case Order population fails
                 const displayAddress =
                   order?.deliveryAddress?.fullAddress ||
+                  order?.deliveryAddress?.city ||
                   "Address not available";
                 const customerPhone =
                   order?.customerPhone || "Phone not available";
@@ -328,6 +329,7 @@ export default function DeliveryAgentPortal() {
                    const order = delivery.orderId;
                    const displayAddress =
                      order?.deliveryAddress?.fullAddress ||
+                     order?.deliveryAddress?.city ||
                      "Address not available";
                      
                    return (
