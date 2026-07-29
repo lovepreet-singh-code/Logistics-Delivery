@@ -8,13 +8,15 @@ import {
   uploadProof,
 } from "../controllers/deliveryController";
 
+import { requireAuth } from "../middleware/authMiddleware";
+
 const router = Router();
 
 // GET /api/deliveries
 router.get("/", getDeliveries);
 
 // GET /api/deliveries/today
-router.get("/today", getDeliveriesToday);
+router.get("/today", requireAuth, getDeliveriesToday);
 
 // PATCH /api/deliveries/:id/start
 router.patch("/:id/start", startDelivery);

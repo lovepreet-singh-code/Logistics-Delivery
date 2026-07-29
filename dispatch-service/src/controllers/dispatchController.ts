@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Manifest from "../models/Manifest";
+import Delivery from "../models/Delivery";
 import { generateDailyManifests } from "../services/dispatchEngine";
 import { ApiResponse } from "../@types";
 
@@ -92,6 +93,13 @@ export const createMockManifest = async (
         }
       ],
       loadingSequence: [new mongoose.Types.ObjectId(orderId)]
+    });
+
+    // Automatically create a corresponding Delivery record for the Agent Portal
+    await Delivery.create({
+      orderId: new mongoose.Types.ObjectId(orderId),
+      agentId: new mongoose.Types.ObjectId(agentId),
+      status: "PENDING",
     });
 
     res.status(201).json({

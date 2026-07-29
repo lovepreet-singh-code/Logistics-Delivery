@@ -40,17 +40,17 @@ export const getDeliveriesToday = async (
   res: Response
 ): Promise<void> => {
   try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const user = (req as any).user;
+    const agentId = user?.id || user?._id || user?.userId;
 
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    if (!agentId) {
+      res.status(401).json({ success: false, message: "Unauthorized" } as ApiResponse);
+      return;
+    }
 
     const deliveries = await Delivery.find({
-      createdAt: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
+      agentId: new mongoose.Types.ObjectId(agentId),
+      status: "PENDING",
     })
       .populate("orderId")
       .sort({ createdAt: -1 });
