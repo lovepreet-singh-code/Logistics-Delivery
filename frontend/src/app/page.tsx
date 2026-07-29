@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import Link from "next/link";
@@ -12,6 +12,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+    
+    if (token && role) {
+      if (role === "ADMIN") router.push("/admin");
+      else if (role === "CUSTOMER") router.push("/customer");
+      else if (role === "AGENT") router.push("/agent");
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +37,7 @@ export default function LoginPage() {
       
       // 1. Set localStorage for client-side API requests
       localStorage.setItem("token", token);
+      localStorage.setItem("role", user.role);
       
       // 2. Set the secure cookie for Next.js Middleware route protection BEFORE routing
       document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax; Secure`;
@@ -38,6 +51,8 @@ export default function LoginPage() {
           router.push("/admin");
         } else if (user.role === "CUSTOMER") {
           router.push("/customer");
+        } else if (user.role === "AGENT") {
+          router.push("/agent");
         } else {
           router.push("/");
         }

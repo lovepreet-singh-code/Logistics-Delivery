@@ -32,12 +32,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
   
-  // 2. If user IS on the login page, but already has a valid token
-  if (token && isAuthPage) {
-    console.log(`[Middleware] Redirecting to dashboard. Reason: Authenticated user accessing login page`);
-    return NextResponse.redirect(new URL('/admin', request.url));
-  }
-  
   return NextResponse.next();
 }
 
