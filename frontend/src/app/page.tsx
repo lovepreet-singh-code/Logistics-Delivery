@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import Link from "next/link";
 import { Truck, Lock, Mail, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
@@ -119,6 +120,12 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <div className="mt-8 text-center relative z-10">
+          <Link href="/register" className="text-indigo-200 hover:text-white font-medium transition-colors text-sm">
+            Don't have an account? Sign up here
+          </Link>
+        </div>
 
       </div>
     </div>
