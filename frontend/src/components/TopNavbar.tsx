@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Bell, LogOut, User, CheckCircle2, Package, Truck } from "lucide-react";
+import { Search, Bell, LogOut, User, CheckCircle2, Package, Truck, Trash2, Check } from "lucide-react";
 
 export default function TopNavbar() {
   const router = useRouter();
@@ -62,34 +62,45 @@ export default function TopNavbar() {
                 <span className="text-xs text-indigo-600 font-medium cursor-pointer hover:underline">Mark all as read</span>
               </div>
               <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
-                <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 opacity-100">
+                <div className="p-4 hover:bg-slate-50 transition-colors flex gap-3 opacity-100 group relative cursor-default">
                   <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
                     <Package className="w-4 h-4 text-indigo-600" />
                   </div>
-                  <div>
+                  <div className="flex-1 pr-10">
                     <p className="text-sm font-semibold text-slate-800">Parcel Picked Up</p>
                     <p className="text-xs text-slate-500 mt-0.5">Your package #60d5ec has been picked up by the agent.</p>
                     <p className="text-[10px] text-slate-400 mt-1">10 mins ago</p>
                   </div>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Mark as read"><Check className="w-4 h-4" /></button>
+                    <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </div>
-                <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 opacity-100">
+                <div className="p-4 hover:bg-slate-50 transition-colors flex gap-3 opacity-100 group relative cursor-default">
                   <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
                     <Truck className="w-4 h-4 text-emerald-600" />
                   </div>
-                  <div>
+                  <div className="flex-1 pr-10">
                     <p className="text-sm font-semibold text-slate-800">Delivery Expected Today</p>
                     <p className="text-xs text-slate-500 mt-0.5">Your package is out for delivery and will arrive by 5 PM.</p>
                     <p className="text-[10px] text-slate-400 mt-1">1 hour ago</p>
                   </div>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Mark as read"><Check className="w-4 h-4" /></button>
+                    <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </div>
-                <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 opacity-60">
+                <div className="p-4 hover:bg-slate-50 transition-colors flex gap-3 opacity-60 group relative cursor-default">
                   <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
                     <CheckCircle2 className="w-4 h-4 text-slate-500" />
                   </div>
-                  <div>
+                  <div className="flex-1 pr-10">
                     <p className="text-sm font-semibold text-slate-800">Booking Confirmed</p>
                     <p className="text-xs text-slate-500 mt-0.5">Your booking for #59c4fa was successful.</p>
                     <p className="text-[10px] text-slate-400 mt-1">Yesterday</p>
+                  </div>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               </div>

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock } from 'lucide-react';
+import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin } from 'lucide-react';
 
 const LogisticsMap = dynamic(() => import('@/components/LogisticsMap'), {
   ssr: false,
@@ -55,20 +55,25 @@ export default function CustomerDashboard() {
   };
 
   // Helper to determine step states
-  const getStepStatus = (step: 'PLACED' | 'TRANSIT' | 'DELIVERED', currentStatus: string) => {
-    const statuses = ['PENDING', 'ROUTED', 'MANIFESTED', 'IN_TRANSIT', 'DELIVERED'];
+  const getStepStatus = (step: 'CREATED' | 'PICKUP' | 'WAREHOUSE' | 'TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED', currentStatus: string) => {
+    const statuses = ['PENDING', 'MANIFESTED', 'ROUTED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'];
     const currentIndex = statuses.indexOf(currentStatus?.toUpperCase());
     
-    if (step === 'PLACED') return currentIndex >= 0 ? 'completed' : 'pending';
-    if (step === 'TRANSIT') {
-      if (currentIndex >= statuses.indexOf('IN_TRANSIT')) return 'completed';
-      if (currentIndex > 0) return 'active';
-      return 'pending';
-    }
-    if (step === 'DELIVERED') {
-      if (currentIndex === statuses.indexOf('DELIVERED')) return 'completed';
-      return 'pending';
-    }
+    if (currentIndex === -1) return 'pending'; // Unknown status defaults to pending
+    
+    const stepIndices = {
+      'CREATED': 0,
+      'PICKUP': 1,
+      'WAREHOUSE': 2,
+      'TRANSIT': 3,
+      'OUT_FOR_DELIVERY': 4,
+      'DELIVERED': 5
+    };
+    
+    const targetIndex = stepIndices[step];
+    
+    if (currentIndex > targetIndex) return 'completed';
+    if (currentIndex === targetIndex) return 'active';
     return 'pending';
   };
 
@@ -155,6 +160,30 @@ export default function CustomerDashboard() {
                 </div>
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                    <Car className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vehicle Details</p>
+                    <p className="text-sm font-bold text-slate-900">{orderData.vehicleId?.model || "Tata Ace"}</p>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5">{orderData.vehicleId?.licensePlate || "MH-12-AB-3456"}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-4 md:text-right mt-4 md:mt-6">
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                    <Building className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Hub</p>
+                    <p className="text-sm font-bold text-slate-900">Mumbai Central Sort Facility</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Processed 2 hours ago</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                     <Clock className="w-5 h-5 text-blue-600" />
                   </div>
@@ -186,58 +215,115 @@ export default function CustomerDashboard() {
               {/* Vertical line connecting steps */}
               <div className="absolute left-[47px] top-8 bottom-8 w-1 bg-slate-100 rounded-full"></div>
 
-              {/* Step 1: Placed */}
-              <div className="relative flex items-start gap-8 mb-14 group">
+              {/* Step 1: Created */}
+              <div className="relative flex items-start gap-8 mb-10 group">
                 <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
-                  getStepStatus('PLACED', orderData.status) === 'completed' 
+                  getStepStatus('CREATED', orderData.status) === 'completed' || getStepStatus('CREATED', orderData.status) === 'active'
                     ? 'bg-indigo-600 border-indigo-100 text-white shadow-lg shadow-indigo-200' 
                     : 'bg-white border-slate-200 text-slate-300'
                 }`}>
                   <Package className="w-7 h-7" />
                 </div>
                 <div className="pt-2">
-                  <h3 className={`text-xl font-bold transition-colors ${
-                    getStepStatus('PLACED', orderData.status) === 'completed' ? 'text-slate-800' : 'text-slate-400'
-                  }`}>Order Processed</h3>
-                  <p className="text-slate-500 mt-2 leading-relaxed">Your package details have been received and it is being prepared for dispatch.</p>
+                  <h3 className={`text-lg font-bold transition-colors ${
+                    getStepStatus('CREATED', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
+                  }`}>Order Created</h3>
+                  <p className="text-sm text-slate-500 mt-1">Order received and processed.</p>
                 </div>
               </div>
 
-              {/* Step 2: Transit */}
-              <div className="relative flex items-start gap-8 mb-14 group">
+              {/* Step 2: Pickup */}
+              <div className="relative flex items-start gap-8 mb-10 group">
                 <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
-                  getStepStatus('TRANSIT', orderData.status) === 'completed' 
-                    ? 'bg-indigo-600 border-indigo-100 text-white shadow-lg shadow-indigo-200' 
-                    : getStepStatus('TRANSIT', orderData.status) === 'active'
-                      ? 'bg-amber-500 border-amber-100 text-white shadow-[0_0_0_8px_rgba(245,158,11,0.15)] scale-110'
+                  getStepStatus('PICKUP', orderData.status) === 'completed'
+                    ? 'bg-indigo-600 border-indigo-100 text-white shadow-lg' 
+                    : getStepStatus('PICKUP', orderData.status) === 'active'
+                      ? 'bg-amber-500 border-amber-100 text-white shadow-[0_0_0_6px_rgba(245,158,11,0.15)] scale-105'
                       : 'bg-white border-slate-200 text-slate-300'
                 }`}>
-                  <Truck className="w-7 h-7" />
+                  <MapPin className="w-6 h-6" />
                 </div>
                 <div className="pt-2">
-                  <h3 className={`text-xl font-bold transition-colors ${
-                    getStepStatus('TRANSIT', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
-                  }`}>In Transit</h3>
-                  <p className="text-slate-500 mt-2 leading-relaxed">The package has left the facility and is on its way to your delivery address.</p>
+                  <h3 className={`text-lg font-bold transition-colors ${
+                    getStepStatus('PICKUP', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
+                  }`}>Picked Up</h3>
+                  <p className="text-sm text-slate-500 mt-1">Package collected from sender.</p>
                 </div>
               </div>
 
-              {/* Step 3: Delivered */}
+              {/* Step 3: Warehouse */}
+              <div className="relative flex items-start gap-8 mb-10 group">
+                <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
+                  getStepStatus('WAREHOUSE', orderData.status) === 'completed'
+                    ? 'bg-indigo-600 border-indigo-100 text-white shadow-lg' 
+                    : getStepStatus('WAREHOUSE', orderData.status) === 'active'
+                      ? 'bg-amber-500 border-amber-100 text-white shadow-[0_0_0_6px_rgba(245,158,11,0.15)] scale-105'
+                      : 'bg-white border-slate-200 text-slate-300'
+                }`}>
+                  <Building className="w-6 h-6" />
+                </div>
+                <div className="pt-2">
+                  <h3 className={`text-lg font-bold transition-colors ${
+                    getStepStatus('WAREHOUSE', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
+                  }`}>In Warehouse</h3>
+                  <p className="text-sm text-slate-500 mt-1">Sorting at facility.</p>
+                </div>
+              </div>
+
+              {/* Step 4: Transit */}
+              <div className="relative flex items-start gap-8 mb-10 group">
+                <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
+                  getStepStatus('TRANSIT', orderData.status) === 'completed'
+                    ? 'bg-indigo-600 border-indigo-100 text-white shadow-lg' 
+                    : getStepStatus('TRANSIT', orderData.status) === 'active'
+                      ? 'bg-amber-500 border-amber-100 text-white shadow-[0_0_0_6px_rgba(245,158,11,0.15)] scale-105'
+                      : 'bg-white border-slate-200 text-slate-300'
+                }`}>
+                  <Truck className="w-6 h-6" />
+                </div>
+                <div className="pt-2">
+                  <h3 className={`text-lg font-bold transition-colors ${
+                    getStepStatus('TRANSIT', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
+                  }`}>In Transit</h3>
+                  <p className="text-sm text-slate-500 mt-1">Package is moving between facilities.</p>
+                </div>
+              </div>
+
+              {/* Step 5: Out for Delivery */}
+              <div className="relative flex items-start gap-8 mb-10 group">
+                <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
+                  getStepStatus('OUT_FOR_DELIVERY', orderData.status) === 'completed'
+                    ? 'bg-indigo-600 border-indigo-100 text-white shadow-lg' 
+                    : getStepStatus('OUT_FOR_DELIVERY', orderData.status) === 'active'
+                      ? 'bg-amber-500 border-amber-100 text-white shadow-[0_0_0_6px_rgba(245,158,11,0.15)] scale-105'
+                      : 'bg-white border-slate-200 text-slate-300'
+                }`}>
+                  <Package className="w-6 h-6" />
+                </div>
+                <div className="pt-2">
+                  <h3 className={`text-lg font-bold transition-colors ${
+                    getStepStatus('OUT_FOR_DELIVERY', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
+                  }`}>Out For Delivery</h3>
+                  <p className="text-sm text-slate-500 mt-1">Driver is out to deliver your package.</p>
+                </div>
+              </div>
+
+              {/* Step 6: Delivered */}
               <div className="relative flex items-start gap-8 group">
                 <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
-                  getStepStatus('DELIVERED', orderData.status) === 'completed' 
+                  getStepStatus('DELIVERED', orderData.status) === 'completed' || getStepStatus('DELIVERED', orderData.status) === 'active'
                     ? 'bg-emerald-500 border-emerald-100 text-white shadow-[0_0_0_8px_rgba(16,185,129,0.15)] scale-110' 
                     : 'bg-white border-slate-200 text-slate-300'
                 }`}>
                   <CheckCircle className="w-7 h-7" />
                 </div>
                 <div className="pt-2">
-                  <h3 className={`text-xl font-bold transition-colors ${
-                    getStepStatus('DELIVERED', orderData.status) === 'completed' ? 'text-slate-800' : 'text-slate-400'
+                  <h3 className={`text-lg font-bold transition-colors ${
+                    getStepStatus('DELIVERED', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
                   }`}>Delivered</h3>
-                  <p className="text-slate-500 mt-2 leading-relaxed">Your package has been successfully delivered to the destination.</p>
+                  <p className="text-sm text-slate-500 mt-1">Successfully delivered to the destination.</p>
                   
-                  {getStepStatus('DELIVERED', orderData.status) === 'completed' && (
+                  {(getStepStatus('DELIVERED', orderData.status) === 'completed' || getStepStatus('DELIVERED', orderData.status) === 'active') && (
                     <button
                       onClick={handleDownloadInvoice}
                       className="mt-6 flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"

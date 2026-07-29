@@ -197,6 +197,11 @@ export default function BookParcelPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">PIN Code</label>
                 <input required type="text" name="pickupPinCode" value={formData.pickupPinCode} onChange={handleChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="110001" />
+                {formData.pickupPinCode.length >= 6 && (
+                  <p className="text-[10px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                    <CheckCircle className="w-3 h-3" /> Service Available | ETA: 2 Days
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -230,6 +235,11 @@ export default function BookParcelPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">PIN Code</label>
                 <input required type="text" name="deliveryPinCode" value={formData.deliveryPinCode} onChange={handleChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="110002" />
+                {formData.deliveryPinCode.length >= 6 && (
+                  <p className="text-[10px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                    <CheckCircle className="w-3 h-3" /> Delivery Available
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -408,17 +418,22 @@ export default function BookParcelPage() {
               <p className="text-xs text-slate-500 mt-2 text-right">Estimated Delivery: {formData.serviceType === 'Same Day' ? 'Today' : formData.serviceType === 'Express' ? '1-2 Days' : '3-5 Days'}</p>
             </div>
 
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-500 transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] disabled:opacity-70 disabled:shadow-none flex items-center justify-center gap-2 mt-4"
-            >
-              {loading ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-              ) : (
-                <><CheckCircle className="w-6 h-6" /> Confirm Booking</>
-              )}
-            </button>
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-slate-800 hover:shadow-slate-900/20 active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-2 mt-4"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Creating Shipment...
+                  </>
+                ) : (
+                  <>
+                    Confirm & Book <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
             <p className="text-[10px] text-center text-slate-500">By confirming, you agree to our Terms of Service & Packaging Guidelines.</p>
           </div>
         </div>

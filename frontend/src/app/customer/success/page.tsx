@@ -80,10 +80,10 @@ export default function BookingSuccessPage() {
             Track Parcel <MapPin className="w-5 h-5" />
           </Link>
           <Link 
-            href="/customer/orders"
+            href="/customer/book"
             className="flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-6 py-4 rounded-xl font-bold transition-all hover:bg-slate-50 hover:text-slate-900 shadow-sm"
           >
-            View Orders <ArrowRight className="w-5 h-5" />
+            Book Another Parcel <Package className="w-5 h-5" />
           </Link>
         </div>
       </div>

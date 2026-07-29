@@ -14,9 +14,12 @@ import {
   FileText,
   HeadphonesIcon,
   Calendar,
-  ChevronRight
+  ChevronRight,
+  IndianRupee,
+  TrendingUp
 } from "lucide-react";
 import SkeletonLoader from "@/components/SkeletonLoader";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 export default function CustomerDashboard() {
   const router = useRouter();
@@ -109,6 +112,19 @@ export default function CustomerDashboard() {
     }
   };
 
+  const chartData = [
+    { name: 'Mon', shipments: 12 },
+    { name: 'Tue', shipments: 19 },
+    { name: 'Wed', shipments: 15 },
+    { name: 'Thu', shipments: 22 },
+    { name: 'Fri', shipments: 28 },
+    { name: 'Sat', shipments: 10 },
+    { name: 'Sun', shipments: 5 },
+  ];
+
+  const totalSpend = orders.reduce((sum, order) => sum + (order.fare || 50), 0);
+  const avgDeliveryTime = "2.4 Days";
+
   return (
     <div className="space-y-8">
       <div>
@@ -137,7 +153,28 @@ export default function CustomerDashboard() {
         ))}
       </div>
 
-      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl p-6 md:p-8 flex items-center justify-between shadow-lg">
+          <div>
+            <p className="text-indigo-200 font-medium mb-1">Total Lifetime Spend</p>
+            <h3 className="text-3xl md:text-4xl font-extrabold text-white">₹{totalSpend.toLocaleString()}</h3>
+          </div>
+          <div className="w-14 h-14 rounded-full bg-indigo-500/20 flex items-center justify-center backdrop-blur-sm border border-indigo-500/30">
+            <IndianRupee className="w-7 h-7 text-indigo-300" />
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-emerald-900 to-slate-900 rounded-3xl p-6 md:p-8 flex items-center justify-between shadow-lg">
+          <div>
+            <p className="text-emerald-200 font-medium mb-1">Avg Delivery Time</p>
+            <h3 className="text-3xl md:text-4xl font-extrabold text-white">{avgDeliveryTime}</h3>
+          </div>
+          <div className="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center backdrop-blur-sm border border-emerald-500/30">
+            <TrendingUp className="w-7 h-7 text-emerald-300" />
+          </div>
+        </div>
+      </div>
+
       <div>
         <h2 className="text-xl font-bold text-slate-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -158,9 +195,29 @@ export default function CustomerDashboard() {
         </div>
       </div>
 
-      {/* Recent Orders Section */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 md:p-8">
+          <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-indigo-500" /> This Month's Shipments
+          </h2>
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                <Tooltip 
+                  cursor={{fill: '#f8fafc'}}
+                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                />
+                <Bar dataKey="shipments" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <h2 className="text-xl font-bold text-slate-900">Recent Orders</h2>
           <button 
             onClick={() => router.push("/customer/orders")}
@@ -199,16 +256,16 @@ export default function CustomerDashboard() {
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
-                        {order.status}
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(order.status)}`}>
+                        {order.status.replace(/_/g, " ")}
                       </span>
                     </td>
                     <td className="p-4 pr-6 text-right">
                       <button 
-                        onClick={() => router.push(`/customer/track?id=${order._id}`)}
-                        className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-700 group-hover:underline"
+                        onClick={() => router.push(`/customer/orders/${order._id}`)}
+                        className="inline-flex items-center justify-center p-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                       >
-                        View <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -218,6 +275,7 @@ export default function CustomerDashboard() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

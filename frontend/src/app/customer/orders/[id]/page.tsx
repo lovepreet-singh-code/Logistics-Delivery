@@ -14,7 +14,8 @@ import {
   Phone,
   CheckCircle2,
   Clock,
-  Car
+  Car,
+  XCircle
 } from "lucide-react";
 import SkeletonLoader from "@/components/SkeletonLoader";
 
@@ -102,9 +103,16 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
           </div>
         </div>
         
-        <button className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg hover:shadow-slate-900/20 active:scale-95">
-          <Download className="w-4 h-4" /> Download Invoice
-        </button>
+        <div className="flex items-center gap-3">
+          {order.status !== "CANCELLED" && order.status !== "DELIVERED" && (
+            <button className="inline-flex items-center gap-2 bg-white text-red-600 border border-red-200 px-5 py-2.5 rounded-xl font-bold hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm active:scale-95">
+              <XCircle className="w-4 h-4" /> Cancel Order
+            </button>
+          )}
+          <button className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg hover:shadow-slate-900/20 active:scale-95">
+            <Download className="w-4 h-4" /> Download Invoice
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
