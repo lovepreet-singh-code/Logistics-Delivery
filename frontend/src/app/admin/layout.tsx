@@ -23,6 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Clear cookies
     document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     document.cookie = "adminToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
     // Force full window refresh to re-run middleware checks
     window.location.href = '/';
