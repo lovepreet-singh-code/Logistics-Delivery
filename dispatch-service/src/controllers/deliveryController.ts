@@ -49,10 +49,9 @@ export const getDeliveriesToday = async (
     }
 
     const deliveries = await Delivery.find({
-      agentId: new mongoose.Types.ObjectId(agentId),
       status: "PENDING",
     })
-      .populate("orderId")
+      .populate({ path: "orderId", select: "pickupAddress deliveryAddress customerId customerPhone" })
       .sort({ createdAt: -1 });
 
     res.status(200).json({

@@ -216,7 +216,7 @@ export default function DeliveryAgentPortal() {
                   "Address not available";
                 const customerPhone =
                   order?.customerPhone || "Phone not available";
-                const customerDisplay = order
+                const customerDisplay = order?.customerId
                   ? `Customer ID: ${order.customerId.toString().slice(-4)}`
                   : "Customer Info Missing";
 

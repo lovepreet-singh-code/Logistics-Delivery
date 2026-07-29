@@ -134,6 +134,7 @@ services:
       - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
       - ORDER_SERVICE_URL=http://order-service:4004
       - FLEET_SERVICE_URL=http://fleet-service:4003
+      - PORT=4005
     networks:
       - logistics-network
     depends_on:

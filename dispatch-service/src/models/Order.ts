@@ -21,6 +21,9 @@ interface IOrderDocument extends Document {
 
 const addressSchema = new Schema(
   {
+    street: String,
+    city: String,
+    pincode: String,
     pinCode: String,
     lat: Number,
     lng: Number,

@@ -47,24 +47,29 @@ app.use((_req: Request, res: Response) => {
 
 // ──── Start Server ────
 const startServer = async (): Promise<void> => {
-  await connectDB();
+  try {
+    await connectDB();
 
-  // ──── Connect Kafka Producer ────
-  await producer.connect();
-  console.log("✅ Kafka producer connected (dispatch-service)");
+    // ──── Connect Kafka Producer ────
+    await producer.connect();
+    console.log("✅ Kafka producer connected (dispatch-service)");
 
-  // ──── Start Daily Dispatch Cron ────
-  startDailyDispatchCron();
+    // ──── Start Daily Dispatch Cron ────
+    startDailyDispatchCron();
 
-  app.listen(config.port, '0.0.0.0', () => {
-    console.log(`
-    ╔══════════════════════════════════════════╗
-    ║   📋  Dispatch Service                  ║
-    ║   📡  Port: ${String(config.port).padEnd(27)}║
-    ║   🌍  Env:  ${config.nodeEnv.padEnd(27)}║
-    ╚══════════════════════════════════════════╝
-    `);
-  });
+    app.listen(config.port, '0.0.0.0', () => {
+      console.log(`
+      ╔══════════════════════════════════════════╗
+      ║   📋  Dispatch Service                  ║
+      ║   📡  Port: ${String(config.port).padEnd(27)}║
+      ║   🌍  Env:  ${config.nodeEnv.padEnd(27)}║
+      ╚══════════════════════════════════════════╝
+      `);
+    });
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
+  }
 };
 
 startServer();
