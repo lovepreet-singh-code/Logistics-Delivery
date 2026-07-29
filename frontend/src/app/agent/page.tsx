@@ -76,23 +76,23 @@ export default function AgentDashboard() {
         </header>
 
         {/* Top Summary Metrics */}
-        <div className="px-4 pb-4 overflow-x-auto no-scrollbar">
-          <div className="flex gap-3 min-w-max">
-            <div className="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl flex flex-col gap-1 min-w-[100px] shadow-sm">
+        <div className="px-4 pb-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm">
               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Stops</span>
               <span className="text-xl font-black text-white">{deliveries.length}</span>
             </div>
-            <div className="bg-slate-900 border border-emerald-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 min-w-[100px] shadow-sm relative overflow-hidden">
+            <div className="bg-slate-900 border border-emerald-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-emerald-500/5"></div>
               <span className="text-xs text-emerald-500 font-bold uppercase tracking-wider relative z-10">Done</span>
               <span className="text-xl font-black text-emerald-400 relative z-10">{completedDeliveries.length}</span>
             </div>
-            <div className="bg-slate-900 border border-amber-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 min-w-[100px] shadow-sm relative overflow-hidden">
+            <div className="bg-slate-900 border border-amber-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-amber-500/5"></div>
               <span className="text-xs text-amber-500 font-bold uppercase tracking-wider relative z-10">Pending</span>
               <span className="text-xl font-black text-amber-400 relative z-10">{pendingDeliveries.length}</span>
             </div>
-            <div className="bg-slate-900 border border-indigo-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 min-w-[110px] shadow-sm relative overflow-hidden">
+            <div className="bg-slate-900 border border-indigo-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-indigo-500/5"></div>
               <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider relative z-10">Earnings</span>
               <span className="text-xl font-black text-indigo-400 relative z-10">₹850</span>
