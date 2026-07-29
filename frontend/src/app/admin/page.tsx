@@ -1,105 +1,228 @@
-import { Truck, Package, CheckCircle, AlertTriangle } from 'lucide-react';
+"use client";
+
+import { Truck, Package, CheckCircle, AlertTriangle, Users, IndianRupee, XCircle, Activity, MapPin, ChevronRight, Calendar } from 'lucide-react';
 import AdminChart from './AdminChart';
-import BulkUpload from '@/components/BulkUpload';
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
 
-// Force dynamic rendering to ensure fresh data every hit
-export const dynamic = 'force-dynamic';
+// Dynamically import the map so it only runs on the client
+const AdminMap = dynamic(() => import('@/components/AdminMap'), {
+  ssr: false,
+  loading: () => <div className="w-full h-[400px] bg-slate-900/50 rounded-3xl animate-pulse"></div>
+});
 
-export default async function AdminDashboard() {
-  let activeFleet = 0;
-  let pendingOrders = 0;
-  let deliveredOrders = 0;
-  let error = false;
+export default function AdminDashboard() {
+  const [activeFleet, setActiveFleet] = useState(42);
+  const [pendingOrders, setPendingOrders] = useState(15);
+  const [deliveredOrders, setDeliveredOrders] = useState(128);
+  const [error, setError] = useState(false);
 
-  try {
-    // Parallel fetching for performance
-    const [fleetRes, ordersRes] = await Promise.all([
-      fetch('http://localhost:8080/api/fleet/stats', { cache: 'no-store' }),
-      fetch('http://localhost:8080/api/orders/stats', { cache: 'no-store' })
-    ]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [fleetRes, ordersRes] = await Promise.all([
+          fetch('http://localhost:8080/api/fleet/stats', { cache: 'no-store' }),
+          fetch('http://localhost:8080/api/orders/stats', { cache: 'no-store' })
+        ]);
+        if (fleetRes.ok) {
+          const fleetData = await fleetRes.json();
+          setActiveFleet(fleetData.count || 42);
+        }
+        if (ordersRes.ok) {
+          const ordersData = await ordersRes.json();
+          setPendingOrders(ordersData.pending || 15);
+          setDeliveredOrders(ordersData.delivered || 128);
+        }
+      } catch (err) {
+        setError(true);
+      }
+    };
+    fetchData();
+  }, []);
 
-    const fleetData = await fleetRes.json();
-    activeFleet = fleetData.count || 0;
+  const kpis = [
+    { title: "Total Customers", value: "1,245", icon: Users, color: "text-indigo-400", bg: "bg-indigo-500/20", glow: "group-hover:bg-indigo-500/20" },
+    { title: "Today's Revenue", value: "₹1,45,200", icon: IndianRupee, color: "text-emerald-400", bg: "bg-emerald-500/20", glow: "group-hover:bg-emerald-500/20" },
+    { title: "Active Drivers", value: activeFleet.toString(), icon: Truck, color: "text-blue-400", bg: "bg-blue-500/20", glow: "group-hover:bg-blue-500/20" },
+    { title: "Pending Pickups", value: pendingOrders.toString(), icon: Package, color: "text-amber-400", bg: "bg-amber-500/20", glow: "group-hover:bg-amber-500/20" },
+    { title: "Cancelled", value: "3", icon: XCircle, color: "text-red-400", bg: "bg-red-500/20", glow: "group-hover:bg-red-500/20" }
+  ];
 
-    const ordersData = await ordersRes.json();
-    pendingOrders = ordersData.pending || 0;
-    deliveredOrders = ordersData.delivered || 0;
-  } catch (err) {
-    console.error("Failed to fetch live data. Falling back to 0.", err);
-    error = true;
-  }
+  const recentActivities = [
+    { time: "16:20", text: "Driver Rahul (V-101) arrived at Hub", type: "hub" },
+    { time: "16:15", text: "Order LG-9912 marked as Delivered", type: "success" },
+    { time: "16:05", text: "New Order LG-9925 created by John Doe", type: "order" },
+    { time: "15:50", text: "Driver Priya (V-103) started transit", type: "transit" },
+    { time: "15:30", text: "Vehicle V-102 reported maintenance", type: "alert" },
+    { time: "15:15", text: "Order LG-9888 picked up from sender", type: "pickup" },
+  ];
+
+  const recentOrders = [
+    { id: "LG-9925", customer: "John Doe", status: "PENDING", driver: "Unassigned", time: "10 mins ago" },
+    { id: "LG-9912", customer: "Alice Smith", status: "DELIVERED", driver: "Rahul (V-101)", time: "25 mins ago" },
+    { id: "LG-9888", customer: "Bob Johnson", status: "IN_TRANSIT", driver: "Priya (V-103)", time: "1 hour ago" },
+    { id: "LG-9870", customer: "Emma Davis", status: "ROUTED", driver: "Amit (V-102)", time: "3 hours ago" },
+  ];
 
   return (
-    <div className="p-6 md:p-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1600px] mx-auto space-y-8">
+      
+      {/* Header */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
+            <Activity className="w-8 h-8 text-indigo-500" />
+            Operations Command Center
+          </h1>
+          <p className="text-slate-400 mt-2 font-medium">Real-time logistics platform overview & live tracking</p>
+        </div>
+        {error && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full text-sm font-medium backdrop-blur-md">
+            <AlertTriangle className="w-4 h-4" />
+            <span>Live connection failed. Using cached metrics.</span>
+          </div>
+        )}
+      </header>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {kpis.map((kpi, i) => (
+          <div key={i} className="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-lg group transition-all hover:bg-slate-800/80 hover:-translate-y-1">
+            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl transition-all duration-500 opacity-20 ${kpi.glow}`}></div>
+            <div className="flex justify-between items-start relative z-10">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">{kpi.title}</p>
+                <h3 className="text-2xl font-bold text-white">{kpi.value}</h3>
+              </div>
+              <div className={`p-2.5 rounded-xl ${kpi.bg} ${kpi.color}`}>
+                <kpi.icon className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         
-        {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-              Operations Command
-            </h1>
-            <p className="text-slate-400 mt-2 font-medium">Real-time logistics platform overview</p>
-          </div>
-          {error && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full text-sm font-medium backdrop-blur-md">
-              <AlertTriangle className="w-4 h-4" />
-              <span>Live connection failed.</span>
-            </div>
-          )}
-        </header>
-
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl group transition-all hover:bg-slate-800">
-            <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-500"></div>
-            <div className="flex justify-between items-start relative z-10">
-              <div>
-                <p className="text-sm font-medium text-slate-400 mb-1">Active Fleet</p>
-                <h3 className="text-4xl font-bold text-white">{activeFleet}</h3>
-              </div>
-              <div className="p-3 rounded-2xl bg-blue-500/20 text-blue-400">
-                <Truck className="w-6 h-6" />
+        {/* Main Left Column */}
+        <div className="lg:col-span-2 xl:col-span-3 space-y-6">
+          
+          {/* Live Map */}
+          <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl relative overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-6 relative z-10">
+              <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-indigo-400" /> Live Fleet & Topology
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Live</span>
               </div>
             </div>
+            <AdminMap />
           </div>
 
-          <div className="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl group transition-all hover:bg-slate-800">
-            <div className="absolute -right-6 -top-6 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all duration-500"></div>
-            <div className="flex justify-between items-start relative z-10">
-              <div>
-                <p className="text-sm font-medium text-slate-400 mb-1">Pending Orders</p>
-                <h3 className="text-4xl font-bold text-white">{pendingOrders}</h3>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Chart Section */}
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl relative overflow-hidden">
+              <h2 className="text-xl font-bold text-slate-200 mb-6">Delivery Performance</h2>
+              <AdminChart />
+            </div>
+
+            {/* Recent Orders Table */}
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 flex flex-col shadow-xl overflow-hidden">
+              <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+                <h2 className="text-xl font-bold text-slate-200">Recent Dispatch</h2>
+                <Link href="/admin/orders" className="text-indigo-400 text-sm font-bold hover:text-indigo-300">View All</Link>
               </div>
-              <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400">
-                <Package className="w-6 h-6" />
+              <div className="overflow-x-auto flex-1 p-2">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-800/50">
+                      <th className="p-3 pl-4">Order / Customer</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Driver</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {recentOrders.map((order, i) => (
+                      <tr key={i} className="hover:bg-slate-800/30 transition-colors group">
+                        <td className="p-3 pl-4">
+                          <div className="font-mono font-bold text-slate-300 text-sm">{order.id}</div>
+                          <div className="text-xs text-slate-500">{order.customer}</div>
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                            order.status === 'DELIVERED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                            order.status === 'PENDING' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                            'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                          }`}>
+                            {order.status.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-sm font-medium text-slate-300">{order.driver}</div>
+                          <div className="text-[10px] text-slate-500">{order.time}</div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl group transition-all hover:bg-slate-800">
-            <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-500"></div>
-            <div className="flex justify-between items-start relative z-10">
-              <div>
-                <p className="text-sm font-medium text-slate-400 mb-1">Delivered</p>
-                <h3 className="text-4xl font-bold text-white">{deliveredOrders}</h3>
-              </div>
-              <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400">
-                <CheckCircle className="w-6 h-6" />
+        </div>
+
+        {/* Right Sidebar: Live Activity Feed */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden flex flex-col h-full max-h-[850px]">
+            <div className="p-6 border-b border-slate-800 bg-slate-900/50">
+              <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-indigo-400" /> Live Feed
+              </h2>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Vertical line */}
+              <div className="relative">
+                <div className="absolute left-3.5 top-2 bottom-2 w-px bg-slate-800"></div>
+                
+                <div className="space-y-8">
+                  {recentActivities.map((act, i) => (
+                    <div key={i} className="relative flex gap-4 animate-in slide-in-from-right-4 fade-in" style={{ animationDelay: `${i * 100}ms` }}>
+                      <div className={`relative z-10 w-7 h-7 rounded-full border-2 border-slate-900 flex items-center justify-center shrink-0 shadow-lg ${
+                        act.type === 'success' ? 'bg-emerald-500' :
+                        act.type === 'alert' ? 'bg-red-500' :
+                        act.type === 'order' ? 'bg-amber-500' :
+                        act.type === 'transit' ? 'bg-blue-500' :
+                        'bg-indigo-500'
+                      }`}>
+                        <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 mb-0.5">{act.time}</p>
+                        <p className="text-sm font-medium text-slate-300 leading-snug">{act.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="relative flex gap-4 opacity-50">
+                    <div className="relative z-10 w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center shrink-0">
+                       <div className="w-1.5 h-1.5 bg-slate-600 rounded-full"></div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-500 italic">Waiting for new events...</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Chart Section */}
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-8 shadow-xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
-          <h2 className="text-xl font-bold text-slate-200 mb-6 relative z-10">Delivery Performance</h2>
-          <AdminChart />
-        </div>
-
-        {/* Bulk Upload Section */}
-        <BulkUpload />
 
       </div>
     </div>

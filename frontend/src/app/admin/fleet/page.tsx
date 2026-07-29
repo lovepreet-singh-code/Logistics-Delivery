@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Truck, Loader2, Plus, CheckCircle, AlertTriangle, MapPin, Navigation } from 'lucide-react';
+import { Truck, Loader2, Plus, CheckCircle, AlertTriangle, MapPin, Navigation, User, Calendar, Fuel, PenTool } from 'lucide-react';
 import axios from 'axios';
 
 interface Franchise {
@@ -255,37 +255,68 @@ export default function FleetPage() {
             ) : (
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {vehicles.map(vehicle => (
-                  <div key={vehicle._id} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 hover:border-indigo-500/30 transition-all group relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4">
-                       <span className={`px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase
-                        ${vehicle.status === 'AVAILABLE' ? 'bg-emerald-500/20 text-emerald-400' : 
-                          vehicle.status === 'IN_TRANSIT' ? 'bg-blue-500/20 text-blue-400' : 
-                          'bg-amber-500/20 text-amber-400'}`}>
-                        {vehicle.status}
-                      </span>
+                  <div key={vehicle._id} className="bg-slate-950 border border-slate-800 rounded-3xl p-6 hover:border-indigo-500/50 transition-all group relative overflow-hidden flex flex-col shadow-lg">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-bl-full -z-10 transition-all group-hover:scale-110"></div>
+                    
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center group-hover:bg-indigo-500/20 group-hover:border-indigo-500/30 transition-all shadow-inner">
+                          <Truck className="w-6 h-6 text-indigo-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-white mb-0.5 group-hover:text-indigo-300 transition-colors uppercase tracking-wider">{vehicle.registrationNumber}</h3>
+                          <div className="flex items-center gap-2">
+                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase
+                              ${vehicle.status === 'AVAILABLE' ? 'bg-emerald-500/20 text-emerald-400' : 
+                                vehicle.status === 'IN_TRANSIT' ? 'bg-blue-500/20 text-blue-400' : 
+                                'bg-amber-500/20 text-amber-400'}`}>
+                              {vehicle.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Truck className="w-5 h-5 text-indigo-400" />
-                      </div>
-                      <h3 className="text-lg font-bold text-white uppercase">{vehicle.registrationNumber}</h3>
-                    </div>
-                    
-                    <div className="space-y-2 mt-4">
-                      <div className="flex items-center gap-2 text-sm text-slate-400">
-                        <MapPin className="w-4 h-4 text-slate-500" />
-                        <span>Hub ID: <span className="font-mono text-xs">{typeof vehicle.franchiseId === 'string' ? vehicle.franchiseId.slice(-6) : (vehicle.franchiseId as any)?._id?.slice(-6) || 'Unknown'}</span></span>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <div className="flex-1 bg-slate-900 rounded-lg p-2 text-center border border-slate-800">
-                           <div className="text-[10px] text-slate-500 uppercase tracking-wide">Weight</div>
-                           <div className="text-sm font-semibold text-slate-300">{vehicle.capacity?.maxWeightKg || 0}kg</div>
+                    <div className="flex-1 space-y-5">
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/50 border border-slate-800">
+                        <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center shrink-0">
+                          <User className="w-4 h-4 text-slate-400" />
                         </div>
-                        <div className="flex-1 bg-slate-900 rounded-lg p-2 text-center border border-slate-800">
-                           <div className="text-[10px] text-slate-500 uppercase tracking-wide">Volume</div>
-                           <div className="text-sm font-semibold text-slate-300">{vehicle.capacity?.maxVolumeCm3 || 0}cm³</div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assigned Driver</p>
+                          <p className="text-sm font-semibold text-slate-300">Rahul Kumar</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><Fuel className="w-3 h-3 text-emerald-500" /> Fuel Level</p>
+                            <p className="text-xs font-bold text-slate-300">75%</p>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: '75%' }}></div>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1">
+                           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><PenTool className="w-3 h-3 text-amber-500" /> Maintenance</p>
+                           <p className="text-xs font-bold text-slate-300">In 14 Days</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3 border-t border-slate-800/50 pt-5">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Orders</p>
+                          <p className="text-lg font-bold text-white">12</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Max Wgt</p>
+                          <p className="text-sm font-bold text-slate-300 mt-1.5">{vehicle.capacity?.maxWeightKg || 0}kg</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Hub ID</p>
+                          <p className="text-xs font-mono text-slate-400 mt-2">{typeof vehicle.franchiseId === 'string' ? vehicle.franchiseId.slice(-4) : (vehicle.franchiseId as any)?._id?.slice(-4) || 'Unk'}</p>
                         </div>
                       </div>
                     </div>
