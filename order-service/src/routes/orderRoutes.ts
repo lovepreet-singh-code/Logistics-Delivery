@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getAdminAnalytics } from "../controllers/analyticsController";
 import {
   createOrder,
   getAllOrders,
@@ -17,6 +18,7 @@ const router = Router();
 
 // ──── Dashboard Stats ────
 router.get("/stats", getOrderStats);
+router.get("/admin/analytics", getAdminAnalytics);
 
 // ──── Order Endpoints ────
 router.route("/")

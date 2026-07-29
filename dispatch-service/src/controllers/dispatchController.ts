@@ -4,6 +4,7 @@ import Manifest from "../models/Manifest";
 import Delivery from "../models/Delivery";
 import { generateDailyManifests } from "../services/dispatchEngine";
 import { ApiResponse } from "../@types";
+import { producer } from "../config/kafka";import { producer } from "../config/kafka";
 
 // ═══════════════════════════════════════════════
 //  DISPATCH CONTROLLER
@@ -224,5 +225,179 @@ export const getManifestById = async (
       success: false,
       message: "Internal server error.",
     } as ApiResponse);
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  MANUAL DISPATCH ASSIGNMENTS
+// ═══════════════════════════════════════════════
+
+// POST /api/dispatch/assign-driver
+export const assignDriver = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { orderId, driverId, franchiseId } = req.body;
+
+    if (!orderId || !driverId || !franchiseId) {
+      res.status(400).json({ success: false, message: "orderId, driverId, and franchiseId are required" } as ApiResponse);
+      return;
+    }
+
+    const usersCollection = mongoose.connection.db!.collection("users");
+    const driver = await usersCollection.findOne({
+      _id: new mongoose.Types.ObjectId(driverId),
+      franchiseId: new mongoose.Types.ObjectId(franchiseId)
+    });
+
+    if (!driver) {
+      res.status(404).json({ success: false, message: "Driver not found or does not belong to this franchise" } as ApiResponse);
+      return;
+    }
+
+    if (driver.availabilityStatus !== "AVAILABLE") {
+      res.status(400).json({ success: false, message: `Driver is currently ${driver.availabilityStatus}` } as ApiResponse);
+      return;
+    }
+
+    // Update orders collection
+    const ordersCollection = mongoose.connection.db!.collection("orders");
+    const order = await ordersCollection.findOneAndUpdate(
+      { _id: new mongoose.Types.ObjectId(orderId) },
+      { $set: { "routing.agentId": new mongoose.Types.ObjectId(driverId), status: "ASSIGNED", updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" } as ApiResponse);
+      return;
+    }
+
+    // Create or Update Manifest and Delivery
+    let manifest = await Manifest.findOne({ agentId: new mongoose.Types.ObjectId(driverId), status: "ACTIVE" });
+    if (!manifest) {
+      manifest = await Manifest.create({
+        franchiseId: new mongoose.Types.ObjectId(franchiseId),
+        agentId: new mongoose.Types.ObjectId(driverId),
+        status: "ACTIVE",
+        date: new Date(),
+        routeSequence: [{ orderId: new mongoose.Types.ObjectId(orderId), lat: 0, lng: 0 }],
+        loadingSequence: [new mongoose.Types.ObjectId(orderId)]
+      });
+    } else {
+      if (!manifest.routeSequence.find(r => r.orderId.toString() === orderId)) {
+        manifest.routeSequence.push({ orderId: new mongoose.Types.ObjectId(orderId), lat: 0, lng: 0 });
+        manifest.loadingSequence.push(new mongoose.Types.ObjectId(orderId));
+        await manifest.save();
+      }
+    }
+
+    await Delivery.findOneAndUpdate(
+      { orderId: new mongoose.Types.ObjectId(orderId) },
+      { $set: { agentId: new mongoose.Types.ObjectId(driverId), status: "ASSIGNED", manifestId: manifest._id } },
+      { upsert: true }
+    );
+
+    // Update driver status
+    await usersCollection.updateOne(
+      { _id: new mongoose.Types.ObjectId(driverId) },
+      { $set: { availabilityStatus: "ON_DUTY", updatedAt: new Date() } }
+    );
+
+    // Trigger Kafka event
+    try {
+      await producer.send({
+        topic: "logistics.orders",
+        messages: [{
+          key: orderId,
+          value: JSON.stringify({ event: 'ORDER_ASSIGNED', data: { orderId, driverId } }),
+        }],
+      });
+    } catch (err) {
+      console.error("Failed to publish logistics.order.assigned:", err);
+    }
+
+    res.status(200).json({ success: true, message: "Driver assigned successfully", data: order } as ApiResponse);
+  } catch (error: any) {
+    console.error("Assign driver error:", error);
+    res.status(500).json({ success: false, message: error.message || "Internal server error" } as ApiResponse);
+  }
+};
+
+// POST /api/dispatch/assign-vehicle
+export const assignVehicle = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { orderId, vehicleId, franchiseId } = req.body;
+
+    if (!orderId || !vehicleId || !franchiseId) {
+      res.status(400).json({ success: false, message: "orderId, vehicleId, and franchiseId are required" } as ApiResponse);
+      return;
+    }
+
+    const vehiclesCollection = mongoose.connection.db!.collection("vehicles");
+    const vehicle = await vehiclesCollection.findOne({
+      _id: new mongoose.Types.ObjectId(vehicleId),
+      franchiseId: new mongoose.Types.ObjectId(franchiseId)
+    });
+
+    if (!vehicle) {
+      res.status(404).json({ success: false, message: "Vehicle not found or does not belong to this franchise" } as ApiResponse);
+      return;
+    }
+
+    if (vehicle.status !== "AVAILABLE") {
+      res.status(400).json({ success: false, message: `Vehicle is currently ${vehicle.status}` } as ApiResponse);
+      return;
+    }
+
+    // Update orders collection
+    const ordersCollection = mongoose.connection.db!.collection("orders");
+    const order = await ordersCollection.findOneAndUpdate(
+      { _id: new mongoose.Types.ObjectId(orderId) },
+      { $set: { "routing.vehicleId": new mongoose.Types.ObjectId(vehicleId), status: "ASSIGNED", updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" } as ApiResponse);
+      return;
+    }
+
+    // We can attach vehicleId to manifest if the order already has one
+    const delivery = await Delivery.findOne({ orderId: new mongoose.Types.ObjectId(orderId) });
+    if (delivery && delivery.manifestId) {
+      await Manifest.updateOne(
+        { _id: delivery.manifestId },
+        { $set: { vehicleId: new mongoose.Types.ObjectId(vehicleId) } }
+      );
+    }
+
+    // Update vehicle status
+    await vehiclesCollection.updateOne(
+      { _id: new mongoose.Types.ObjectId(vehicleId) },
+      { $set: { status: "IN_TRANSIT", updatedAt: new Date() } }
+    );
+
+    // Trigger Kafka event
+    try {
+      await producer.send({
+        topic: "logistics.orders",
+        messages: [{
+          key: orderId,
+          value: JSON.stringify({ event: 'ORDER_ASSIGNED', data: { orderId, vehicleId } }),
+        }],
+      });
+    } catch (err) {
+      console.error("Failed to publish logistics.order.assigned:", err);
+    }
+
+    res.status(200).json({ success: true, message: "Vehicle assigned successfully", data: order } as ApiResponse);
+  } catch (error: any) {
+    console.error("Assign vehicle error:", error);
+    res.status(500).json({ success: false, message: error.message || "Internal server error" } as ApiResponse);
   }
 };

@@ -6,6 +6,7 @@ import morgan from "morgan";
 import config from "./config";
 import connectDB from "./config/database";
 import authRoutes from "./routes/authRoutes";
+import managementRoutes from "./routes/managementRoutes";
 
 // ──── Initialize Express App ────
 const app = express();
@@ -32,6 +33,7 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // ──── API Routes ────
 app.use("/api/auth", authRoutes);
+app.use("/api/management", managementRoutes);
 
 // ──── 404 Handler ────
 app.use((_req: Request, res: Response) => {

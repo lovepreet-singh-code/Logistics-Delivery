@@ -395,6 +395,8 @@ export const updateOrderStatus = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { status } = req.body;
 
@@ -403,22 +405,42 @@ export const updateOrderStatus = async (
         success: false,
         message: "Invalid or missing status.",
       } as ApiResponse);
+      await session.abortTransaction();
+      session.endSession();
       return;
     }
 
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true, runValidators: true }
-    );
+    const order = await Order.findById(req.params.id).session(session);
 
     if (!order) {
       res.status(404).json({
         success: false,
         message: "Order not found.",
       } as ApiResponse);
+      await session.abortTransaction();
+      session.endSession();
       return;
     }
+
+    // State machine logic
+    const statusOrder = [OrderStatus.PENDING, OrderStatus.ROUTED, OrderStatus.ASSIGNED, OrderStatus.IN_TRANSIT, OrderStatus.DELIVERED];
+    const currentIndex = statusOrder.indexOf(order.status as OrderStatus);
+    const newIndex = statusOrder.indexOf(status as OrderStatus);
+
+    if (newIndex < currentIndex) {
+      res.status(400).json({
+        success: false,
+        message: `Cannot transition status backwards from ${order.status} to ${status}.`,
+      } as ApiResponse);
+      await session.abortTransaction();
+      session.endSession();
+      return;
+    }
+
+    order.status = status;
+    await order.save({ session });
+    await session.commitTransaction();
+    session.endSession();
 
     // ── Cache Invalidation ──
     try {
@@ -450,6 +472,8 @@ export const updateOrderStatus = async (
       data: order,
     } as ApiResponse);
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error("Update order status error:", error);
     res.status(500).json({
       success: false,

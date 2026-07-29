@@ -1,6 +1,6 @@
 "use client";
 
-import { Truck, Package, CheckCircle, AlertTriangle, Users, IndianRupee, XCircle, Activity, MapPin, ChevronRight, Calendar } from 'lucide-react';
+import { Truck, Package, CheckCircle, AlertTriangle, Users, IndianRupee, XCircle, Activity, MapPin, ChevronRight, Calendar, Navigation } from 'lucide-react';
 import AdminChart from './AdminChart';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -177,9 +177,41 @@ export default function AdminDashboard() {
 
         </div>
 
-        {/* Right Sidebar: Live Activity Feed */}
+        {/* Right Sidebar */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden flex flex-col h-full max-h-[850px]">
+          
+          {/* Planning Quick-View */}
+          <div className="rounded-3xl bg-slate-900 border border-slate-800 flex flex-col shadow-xl overflow-hidden">
+            <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+              <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2">
+                <Navigation className="w-5 h-5 text-amber-500" /> Planning
+              </h2>
+              <span className="px-2 py-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase rounded-md">2 Unassigned</span>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex items-center justify-between group">
+                <div>
+                  <div className="font-mono font-bold text-slate-300 text-sm">LG-9925</div>
+                  <div className="text-xs text-slate-500 mt-1">To: Bangalore Hub</div>
+                </div>
+                <button className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                  Dispatch
+                </button>
+              </div>
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex items-center justify-between group">
+                <div>
+                  <div className="font-mono font-bold text-slate-300 text-sm">LG-9926</div>
+                  <div className="text-xs text-slate-500 mt-1">To: Mumbai Hub</div>
+                </div>
+                <button className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                  Dispatch
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Activity Feed */}
+          <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden flex flex-col max-h-[500px]">
             <div className="p-6 border-b border-slate-800 bg-slate-900/50">
               <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-400" /> Live Feed

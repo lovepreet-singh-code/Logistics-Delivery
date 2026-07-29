@@ -6,6 +6,7 @@ import morgan from "morgan";
 import config from "./config";
 import connectDB from "./config/database";
 import topologyRoutes from "./routes/topologyRoutes";
+import warehouseRoutes from "./routes/warehouseRoutes";
 import { producer } from "./config/kafka";
 import { startOrderRoutingWorker } from "./workers/orderRoutingWorker";
 
@@ -34,6 +35,7 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // ──── API Routes ────
 app.use("/api/topology", topologyRoutes);
+app.use("/api/warehouses", warehouseRoutes);
 
 // ──── 404 Handler ────
 app.use((_req: Request, res: Response) => {
