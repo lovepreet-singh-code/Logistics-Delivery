@@ -8,11 +8,17 @@ import {
   PackagePlus, 
   ListOrdered, 
   MapPin, 
-  LogOut, 
   Menu, 
   X,
-  Truck
+  Truck,
+  Settings,
+  CreditCard,
+  BellRing,
+  HelpCircle,
+  Bookmark,
+  LogOut
 } from "lucide-react";
+import TopNavbar from "@/components/TopNavbar";
 
 export default function CustomerLayout({
   children,
@@ -24,10 +30,18 @@ export default function CustomerLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navigation = [
-    { name: "Dashboard", href: "/customer", icon: LayoutDashboard },
-    { name: "Book Parcel", href: "/customer/book", icon: PackagePlus },
-    { name: "My Orders", href: "/customer/orders", icon: ListOrdered },
-    { name: "Track Shipment", href: "/customer/track", icon: MapPin },
+    { name: "Dashboard", href: "/customer", icon: LayoutDashboard, active: true },
+    { name: "Book Parcel", href: "/customer/book", icon: PackagePlus, active: true },
+    { name: "My Orders", href: "/customer/orders", icon: ListOrdered, active: true },
+    { name: "Track Shipment", href: "/customer/track", icon: MapPin, active: true },
+  ];
+
+  const upcomingLinks = [
+    { name: "Saved Addresses", icon: Bookmark },
+    { name: "Invoices", icon: CreditCard },
+    { name: "Notifications", icon: BellRing },
+    { name: "Support", icon: HelpCircle },
+    { name: "Settings", icon: Settings },
   ];
 
   const handleLogout = () => {
@@ -73,6 +87,7 @@ export default function CustomerLayout({
 
         {/* Navigation Links */}
         <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 px-4">Main Menu</div>
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -95,6 +110,18 @@ export default function CustomerLayout({
               </Link>
             );
           })}
+
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-8 mb-4 px-4">Preferences (Coming Soon)</div>
+          {upcomingLinks.map((item) => (
+            <div
+              key={item.name}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl opacity-50 cursor-not-allowed group font-medium text-slate-500"
+            >
+              <item.icon className="w-5 h-5" />
+              {item.name}
+              <span className="ml-auto text-[10px] bg-slate-800 px-2 py-0.5 rounded-full">Soon</span>
+            </div>
+          ))}
         </nav>
 
         {/* User / Logout Area */}
@@ -112,6 +139,11 @@ export default function CustomerLayout({
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-slate-50">
         
+        {/* Desktop Top Navbar */}
+        <div className="hidden lg:block">
+          <TopNavbar />
+        </div>
+
         {/* Mobile Header */}
         <header className="h-16 flex items-center justify-between px-4 lg:hidden bg-white border-b border-slate-200 sticky top-0 z-30">
           <div className="flex items-center gap-2">

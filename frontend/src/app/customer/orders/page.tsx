@@ -8,9 +8,11 @@ import {
   MapPin, 
   Clock, 
   ChevronRight, 
-  Loader2,
-  Calendar
+  Calendar,
+  Box,
+  ArrowRight
 } from "lucide-react";
+import SkeletonLoader from "@/components/SkeletonLoader";
 
 export default function MyOrdersPage() {
   const router = useRouter();
@@ -62,22 +64,30 @@ export default function MyOrdersPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-64 bg-white rounded-3xl border border-slate-200">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+        <div className="pt-8">
+          <SkeletonLoader type="table" count={5} />
         </div>
       ) : orders.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center shadow-sm">
-          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Package className="w-10 h-10 text-slate-300" />
+        <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center shadow-sm max-w-2xl mx-auto mt-12 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 pointer-events-none" />
+          
+          <div className="relative z-10">
+            <div className="w-24 h-24 bg-gradient-to-tr from-indigo-100 to-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-indigo-50">
+              <Box className="w-12 h-12 text-indigo-500" />
+            </div>
+            
+            <h3 className="text-2xl font-bold text-slate-900 mb-3 tracking-tight">No shipments yet</h3>
+            <p className="text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
+              You haven't booked any parcels. Experience blazing fast delivery and real-time tracking by placing your first order today.
+            </p>
+            
+            <button 
+              onClick={() => router.push("/customer/book")}
+              className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-xl hover:shadow-slate-900/20 active:scale-95"
+            >
+              Book Your First Parcel <ArrowRight className="w-5 h-5" />
+            </button>
           </div>
-          <h3 className="text-xl font-bold text-slate-900 mb-2">No Orders Found</h3>
-          <p className="text-slate-500 mb-6">You haven't placed any shipment orders yet.</p>
-          <button 
-            onClick={() => router.push("/customer/book")}
-            className="text-indigo-600 font-medium hover:text-indigo-700"
-          >
-            Start your first booking &rarr;
-          </button>
         </div>
       ) : (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">

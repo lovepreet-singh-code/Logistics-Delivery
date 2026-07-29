@@ -12,7 +12,12 @@ import {
   Loader2,
   ArrowRight,
   Shield,
-  Ruler
+  Ruler,
+  FileText,
+  Monitor,
+  Wine,
+  Calculator,
+  Info
 } from "lucide-react";
 
 export default function BookParcelPage() {
@@ -38,6 +43,15 @@ export default function BookParcelPage() {
     parcelType: "Box",
     declaredValue: "1000",
   });
+
+  const parcelTypes = [
+    { id: "Document", icon: FileText, label: "Document", desc: "Letters & Papers" },
+    { id: "Box", icon: Package, label: "Box", desc: "Standard Packages" },
+    { id: "Electronics", icon: Monitor, label: "Electronics", desc: "Gadgets & Devices" },
+    { id: "Fragile", icon: Wine, label: "Fragile", desc: "Glass & Breakables" }
+  ];
+
+  const estimatedCost = Math.round(50 + (Number(formData.weightKg) * 15) + (Number(formData.declaredValue) * 0.01));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -127,7 +141,7 @@ export default function BookParcelPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-12">
+    <div className="max-w-6xl mx-auto pb-12">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Book a Parcel</h1>
         <p className="text-slate-500 mt-1">Enter shipment details to arrange a pickup.</p>
@@ -139,12 +153,14 @@ export default function BookParcelPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* SENDER & RECEIVER */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* Sender Details */}
+        {/* LEFT COLUMN: Main Form */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* SENDER & RECEIVER */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            {/* Sender Details */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-10" />
             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -212,36 +228,44 @@ export default function BookParcelPage() {
 
         </div>
 
-        {/* PARCEL DETAILS */}
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4">
-            <Package className="w-5 h-5 text-slate-500" /> Parcel Details
-          </h2>
+          {/* PARCEL DETAILS */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4">
+              <Package className="w-5 h-5 text-slate-500" /> Parcel Details
+            </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">Parcel Type</label>
-              <div className="relative">
-                <Shield className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-                <select name="parcelType" value={formData.parcelType} onChange={handleChange} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white cursor-pointer">
-                  <option value="Document">Document</option>
-                  <option value="Box">Box</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Fragile">Fragile</option>
-                </select>
+              <label className="block text-sm font-medium text-slate-600 mb-3">Parcel Type</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {parcelTypes.map((type) => (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, parcelType: type.id })}
+                    className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden group ${
+                      formData.parcelType === type.id 
+                        ? 'border-indigo-500 bg-indigo-50/50 shadow-md ring-2 ring-indigo-500/20' 
+                        : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <type.icon className={`w-6 h-6 mb-3 ${formData.parcelType === type.id ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-400'}`} />
+                    <p className={`font-bold text-sm ${formData.parcelType === type.id ? 'text-indigo-900' : 'text-slate-700'}`}>{type.label}</p>
+                    <p className={`text-xs mt-1 ${formData.parcelType === type.id ? 'text-indigo-600/70' : 'text-slate-500'}`}>{type.desc}</p>
+                  </button>
+                ))}
               </div>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">Weight (Kg)</label>
-              <input required type="number" min="0.1" step="0.1" name="weightKg" value={formData.weightKg} onChange={handleChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">Declared Value (Rs)</label>
-              <input required type="number" min="0" name="declaredValue" value={formData.declaredValue} onChange={handleChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Weight (Kg)</label>
+                <input required type="number" min="0.1" step="0.1" name="weightKg" value={formData.weightKg} onChange={handleChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Declared Value (₹)</label>
+                <input required type="number" min="0" name="declaredValue" value={formData.declaredValue} onChange={handleChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
             </div>
-          </div>
 
           <div className="pt-4 border-t border-slate-100">
             <label className="block text-sm font-medium text-slate-600 mb-3 flex items-center gap-2">
@@ -262,20 +286,57 @@ export default function BookParcelPage() {
               </div>
             </div>
           </div>
+          </div>
         </div>
 
-        {/* SUBMIT */}
-        <button 
-          type="submit" 
-          disabled={loading}
-          className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-slate-800 transition-colors shadow-xl disabled:opacity-70 flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <Loader2 className="w-6 h-6 animate-spin" />
-          ) : (
-            <><Package className="w-6 h-6" /> Book Shipment</>
-          )}
-        </button>
+        {/* RIGHT COLUMN: Sticky Summary */}
+        <div className="lg:col-span-1 relative">
+          <div className="sticky top-28 bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-800 text-slate-300 space-y-6">
+            
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-indigo-400" /> Order Summary
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400">Base Fare</span>
+                <span className="font-medium text-white">₹50</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400">Weight Charge ({formData.weightKg || 0} kg)</span>
+                <span className="font-medium text-white">₹{Math.round(Number(formData.weightKg) * 15)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400 flex items-center gap-1">
+                  Insurance (1%)
+                  <Info className="w-3 h-3 text-slate-500" />
+                </span>
+                <span className="font-medium text-white">₹{Math.round(Number(formData.declaredValue) * 0.01)}</span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-800">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">Estimated Total</span>
+                <span className="text-2xl font-black text-indigo-400">₹{estimatedCost}</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-2 text-right">Estimated Delivery: 2-3 Business Days</p>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-500 transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] disabled:opacity-70 disabled:shadow-none flex items-center justify-center gap-2 mt-4"
+            >
+              {loading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <><CheckCircle className="w-6 h-6" /> Confirm Booking</>
+              )}
+            </button>
+            <p className="text-[10px] text-center text-slate-500">By confirming, you agree to our Terms of Service & Packaging Guidelines.</p>
+          </div>
+        </div>
 
       </form>
     </div>
