@@ -4,7 +4,7 @@ import Manifest from "../models/Manifest";
 import Delivery from "../models/Delivery";
 import { generateDailyManifests } from "../services/dispatchEngine";
 import { ApiResponse } from "../@types";
-import { producer } from "../config/kafka";import { producer } from "../config/kafka";
+import { producer } from "../config/kafka";
 
 // ═══════════════════════════════════════════════
 //  DISPATCH CONTROLLER

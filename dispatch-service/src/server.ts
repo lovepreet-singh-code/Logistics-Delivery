@@ -9,6 +9,7 @@ import { producer } from "./config/kafka";
 import dispatchRoutes from "./routes/dispatchRoutes";
 import deliveryRoutes from "./routes/deliveryRoutes";
 import planningRoutes from "./routes/planningRoutes";
+import agentRoutes from "./routes/agentRoutes";
 import { startDailyDispatchCron } from "./cron/dailyDispatch";
 
 // ──── Initialize Express App ────
@@ -38,6 +39,7 @@ app.get("/health", (_req: Request, res: Response) => {
 app.use("/api/dispatch", dispatchRoutes);
 app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/planning", planningRoutes);
+app.use("/api/agent", agentRoutes);
 
 // ──── 404 Handler ────
 app.use((_req: Request, res: Response) => {

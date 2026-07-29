@@ -7,7 +7,7 @@ export const getDashboardStats = async (
   res: Response
 ): Promise<void> => {
   try {
-    const pipeline = [
+    const pipeline: any[] = [
       {
         $facet: {
           totalStats: [

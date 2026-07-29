@@ -10,6 +10,12 @@ export enum OrderStatus {
   DELIVERED = "DELIVERED",
 }
 
+export enum PaymentStatus {
+  PENDING = "PENDING",
+  PAID = "PAID",
+  FAILED = "FAILED",
+}
+
 // ──── Address Sub-document ────
 export interface IAddress {
   pinCode: string;
@@ -57,6 +63,14 @@ export interface IOrder {
   parcelDetails: IParcelDetails;
   routing: IRouting;
   status: OrderStatus;
+  paymentStatus?: PaymentStatus;
+  otp?: string;
+  statusHistory?: {
+    status: string;
+    updatedBy?: string;
+    timestamp?: Date;
+    note?: string;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }

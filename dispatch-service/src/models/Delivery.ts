@@ -32,6 +32,19 @@ const deliverySchema = new Schema<IDeliveryDocument>(
       type: String,
       default: null,
     },
+    photoUrl: {
+      type: String,
+      default: null,
+    },
+    signatureUrl: {
+      type: String,
+      default: null,
+    },
+    manifestId: {
+      type: Schema.Types.ObjectId,
+      ref: "Manifest",
+      default: null,
+    }
   },
   {
     timestamps: true,

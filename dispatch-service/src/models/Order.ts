@@ -17,6 +17,7 @@ interface IOrderDocument extends Document {
   deliveryAddress: IAddress;
   status: string;
   customerPhone?: string;
+  otp?: string;
 }
 
 const addressSchema = new Schema(
@@ -42,6 +43,7 @@ const orderSchema = new Schema<IOrderDocument>(
     deliveryAddress: addressSchema,
     status: String,
     customerPhone: String,
+    otp: String,
   },
   {
     timestamps: true,

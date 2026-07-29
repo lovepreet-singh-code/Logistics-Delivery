@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { optimizeRoutes, dispatchPlan } from "../controllers/planningController";
-import { authorizeRoles } from "../middleware/authMiddleware";
+import { requireRole } from "../middleware/authMiddleware";
 
 const router = Router();
 

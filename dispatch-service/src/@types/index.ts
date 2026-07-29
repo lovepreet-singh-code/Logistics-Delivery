@@ -10,6 +10,7 @@ export enum ManifestStatus {
 // ──── Delivery Status ────
 export enum DeliveryStatus {
   PENDING = "PENDING",
+  ASSIGNED = "ASSIGNED",
   IN_TRANSIT = "IN_TRANSIT",
   OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY",
   DELIVERED = "DELIVERED",
@@ -50,6 +51,9 @@ export interface IDelivery {
     lng: number;
   };
   proofOfDelivery?: string;
+  photoUrl?: string;
+  signatureUrl?: string;
+  manifestId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }

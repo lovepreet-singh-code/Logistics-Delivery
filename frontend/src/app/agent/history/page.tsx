@@ -23,7 +23,7 @@ export default function HistoryPage() {
         return;
       }
 
-      const response = await apiClient.get("/deliveries/today");
+      const response = await apiClient.get("/agent/deliveries/history");
       if (response.data.success && Array.isArray(response.data.data)) {
         setDeliveries(response.data.data);
       } else {
@@ -36,7 +36,7 @@ export default function HistoryPage() {
     }
   };
 
-  const completedDeliveries = deliveries.filter((d) => d.status === "DELIVERED");
+  const completedDeliveries = deliveries;
 
   return (
     <>

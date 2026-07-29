@@ -21,7 +21,7 @@ export default function DeliveryExecutionPage({ params }: { params: { id: string
 
   const fetchDeliveryDetails = async () => {
     try {
-      const response = await apiClient.get("/deliveries/today");
+      const response = await apiClient.get("/agent/deliveries/active");
       if (response.data.success && Array.isArray(response.data.data)) {
         const found = response.data.data.find((d: any) => d._id === params.id);
         if (found) {
@@ -45,7 +45,11 @@ export default function DeliveryExecutionPage({ params }: { params: { id: string
     setError("");
     setCompleting(true);
     try {
-      const res = await apiClient.patch(`/deliveries/${params.id}`, { status: "DELIVERED" });
+      const res = await apiClient.post(`/agent/deliveries/${params.id}/verify`, { 
+        otp, 
+        photoUrl: null, 
+        signatureUrl: null 
+      });
       if (res.data.success) {
         setShowSuccessToast(true);
         setTimeout(() => {

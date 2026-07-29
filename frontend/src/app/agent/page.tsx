@@ -8,7 +8,8 @@ import Link from "next/link";
 
 export default function AgentDashboard() {
   const router = useRouter();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState("");
 
@@ -25,14 +26,20 @@ export default function AgentDashboard() {
         return;
       }
 
-      const response = await apiClient.get("/deliveries/today");
-      if (response.data.success && Array.isArray(response.data.data)) {
-        setDeliveries(response.data.data);
-      } else {
-        setDeliveries([]);
+      const [activeRes, statsRes] = await Promise.all([
+        apiClient.get("/agent/deliveries/active"),
+        apiClient.get("/agent/stats")
+      ]);
+      
+      if (activeRes.data.success) {
+        setActiveDeliveries(activeRes.data.data || []);
+      }
+      
+      if (statsRes.data.success) {
+        setStats(statsRes.data.data);
       }
     } catch (err: any) {
-      console.error("Failed to fetch deliveries", err);
+      console.error("Failed to fetch agent data", err);
     } finally {
       setLoading(false);
     }
@@ -45,8 +52,10 @@ export default function AgentDashboard() {
     window.location.href = "/";
   };
 
-  const pendingDeliveries = deliveries.filter((d) => d.status !== "DELIVERED");
-  const completedDeliveries = deliveries.filter((d) => d.status === "DELIVERED");
+  const pendingCount = activeDeliveries.length;
+  const completedCount = stats?.completedToday || 0;
+  const earnings = stats?.todayEarnings || 0;
+  const distance = stats?.distanceCovered || 0;
 
   return (
     <>
@@ -80,22 +89,22 @@ export default function AgentDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm">
               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Stops</span>
-              <span className="text-xl font-black text-white">{deliveries.length}</span>
+              <span className="text-xl font-black text-white">{pendingCount + completedCount}</span>
             </div>
             <div className="bg-slate-900 border border-emerald-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-emerald-500/5"></div>
               <span className="text-xs text-emerald-500 font-bold uppercase tracking-wider relative z-10">Done</span>
-              <span className="text-xl font-black text-emerald-400 relative z-10">{completedDeliveries.length}</span>
+              <span className="text-xl font-black text-emerald-400 relative z-10">{completedCount}</span>
             </div>
             <div className="bg-slate-900 border border-amber-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-amber-500/5"></div>
               <span className="text-xs text-amber-500 font-bold uppercase tracking-wider relative z-10">Pending</span>
-              <span className="text-xl font-black text-amber-400 relative z-10">{pendingDeliveries.length}</span>
+              <span className="text-xl font-black text-amber-400 relative z-10">{pendingCount}</span>
             </div>
             <div className="bg-slate-900 border border-indigo-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-indigo-500/5"></div>
               <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider relative z-10">Earnings</span>
-              <span className="text-xl font-black text-indigo-400 relative z-10">₹850</span>
+              <span className="text-xl font-black text-indigo-400 relative z-10">₹{earnings}</span>
             </div>
           </div>
         </div>
@@ -107,7 +116,7 @@ export default function AgentDashboard() {
             <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
             <p className="text-sm font-medium">Syncing live routes...</p>
           </div>
-        ) : pendingDeliveries.length === 0 ? (
+        ) : pendingCount === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center px-4 animate-in zoom-in-95 duration-500">
             <div className="w-24 h-24 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20 relative">
               <div className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-20"></div>
@@ -122,11 +131,11 @@ export default function AgentDashboard() {
               <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">Today's Summary</h3>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 text-sm font-medium">Deliveries</span>
-                <span className="text-white font-bold">{completedDeliveries.length}</span>
+                <span className="text-white font-bold">{completedCount}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 text-sm font-medium">Distance</span>
-                <span className="text-white font-bold">64 km</span>
+                <span className="text-white font-bold">{distance} km</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 text-sm font-medium">Active Time</span>
@@ -137,7 +146,7 @@ export default function AgentDashboard() {
         ) : (
           <div className="flex flex-col gap-4">
              <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-3xl p-6 text-center shadow-lg">
-                <h3 className="text-xl font-bold text-white mb-2">You have {pendingDeliveries.length} active routes!</h3>
+                <h3 className="text-xl font-bold text-white mb-2">You have {pendingCount} active routes!</h3>
                 <p className="text-sm text-slate-400 mb-6">Head over to the routes tab to start your deliveries.</p>
                 <Link href="/agent/routes" className="w-full block py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-500/25">
                    View Active Routes

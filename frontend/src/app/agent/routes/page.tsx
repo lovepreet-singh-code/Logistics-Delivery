@@ -24,7 +24,7 @@ export default function RoutesPage() {
         return;
       }
 
-      const response = await apiClient.get("/deliveries/today");
+      const response = await apiClient.get("/agent/deliveries/active");
       if (response.data.success && Array.isArray(response.data.data)) {
         setDeliveries(response.data.data);
       } else {
@@ -37,7 +37,7 @@ export default function RoutesPage() {
     }
   };
 
-  const pendingDeliveries = deliveries.filter((d) => d.status !== "DELIVERED");
+  const pendingDeliveries = deliveries; // Since we are fetching active only
 
   return (
     <>

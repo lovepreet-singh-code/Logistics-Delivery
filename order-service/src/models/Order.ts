@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from "mongoose";
-import { IOrderDocument, OrderStatus } from "../@types";
+import { IOrderDocument, OrderStatus, PaymentStatus } from "../@types";
 
 // ──── Address Sub-schema ────
 const addressSchema = new Schema(
@@ -152,6 +152,10 @@ const orderSchema = new Schema<IOrderDocument>(
       type: String,
       enum: Object.values(PaymentStatus),
       default: PaymentStatus.PENDING,
+    },
+    otp: {
+      type: String,
+      default: () => Math.floor(100000 + Math.random() * 900000).toString(),
     },
     statusHistory: [
       {
