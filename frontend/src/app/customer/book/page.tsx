@@ -73,8 +73,23 @@ export default function BookOrderPage() {
 
     try {
       setSubmitting(true);
-      const customerToken = localStorage.getItem('customerToken') || '';
-      const customerId = localStorage.getItem('customerId') || 'mock-customer-id';
+      const customerToken = localStorage.getItem('customerToken') || localStorage.getItem('token') || '';
+      let customerId = '';
+
+      if (customerToken) {
+        try {
+          const payload = JSON.parse(atob(customerToken.split('.')[1]));
+          customerId = payload.id || payload._id || payload.userId || '';
+        } catch (e) {
+          console.error("Failed to parse token", e);
+        }
+      }
+
+      if (!customerId) {
+        showToast('error', 'User not authenticated. Please log in again.');
+        setSubmitting(false);
+        return;
+      }
 
       const payload = {
         customerId,
