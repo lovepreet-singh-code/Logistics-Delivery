@@ -1,8 +1,27 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { LayoutDashboard, Map, Truck, Package, LogOut } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
+  const handleSignOut = () => {
+    // Clear all potential auth data
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('role');
+    
+    // Clear cookies
+    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "adminToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+    // Force full window refresh to re-run middleware checks
+    window.location.href = '/';
+  };
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col md:flex-row font-sans selection:bg-indigo-500/30">
       {/* Sidebar */}
@@ -34,7 +53,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
         
         <div className="p-4 border-t border-slate-800">
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors w-full">
+          <button 
+            type="button"
+            onClick={handleSignOut}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors w-full"
+          >
             <LogOut className="w-5 h-5" />
             <span className="font-medium">Sign Out</span>
           </button>

@@ -68,8 +68,9 @@ export default function DeliveryAgentDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("agentId");
     document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    router.push("/login");
+    window.location.href = '/';
   };
 
   const showToast = (message: string) => {
@@ -145,6 +146,7 @@ export default function DeliveryAgentDashboard() {
             <h1 className="font-bold tracking-widest text-lg">MY ORDERS</h1>
           </div>
           <button
+            type="button"
             onClick={handleLogout}
             className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-300 hover:text-white"
             title="Logout"
