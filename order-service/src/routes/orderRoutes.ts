@@ -10,6 +10,7 @@ import {
   getOrderStats,
   generateInvoice,
   bulkCreateOrders,
+  getMyOrders,
 } from "../controllers/orderController";
 
 const router = Router();
@@ -28,6 +29,7 @@ router.post("/bulk", bulkCreateOrders);
 router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);
 
 // ──── Order Detail Endpoints ────
+router.get("/my-orders", getMyOrders);
 router.get("/:id", getOrderById);
 router.get("/:id/invoice", generateInvoice);
 router.get("/:id/status", getOrderStatus);

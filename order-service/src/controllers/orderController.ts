@@ -140,6 +140,41 @@ export const getAllOrders = async (
   }
 };
 
+// GET /api/orders/my-orders
+export const getMyOrders = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    // Assuming you have an authentication middleware that attaches user to req
+    const user = (req as any).user;
+    const customerId = user?.id || user?._id || user?.userId;
+
+    if (!customerId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized. Missing customer context.",
+      } as ApiResponse);
+      return;
+    }
+
+    const orders = await Order.find({ customerId }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "Customer orders fetched successfully",
+      count: orders.length,
+      data: orders,
+    } as ApiResponse);
+  } catch (error: any) {
+    console.error("❌ Error fetching customer orders:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    } as ApiResponse);
+  }
+};
+
 // GET /api/orders/:id
 export const getOrderById = async (
   req: Request,

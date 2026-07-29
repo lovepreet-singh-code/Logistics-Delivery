@@ -16,6 +16,10 @@ export interface IAddress {
   lat: number;
   lng: number;
   fullAddress: string;
+  senderName?: string;
+  senderPhone?: string;
+  receiverName?: string;
+  receiverPhone?: string;
 }
 
 // ──── Parcel Dimensions ────
@@ -30,6 +34,8 @@ export interface IParcelDetails {
   weightKg: number;
   dimensions: IDimensions;
   totalVolumeCm3: number;
+  parcelType?: string; // Enum: Document, Box, Electronics, Fragile
+  declaredValue?: number;
 }
 
 // ──── Routing Info ────

@@ -22,6 +22,10 @@ const addressSchema = new Schema(
       required: [true, "Full address is required"],
       trim: true,
     },
+    senderName: { type: String },
+    senderPhone: { type: String },
+    receiverName: { type: String },
+    receiverPhone: { type: String },
   },
   { _id: false }
 );
@@ -61,6 +65,15 @@ const parcelDetailsSchema = new Schema(
       required: [true, "Dimensions are required"],
     },
     totalVolumeCm3: {
+      type: Number,
+      default: 0,
+    },
+    parcelType: {
+      type: String,
+      enum: ["Document", "Box", "Electronics", "Fragile"],
+      required: [true, "Parcel type is required"],
+    },
+    declaredValue: {
       type: Number,
       default: 0,
     },
