@@ -5,6 +5,7 @@ import AdminChart from './AdminChart';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import apiClient from '@/lib/apiClient';
 
 // Dynamically import the map so it only runs on the client
 const AdminMap = dynamic(() => import('@/components/AdminMap'), {
@@ -13,40 +14,36 @@ const AdminMap = dynamic(() => import('@/components/AdminMap'), {
 });
 
 export default function AdminDashboard() {
-  const [activeFleet, setActiveFleet] = useState(42);
-  const [pendingOrders, setPendingOrders] = useState(15);
-  const [deliveredOrders, setDeliveredOrders] = useState(128);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  const [pendingOrders, setPendingOrders] = useState(0);
+  const [activeFleet, setActiveFleet] = useState(0);
+
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchStats = async () => {
       try {
-        const [fleetRes, ordersRes] = await Promise.all([
-          fetch('http://localhost:8080/api/fleet/stats', { cache: 'no-store' }),
-          fetch('http://localhost:8080/api/orders/stats', { cache: 'no-store' })
-        ]);
-        if (fleetRes.ok) {
-          const fleetData = await fleetRes.json();
-          setActiveFleet(fleetData.count || 42);
-        }
-        if (ordersRes.ok) {
-          const ordersData = await ordersRes.json();
-          setPendingOrders(ordersData.pending || 15);
-          setDeliveredOrders(ordersData.delivered || 128);
-        }
+        const response = await apiClient.get('/analytics/dashboard-stats');
+        setStats(response.data.data);
+        setPendingOrders(response.data.data.pendingPickups || 0);
+        setActiveFleet(response.data.data.activeDrivers || 0);
       } catch (err) {
+        console.error("Failed to fetch dashboard stats", err);
         setError(true);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchData();
+    fetchStats();
   }, []);
 
   const kpis = [
     { title: "Total Customers", value: "1,245", icon: Users, color: "text-indigo-400", bg: "bg-indigo-500/20", glow: "group-hover:bg-indigo-500/20" },
-    { title: "Today's Revenue", value: "₹1,45,200", icon: IndianRupee, color: "text-emerald-400", bg: "bg-emerald-500/20", glow: "group-hover:bg-emerald-500/20" },
+    { title: "Total Revenue", value: stats?.revenueTotal ? `₹${stats.revenueTotal.toLocaleString()}` : "₹0", icon: IndianRupee, color: "text-emerald-400", bg: "bg-emerald-500/20", glow: "group-hover:bg-emerald-500/20" },
     { title: "Active Drivers", value: activeFleet.toString(), icon: Truck, color: "text-blue-400", bg: "bg-blue-500/20", glow: "group-hover:bg-blue-500/20" },
     { title: "Pending Pickups", value: pendingOrders.toString(), icon: Package, color: "text-amber-400", bg: "bg-amber-500/20", glow: "group-hover:bg-amber-500/20" },
-    { title: "Cancelled", value: "3", icon: XCircle, color: "text-red-400", bg: "bg-red-500/20", glow: "group-hover:bg-red-500/20" }
+    { title: "Success Rate", value: stats?.successRate ? `${stats.successRate}%` : "0%", icon: CheckCircle, color: "text-emerald-400", bg: "bg-emerald-500/20", glow: "group-hover:bg-emerald-500/20" }
   ];
 
   const recentActivities = [

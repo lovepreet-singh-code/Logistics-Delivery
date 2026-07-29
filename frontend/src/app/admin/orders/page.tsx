@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Package, Search, RefreshCw, Loader2, Navigation, AlertTriangle, MapPin, Filter, Calendar, Building, MoreVertical, Eye, Truck, Printer, Car, User } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '@/lib/apiClient';
 
 interface Order {
   _id: string;
@@ -30,13 +30,7 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const adminToken = localStorage.getItem('adminToken') || '';
-      
-      const res = await axios.get('http://localhost:8080/api/orders', {
-        headers: {
-          Authorization: `Bearer ${adminToken}`
-        }
-      });
+      const res = await apiClient.get('/orders');
       // Mocking some extra fields for the UI
       const mockEnhancedData = res.data.data?.map((o: any) => ({
         ...o,

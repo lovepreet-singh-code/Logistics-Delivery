@@ -84,10 +84,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Navigation className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Planning</span>
           </Link>
-          <div title="Coming Soon" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 cursor-not-allowed">
-            <MapPin className="w-5 h-5" />
+          <Link href="/admin/tracking" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <MapPin className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Tracking</span>
-          </div>
+          </Link>
           <Link href="/admin/reports" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <BarChart3 className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Reports</span>
@@ -96,10 +96,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <PieChart className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Analytics</span>
           </Link>
-          <div title="Coming Soon" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 cursor-not-allowed mt-4">
-            <Settings className="w-5 h-5" />
+          <Link href="/admin/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group mt-4">
+            <Settings className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Settings</span>
-          </div>
+          </Link>
         </nav>
         
         <div className="p-4 border-t border-slate-800">

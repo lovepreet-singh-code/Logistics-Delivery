@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Map, Loader2, Plus, CheckCircle, AlertTriangle, Building, Navigation, User, Edit2, Trash2, Eye, Truck, Package, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
+import apiClient from '@/lib/apiClient';
 
 interface Franchise {
   _id: string;
@@ -31,7 +32,7 @@ export default function HubsPage() {
   const fetchHubs = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:8080/api/topology/franchises');
+      const res = await apiClient.get('/topology/franchises');
       setHubs(res.data.data || []);
     } catch (error) {
       console.error("Failed to fetch hubs", error);
@@ -59,13 +60,7 @@ export default function HubsPage() {
     try {
       setSubmitting(true);
       
-      const adminToken = localStorage.getItem('adminToken') || '';
-
-      await axios.post('http://localhost:8080/api/topology/franchises', formData, {
-        headers: {
-          Authorization: `Bearer ${adminToken}`
-        }
-      });
+      await apiClient.post('/topology/franchises', formData);
       
       showToast('success', 'Hub registered successfully!');
       setFormData({ name: '', region: '', basePinCode: '', latitude: '', longitude: '', volumeCapacity: '' });

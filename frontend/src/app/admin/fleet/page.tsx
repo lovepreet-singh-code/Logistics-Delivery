@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, Loader2, Plus, CheckCircle, AlertTriangle, MapPin, Navigation, User, Calendar, Fuel, PenTool } from 'lucide-react';
 import axios from 'axios';
+import apiClient from '@/lib/apiClient';
 
 interface Franchise {
   _id: string;
@@ -44,8 +45,8 @@ export default function FleetPage() {
     try {
       setLoading(true);
       const [vehiclesRes, hubsRes] = await Promise.all([
-        axios.get('http://localhost:8080/api/fleet/vehicles'),
-        axios.get('http://localhost:8080/api/topology/franchises')
+        apiClient.get('/fleet/vehicles'),
+        apiClient.get('/topology/franchises')
       ]);
       setVehicles(vehiclesRes.data.data || []);
       setHubs(hubsRes.data.data || []);
@@ -93,11 +94,7 @@ export default function FleetPage() {
         status: "AVAILABLE"
       };
 
-      await axios.post('http://localhost:8080/api/fleet/vehicles', payload, {
-        headers: {
-          Authorization: `Bearer ${adminToken}`
-        }
-      });
+      await apiClient.post('/fleet/vehicles', payload);
       
       showToast('success', 'Vehicle registered successfully!');
       setFormData({ registrationNumber: '', type: 'TRUCK', weight: '', volume: '', franchiseId: '' });
