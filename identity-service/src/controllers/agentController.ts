@@ -3,6 +3,10 @@ import DeliveryAgent from "../models/DeliveryAgent";
 
 export const createAgent = async (req: Request, res: Response): Promise<void> => {
   try {
+    if ((req as any).user?.role === "MANAGER" && req.body.assignedHubId !== String((req as any).user?.managedHubId)) {
+      res.status(403).json({ success: false, message: "Managers can only assign agents to their own hub." });
+      return;
+    }
     const agent = await DeliveryAgent.create(req.body);
     res.status(201).json({ success: true, data: agent });
   } catch (error: any) {
@@ -39,6 +43,23 @@ export const getAgentById = async (req: Request, res: Response): Promise<void> =
 
 export const updateAgent = async (req: Request, res: Response): Promise<void> => {
   try {
+    const agentToUpdate = await DeliveryAgent.findById(req.params.id);
+    if (!agentToUpdate) {
+      res.status(404).json({ success: false, message: "Agent not found" });
+      return;
+    }
+    
+    if ((req as any).user?.role === "MANAGER") {
+      if (String(agentToUpdate.assignedHubId) !== String((req as any).user?.managedHubId)) {
+        res.status(403).json({ success: false, message: "Managers can only update agents in their own hub." });
+        return;
+      }
+      if (req.body.assignedHubId && req.body.assignedHubId !== String((req as any).user?.managedHubId)) {
+        res.status(403).json({ success: false, message: "Managers cannot move agents to a different hub." });
+        return;
+      }
+    }
+
     const agent = await DeliveryAgent.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.status(200).json({ success: true, data: agent });
   } catch (error: any) {

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Map, Truck, Package, LogOut, Search, 
   Users, UserCog, UserCheck, Warehouse, Navigation, 
   MapPin, BarChart3, PieChart, Settings, SearchIcon,
-  Bell
+  Bell, FileText, Activity
 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -80,22 +80,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
 
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-4">Analytics & Tools</div>
-          <div title="Coming Soon" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 cursor-not-allowed">
-            <Navigation className="w-5 h-5" />
+          <Link href="/admin/planning" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <Navigation className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Planning</span>
-          </div>
+          </Link>
           <div title="Coming Soon" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 cursor-not-allowed">
             <MapPin className="w-5 h-5" />
             <span className="font-medium text-sm">Tracking</span>
           </div>
-          <div title="Coming Soon" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 cursor-not-allowed">
-            <BarChart3 className="w-5 h-5" />
+          <Link href="/admin/reports" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <BarChart3 className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Reports</span>
-          </div>
-          <div title="Coming Soon" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 cursor-not-allowed">
-            <PieChart className="w-5 h-5" />
+          </Link>
+          <Link href="/admin/analytics" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <PieChart className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Analytics</span>
-          </div>
+          </Link>
           <div title="Coming Soon" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 cursor-not-allowed mt-4">
             <Settings className="w-5 h-5" />
             <span className="font-medium text-sm">Settings</span>

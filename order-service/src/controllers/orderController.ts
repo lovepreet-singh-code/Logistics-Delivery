@@ -423,11 +423,18 @@ export const updateOrderStatus = async (
     }
 
     // State machine logic
-    const statusOrder = [OrderStatus.PENDING, OrderStatus.ROUTED, OrderStatus.ASSIGNED, OrderStatus.IN_TRANSIT, OrderStatus.DELIVERED];
-    const currentIndex = statusOrder.indexOf(order.status as OrderStatus);
-    const newIndex = statusOrder.indexOf(status as OrderStatus);
+    const statusOrder = [
+      OrderStatus.PENDING, 
+      "ASSIGNED", 
+      "HUB_RECEIVED", 
+      "TRANSIT", 
+      "OUT_FOR_DELIVERY", 
+      OrderStatus.DELIVERED
+    ] as string[];
+    const currentIndex = statusOrder.indexOf(order.status);
+    const newIndex = statusOrder.indexOf(status);
 
-    if (newIndex < currentIndex) {
+    if (newIndex < currentIndex && currentIndex !== -1) {
       res.status(400).json({
         success: false,
         message: `Cannot transition status backwards from ${order.status} to ${status}.`,
@@ -438,6 +445,14 @@ export const updateOrderStatus = async (
     }
 
     order.status = status;
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status,
+      updatedBy: (req as any).user?.id || 'SYSTEM',
+      timestamp: new Date(),
+      note: req.body.note || `Transitioned to ${status}`
+    });
+    
     await order.save({ session });
     await session.commitTransaction();
     session.endSession();
@@ -455,6 +470,14 @@ export const updateOrderStatus = async (
 
     // ── Kafka Event Publishing ──
     try {
+      await publishOrderEvent("logistics.status.changed", {
+        event: "ORDER_STATUS_CHANGED",
+        orderId: order._id,
+        newStatus: status,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`📤 [Kafka] Published logistics.status.changed for ${order._id}`);
+
       if (status === OrderStatus.DELIVERED) {
         await publishOrderEvent("logistics.orders", {
           event: "ORDER_DELIVERED",

@@ -141,6 +141,20 @@ services:
       - mongodb
       - kafka
 
+  analytics-service:
+    build: ./analytics-service
+    container_name: logistics-analytics-service
+    restart: unless-stopped
+    environment:
+      - MONGO_URI=mongodb://admin:admin_secret@mongodb:27017/logistics_platform?authSource=admin
+      - KAFKA_BROKERS=kafka:9092
+      - PORT=4006
+    networks:
+      - logistics-network
+    depends_on:
+      - mongodb
+      - kafka
+
   # ──── API GATEWAY ────
   api-gateway:
     build: ./api-gateway
@@ -156,6 +170,7 @@ services:
       - fleet-service
       - order-service
       - dispatch-service
+      - analytics-service
 
 volumes:
   mongodb_data:

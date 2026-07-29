@@ -24,12 +24,12 @@ router.use(authorizeRoles(UserRole.ADMIN, UserRole.MANAGER));
 
 // ──── Delivery Agents ────
 router.route("/agents")
-  .post(authorizeRoles(UserRole.ADMIN), createAgent) // Only Admin can create agents
+  .post(authorizeRoles(UserRole.ADMIN, UserRole.MANAGER), createAgent) // Managers check hubId in controller
   .get(getAgents);
 
 router.route("/agents/:id")
   .get(getAgentById)
-  .put(authorizeRoles(UserRole.ADMIN), updateAgent)
+  .put(authorizeRoles(UserRole.ADMIN, UserRole.MANAGER), updateAgent)
   .delete(authorizeRoles(UserRole.ADMIN), deleteAgent);
 
 // ──── Managers ────

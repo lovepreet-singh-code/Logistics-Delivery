@@ -148,6 +148,19 @@ const orderSchema = new Schema<IOrderDocument>(
       },
       default: OrderStatus.PENDING,
     },
+    paymentStatus: {
+      type: String,
+      enum: Object.values(PaymentStatus),
+      default: PaymentStatus.PENDING,
+    },
+    statusHistory: [
+      {
+        status: { type: String, required: true },
+        updatedBy: { type: String }, // e.g., 'ADMIN', 'SYSTEM', or userId
+        timestamp: { type: Date, default: Date.now },
+        note: { type: String }
+      }
+    ]
   },
   {
     timestamps: true,

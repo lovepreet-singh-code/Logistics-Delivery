@@ -1,25 +1,105 @@
 "use client";
 
-import React from 'react';
-import { Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, Mail, Phone, MapPin, Package, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function CustomersPage() {
+  // Mock Data
+  const [customers] = useState([
+    { id: 'C-001', name: 'Ravi Kumar', email: 'ravi@example.com', phone: '+91 9876543210', location: 'New Delhi', orders: 12, status: 'Active' },
+    { id: 'C-002', name: 'Priya Singh', email: 'priya@example.com', phone: '+91 8765432109', location: 'Mumbai', orders: 5, status: 'Active' },
+    { id: 'C-003', name: 'Amit Patel', email: 'amit@example.com', phone: '+91 7654321098', location: 'Ahmedabad', orders: 24, status: 'Active' },
+    { id: 'C-004', name: 'Neha Sharma', email: 'neha@example.com', phone: '+91 6543210987', location: 'Bangalore', orders: 1, status: 'Inactive' },
+  ]);
+
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-            <Users className="w-8 h-8 text-indigo-400" />
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
+            <Users className="w-8 h-8 text-indigo-500" />
             Customers
           </h1>
-          <p className="text-slate-400 mt-1">View and manage customer accounts.</p>
+          <p className="text-slate-400 mt-2 font-medium">Manage customer accounts and view their order history.</p>
+        </div>
+      </header>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all"></div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 relative z-10">Total Customers</p>
+          <h3 className="text-3xl font-bold text-white mt-2 relative z-10">1,248</h3>
+        </div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 relative z-10">Active This Month</p>
+          <h3 className="text-3xl font-bold text-white mt-2 relative z-10">892</h3>
+        </div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all"></div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 relative z-10">Avg Orders / User</p>
+          <h3 className="text-3xl font-bold text-white mt-2 relative z-10">4.2</h3>
         </div>
       </div>
-      
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center shadow-xl">
-         <Users className="w-16 h-16 text-slate-700 mx-auto mb-4" />
-         <h2 className="text-xl font-bold text-slate-300">Customers Module</h2>
-         <p className="text-slate-500 mt-2 max-w-md mx-auto">This module is part of the Enterprise Logistics System. Data integration is pending in the next sprint.</p>
+
+      {/* Data Table */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-400">
+            <thead className="text-xs text-slate-500 uppercase bg-slate-950/50">
+              <tr>
+                <th className="px-6 py-4 font-bold tracking-wider">Customer</th>
+                <th className="px-6 py-4 font-bold tracking-wider">Contact</th>
+                <th className="px-6 py-4 font-bold tracking-wider">Location</th>
+                <th className="px-6 py-4 font-bold tracking-wider">Orders</th>
+                <th className="px-6 py-4 font-bold tracking-wider">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {customers.map((c) => (
+                <tr key={c.id} className="hover:bg-slate-800/50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-300">
+                        {c.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-slate-200 font-bold">{c.name}</p>
+                        <p className="text-xs font-mono">{c.id}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 space-y-1">
+                    <div className="flex items-center gap-2"><Mail className="w-3 h-3" /> {c.email}</div>
+                    <div className="flex items-center gap-2"><Phone className="w-3 h-3" /> {c.phone}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-500" /> {c.location}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2"><Package className="w-4 h-4 text-slate-500" /> {c.orders}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2.5 py-1 text-xs font-bold uppercase rounded-md border ${
+                      c.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors inline-flex items-center justify-center">
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
