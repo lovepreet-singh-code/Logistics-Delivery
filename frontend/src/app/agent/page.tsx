@@ -2,34 +2,47 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, CheckCircle, LogOut, Package, Navigation, Loader2 } from "lucide-react";
+import {
+  MapPin,
+  CheckCircle,
+  LogOut,
+  Play,
+  Loader2,
+  Navigation,
+  Check,
+} from "lucide-react";
+
+interface Address {
+  fullAddress: string;
+  pinCode: string;
+}
 
 interface Order {
   _id: string;
-  trackingId?: string;
-  deliveryAddress: {
-    street1: string;
-    city: string;
-    state: string;
-    pinCode: string;
-  };
-  status: string;
-  customerPhone: string;
-  updatedAt?: string;
+  customerId: string;
+  customerPhone?: string;
+  deliveryAddress: Address;
+  pickupAddress: Address;
 }
 
-export default function DeliveryAgentDashboard() {
+interface Delivery {
+  _id: string;
+  status: string;
+  orderId: Order;
+}
+
+export default function DeliveryAgentPortal() {
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
-    fetchManifest();
+    fetchTodayDeliveries();
   }, []);
 
-  const fetchManifest = async () => {
+  const fetchTodayDeliveries = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -38,29 +51,21 @@ export default function DeliveryAgentDashboard() {
         return;
       }
 
-      // Using the exact endpoint we built on the backend:
-      const response = await fetch(
-        "http://localhost:8080/api/dispatch/agent/manifest",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch("http://localhost:8080/api/deliveries/today", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const result = await response.json();
-      console.log("API Response:", result);
-      
-      if (result.success && result.data?.routeSequence) {
-        const mappedOrders = result.data.routeSequence.map((seq: any) => seq.orderId || seq);
-        setOrders(mappedOrders);
-      } else if (result.success && Array.isArray(result.data)) {
-        setOrders(result.data);
+
+      if (result.success && Array.isArray(result.data)) {
+        setDeliveries(result.data);
       } else {
-        setOrders([]);
+        setDeliveries([]);
       }
     } catch (err: any) {
-      setError("Failed to fetch route plan.");
+      console.error("Failed to fetch deliveries", err);
     } finally {
       setLoading(false);
     }
@@ -70,7 +75,7 @@ export default function DeliveryAgentDashboard() {
     localStorage.removeItem("token");
     localStorage.removeItem("agentId");
     document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   const showToast = (message: string) => {
@@ -78,199 +83,265 @@ export default function DeliveryAgentDashboard() {
     setTimeout(() => setToastMessage(""), 3000);
   };
 
-  const markAsDelivered = async (orderId: string) => {
+  const updateDeliveryStatus = async (
+    deliveryId: string,
+    action: "start" | "complete"
+  ) => {
     try {
+      setActionLoading(deliveryId);
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:8080/api/orders/${orderId}/status`, {
+      const url = `http://localhost:8080/api/deliveries/${deliveryId}/${action}`;
+
+      const res = await fetch(url, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status: "DELIVERED" }),
       });
-      
+
       const data = await res.json();
       if (data.success) {
-        showToast("Order marked as Delivered!");
-        fetchManifest(); // Refresh the list automatically
+        showToast(
+          action === "start"
+            ? "Delivery started!"
+            : "Delivery completed successfully!"
+        );
+        // Optimistically update the UI instead of fetching again
+        setDeliveries((prev) =>
+          prev.map((del) => {
+            if (del._id === deliveryId) {
+              return {
+                ...del,
+                status: action === "start" ? "OUT_FOR_DELIVERY" : "DELIVERED",
+              };
+            }
+            return del;
+          })
+        );
       } else {
         alert("Failed to update status: " + data.message);
       }
     } catch (err) {
-      console.error("Failed to update status on server", err);
-      alert("Failed to update status on server.");
+      console.error(err);
+      alert("Network error updating status.");
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const formatAddress = (address: any) => {
-    if (!address) return "Address not available";
-    return `${address.street1}, ${address.city}, ${address.state} - ${address.pinCode}`;
-  };
-
-  const formatTime = (isoString?: string) => {
-    if (!isoString) return "";
-    return new Date(isoString).toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Asia/Kolkata",
-      timeZoneName: "short",
-    });
-  };
-
-  // Wait for client to mount before checking auth to prevent hydration mismatch
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-    if (!localStorage.getItem("token")) {
-      router.push("/login");
-    }
-  }, [router]);
-
-  if (!mounted) return null;
+  // Filter out DELIVERED items if we only want to show pending routes
+  const pendingDeliveries = deliveries.filter(
+    (d) => d.status !== "DELIVERED"
+  );
+  
+  const completedDeliveries = deliveries.filter(
+    (d) => d.status === "DELIVERED"
+  );
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 font-sans selection:bg-indigo-500/30">
-      
-      {/* ──── Header ──── */}
-      <header className="bg-slate-950 text-white shadow-md sticky top-0 z-50 border-b border-slate-800">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package className="w-6 h-6 text-indigo-400" />
-            <span className="font-bold text-sm tracking-wide hidden sm:inline text-indigo-400">
-              AGENT PORTAL
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-100">
-            <Navigation className="w-5 h-5 opacity-80" />
-            <h1 className="font-bold tracking-widest text-lg">MY ORDERS</h1>
+    <div className="min-h-screen bg-neutral-950 text-white font-sans selection:bg-blue-500">
+      {/* Container restricted to mobile width for optimal outdoor use */}
+      <div className="max-w-md mx-auto min-h-screen bg-neutral-900 shadow-2xl relative pb-24 overflow-hidden flex flex-col">
+        {/* Header */}
+        <header className="bg-neutral-950 px-6 py-5 border-b border-neutral-800 flex justify-between items-center sticky top-0 z-10">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-white">
+              Agent Portal
+            </h1>
+            <p className="text-sm text-neutral-400 font-medium mt-1">
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+              })}
+            </p>
           </div>
           <button
-            type="button"
             onClick={handleLogout}
-            className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-300 hover:text-white"
-            title="Logout"
+            className="p-2 text-neutral-400 hover:text-red-400 transition-colors bg-neutral-900 rounded-full"
+            aria-label="Log out"
           >
             <LogOut className="w-5 h-5" />
           </button>
-        </div>
-      </header>
+        </header>
 
-      {/* ──── Toast Notification ──── */}
-      {toastMessage && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full shadow-lg z-50 flex items-center gap-2 animate-in slide-in-from-top-4 fade-in">
-          <CheckCircle className="w-5 h-5" />
-          <span className="font-semibold">{toastMessage}</span>
-        </div>
-      )}
-
-      {/* ──── Main Content ──── */}
-      <main className="max-w-3xl mx-auto px-4 py-6">
-        <div className="mb-6 flex justify-between items-end">
-          <h2 className="text-xl font-bold text-slate-100">
-            Pending Deliveries
-            <span className="block text-sm font-normal text-slate-400 mt-1">
-              Currently Assigned Route
-            </span>
-          </h2>
-          <span className="bg-indigo-900/50 text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-500/30">
-            {orders.length} Total
-          </span>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-             <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-          </div>
-        ) : error ? (
-          <div className="bg-red-900/20 text-red-400 p-4 rounded-xl border border-red-900/50 flex items-start gap-3">
-            <span className="mt-0.5">⚠️</span>
-            <p>{error}</p>
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-20 bg-slate-800/30 rounded-2xl border border-slate-800 backdrop-blur-sm">
-            <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-300 text-lg font-medium">No active deliveries.</p>
-            <p className="text-slate-500 text-sm mt-1">Check back later when a new manifest is routed!</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {orders.map((order) => {
-              const isDelivered = order.status === "DELIVERED";
-
-              return (
-                <div
-                  key={order._id}
-                  className="bg-slate-800/50 rounded-2xl shadow-lg border border-slate-700/50 overflow-hidden backdrop-blur-md transition-all hover:bg-slate-800/80"
-                >
-                  {/* Status Indicator Line (Top border) */}
-                  <div
-                    className={`h-1.5 w-full ${
-                      isDelivered ? "bg-emerald-500" : "bg-amber-500"
-                    }`}
-                  />
-
-                  <div className="p-5">
-                    {/* Header Row */}
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                          Tracking ID
-                        </p>
-                        <p className="font-bold text-slate-100 font-mono text-sm sm:text-base">
-                          {order.trackingId || order._id}
-                        </p>
-                      </div>
-                      
-                      {isDelivered ? (
-                        <div className="flex flex-col items-end">
-                           <span className="inline-flex items-center gap-1.5 bg-emerald-900/30 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-full border border-emerald-500/20">
-                            <CheckCircle className="w-3.5 h-3.5" />
-                            DELIVERED
-                          </span>
-                          <span className="text-[10px] text-slate-500 mt-1 font-medium">
-                            {formatTime(order.updatedAt)}
-                          </span>
-                        </div>
-                      ) : (
-                         <span className="bg-amber-900/30 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-500/20">
-                          PENDING
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Address Row */}
-                    <div className="flex items-start gap-3 mb-5 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
-                      <MapPin className="w-5 h-5 text-indigo-400 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                          {formatAddress(order.deliveryAddress)}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-2 font-medium flex items-center gap-2">
-                          <span>📞 {order.customerPhone || "N/A"}</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Action Row */}
-                    {!isDelivered && (
-                      <div className="flex justify-end mt-2">
-                        <button
-                          onClick={() => markAsDelivered(order._id)}
-                          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold py-3 px-6 rounded-xl shadow-lg shadow-indigo-900/20 transition-all active:scale-95 flex items-center justify-center gap-2 border border-indigo-500"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Mark as Delivered
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        {/* Toast Notification */}
+        {toastMessage && (
+          <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4">
+            <div className="bg-green-500 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-semibold whitespace-nowrap">
+              <CheckCircle className="w-5 h-5" />
+              {toastMessage}
+            </div>
           </div>
         )}
-      </main>
+
+        <main className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Navigation className="w-5 h-5 text-blue-400" />
+              Assigned Routes
+            </h2>
+            <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2 py-1 rounded-full">
+              {pendingDeliveries.length} Left
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-neutral-500 gap-4">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              <p className="text-sm font-medium">Syncing routes...</p>
+            </div>
+          ) : pendingDeliveries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+              <div className="w-16 h-16 bg-neutral-800 rounded-full flex items-center justify-center mb-4">
+                <Check className="w-8 h-8 text-green-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">All Done!</h3>
+              <p className="text-neutral-400 text-sm">
+                You have completed all assigned deliveries for today.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {pendingDeliveries.map((delivery, index) => {
+                const isOutForDelivery =
+                  delivery.status === "OUT_FOR_DELIVERY";
+                const isActionLoading = actionLoading === delivery._id;
+                const order = delivery.orderId;
+
+                // Fallback rendering in case Order population fails
+                const displayAddress =
+                  order?.deliveryAddress?.fullAddress ||
+                  "Address not available";
+                const customerPhone =
+                  order?.customerPhone || "Phone not available";
+                const customerDisplay = order
+                  ? `Customer ID: ${order.customerId.toString().slice(-4)}`
+                  : "Customer Info Missing";
+
+                return (
+                  <div
+                    key={delivery._id}
+                    className="bg-neutral-950 rounded-2xl p-5 border border-neutral-800 shadow-sm relative overflow-hidden group"
+                  >
+                    {/* Status Indicator Bar */}
+                    <div
+                      className={`absolute left-0 top-0 bottom-0 w-1 ${
+                        isOutForDelivery ? "bg-blue-500" : "bg-yellow-500"
+                      }`}
+                    />
+
+                    {/* Header: Stop Number & Status */}
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-neutral-800 text-neutral-300 text-xs font-bold px-2 py-1 rounded-md">
+                          Stop {index + 1}
+                        </span>
+                        <span
+                          className={`text-xs font-bold px-2 py-1 rounded-md ${
+                            isOutForDelivery
+                              ? "bg-blue-500/20 text-blue-400"
+                              : "bg-yellow-500/20 text-yellow-400"
+                          }`}
+                        >
+                          {isOutForDelivery ? "ON THE WAY" : "PENDING"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Address Block */}
+                    <div className="mb-5">
+                      <div className="flex gap-3">
+                        <div className="mt-1 flex-shrink-0">
+                          <MapPin className="w-5 h-5 text-neutral-400" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium text-base leading-tight mb-1">
+                            {displayAddress}
+                          </p>
+                          <p className="text-neutral-400 text-sm">
+                            {customerDisplay} • {customerPhone}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-col gap-3 mt-2">
+                      <button className="flex items-center justify-center gap-2 w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-xl font-semibold text-sm transition-colors">
+                        <Navigation className="w-4 h-4" />
+                        Open in Google Maps
+                      </button>
+
+                      {!isOutForDelivery ? (
+                        <button
+                          onClick={() =>
+                            updateDeliveryStatus(delivery._id, "start")
+                          }
+                          disabled={!!actionLoading}
+                          className="flex items-center justify-center gap-2 w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
+                        >
+                          {isActionLoading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4" />
+                              Start Delivery
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            updateDeliveryStatus(delivery._id, "complete")
+                          }
+                          disabled={!!actionLoading}
+                          className="flex items-center justify-center gap-2 w-full py-3.5 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
+                        >
+                          {isActionLoading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              Mark Delivered
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          {completedDeliveries.length > 0 && (
+             <div className="mt-10">
+             <h2 className="text-sm font-bold text-neutral-500 uppercase tracking-wider mb-4 px-2">
+               Completed ({completedDeliveries.length})
+             </h2>
+             <div className="space-y-3 opacity-60">
+                {completedDeliveries.map((delivery) => {
+                   const order = delivery.orderId;
+                   const displayAddress =
+                     order?.deliveryAddress?.fullAddress ||
+                     "Address not available";
+                     
+                   return (
+                      <div key={delivery._id} className="bg-neutral-950 rounded-xl p-4 border border-neutral-800 flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                            <Check className="w-4 h-4 text-green-500" />
+                         </div>
+                         <p className="text-neutral-300 text-sm font-medium line-clamp-1">{displayAddress}</p>
+                      </div>
+                   );
+                })}
+             </div>
+           </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

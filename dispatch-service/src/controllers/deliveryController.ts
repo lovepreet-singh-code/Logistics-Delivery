@@ -1,3 +1,4 @@
+import "../models/Order"; // Ensure Order model is registered
 import { Request, Response } from "express";
 import Delivery from "../models/Delivery";
 import { producer } from "../config/kafka";
@@ -14,7 +15,9 @@ export const getDeliveries = async (
   res: Response
 ): Promise<void> => {
   try {
-    const deliveries = await Delivery.find().sort({ createdAt: -1 });
+    const deliveries = await Delivery.find()
+      .populate("orderId")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -48,7 +51,9 @@ export const getDeliveriesToday = async (
         $gte: startOfDay,
         $lte: endOfDay,
       },
-    }).sort({ createdAt: -1 });
+    })
+      .populate("orderId")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
