@@ -239,6 +239,80 @@ export const generateInvoice = async (
   }
 };
 
+// POST /api/orders/bulk
+export const bulkCreateOrders = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const ordersData = req.body;
+    
+    if (!Array.isArray(ordersData) || ordersData.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: "Request body must be a non-empty array of orders",
+      } as ApiResponse);
+      return;
+    }
+
+    const createdOrders = [];
+    
+    // Process iteratively to respect Geocoder rate limit and Kafka events
+    for (let i = 0; i < ordersData.length; i++) {
+      const { customerId, pickupAddress, deliveryAddress, parcelDetails } = ordersData[i];
+      
+      // Delay to prevent Nominatim rate limits (except on first request)
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      const [pLat, pLng] = await geocodeAddress(pickupAddress.fullAddress);
+      const [dLat, dLng] = await geocodeAddress(deliveryAddress.fullAddress);
+
+      pickupAddress.lat = pLat;
+      pickupAddress.lng = pLng;
+      deliveryAddress.lat = dLat;
+      deliveryAddress.lng = dLng;
+
+      const order = new Order({
+        customerId, // Defaulted in the frontend if needed
+        pickupAddress,
+        deliveryAddress,
+        parcelDetails,
+      });
+
+      const savedOrder = await order.save();
+      createdOrders.push(savedOrder);
+
+      const event: IOrderCreatedEvent = {
+        orderId: savedOrder._id.toString(),
+        pickupPinCode: savedOrder.pickupAddress.pinCode,
+        deliveryPinCode: savedOrder.deliveryAddress.pinCode,
+        customerId: savedOrder.customerId.toString(),
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        await publishOrderEvent("order.created", event);
+      } catch (kafkaError) {
+        console.error("Failed to publish Kafka event for bulk order", savedOrder._id, kafkaError);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully created ${createdOrders.length} orders in bulk`,
+      data: createdOrders,
+    } as ApiResponse);
+  } catch (error: any) {
+    console.error("❌ Bulk create error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error during bulk upload",
+    } as ApiResponse);
+  }
+};
+
 // GET /api/orders/:id/status
 export const getOrderStatus = async (
   req: Request,

@@ -9,6 +9,7 @@ import {
   manualAssignOrder,
   getOrderStats,
   generateInvoice,
+  bulkCreateOrders,
 } from "../controllers/orderController";
 
 const router = Router();
@@ -20,6 +21,8 @@ router.get("/stats", getOrderStats);
 router.route("/")
   .post(createOrder)
   .get(getAllOrders);
+
+router.post("/bulk", bulkCreateOrders);
 
 // ──── Internal API (used by Dispatch Service) ────
 router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);

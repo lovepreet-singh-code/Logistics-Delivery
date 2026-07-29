@@ -1,5 +1,6 @@
 import { Truck, Package, CheckCircle, AlertTriangle } from 'lucide-react';
 import AdminChart from './AdminChart';
+import BulkUpload from '@/components/BulkUpload';
 
 // Force dynamic rendering to ensure fresh data every hit
 export const dynamic = 'force-dynamic';
@@ -96,6 +97,9 @@ export default async function AdminDashboard() {
           <h2 className="text-xl font-bold text-slate-200 mb-6 relative z-10">Delivery Performance</h2>
           <AdminChart />
         </div>
+
+        {/* Bulk Upload Section */}
+        <BulkUpload />
 
       </div>
     </div>
