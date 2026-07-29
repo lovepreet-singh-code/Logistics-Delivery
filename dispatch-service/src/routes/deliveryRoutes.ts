@@ -4,6 +4,7 @@ import {
   getDeliveriesToday,
   startDelivery,
   completeDelivery,
+  updateDeliveryStatus,
   updateLocation,
   uploadProof,
 } from "../controllers/deliveryController";
@@ -23,6 +24,9 @@ router.patch("/:id/start", startDelivery);
 
 // PATCH /api/deliveries/:id/complete
 router.patch("/:id/complete", completeDelivery);
+
+// PATCH /api/deliveries/:id
+router.patch("/:id", updateDeliveryStatus);
 
 // PATCH /api/deliveries/:id/location
 router.patch("/:id/location", updateLocation);

@@ -89,8 +89,9 @@ export default function DeliveryAgentPortal() {
   ) => {
     try {
       setActionLoading(deliveryId);
-      const token = localStorage.getItem("token");
-      const url = `http://localhost:8080/api/deliveries/${deliveryId}/${action}`;
+      const token = localStorage.getItem("token") || "";
+      const url = `http://localhost:8080/api/deliveries/${deliveryId}`;
+      const newStatus = action === "start" ? "IN_TRANSIT" : "DELIVERED";
 
       const res = await fetch(url, {
         method: "PATCH",
@@ -98,6 +99,7 @@ export default function DeliveryAgentPortal() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ status: newStatus }),
       });
 
       const data = await res.json();
@@ -113,7 +115,7 @@ export default function DeliveryAgentPortal() {
             if (del._id === deliveryId) {
               return {
                 ...del,
-                status: action === "start" ? "OUT_FOR_DELIVERY" : "DELIVERED",
+                status: newStatus,
               };
             }
             return del;
@@ -206,7 +208,7 @@ export default function DeliveryAgentPortal() {
             <div className="space-y-4">
               {pendingDeliveries.map((delivery, index) => {
                 const isOutForDelivery =
-                  delivery.status === "OUT_FOR_DELIVERY";
+                  delivery.status === "OUT_FOR_DELIVERY" || delivery.status === "IN_TRANSIT";
                 const isActionLoading = actionLoading === delivery._id;
                 const order = delivery.orderId;
 

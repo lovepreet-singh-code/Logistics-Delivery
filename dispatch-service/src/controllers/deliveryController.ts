@@ -69,6 +69,77 @@ export const getDeliveriesToday = async (
   }
 };
 
+import axios from "axios";
+
+// PATCH /api/deliveries/:id
+export const updateDeliveryStatus = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const deliveryId = req.params.id;
+    const { status } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(deliveryId)) {
+      res.status(400).json({ success: false, message: "Invalid delivery ID" });
+      return;
+    }
+
+    if (!Object.values(DeliveryStatus).includes(status)) {
+      res.status(400).json({ success: false, message: "Invalid status" });
+      return;
+    }
+
+    const delivery = await Delivery.findByIdAndUpdate(
+      deliveryId,
+      { status },
+      { new: true }
+    );
+
+    if (!delivery) {
+      res.status(404).json({ success: false, message: "Delivery not found" });
+      return;
+    }
+
+    // Publish event to Kafka
+    const event: IDeliveryCompletedEvent = {
+      orderId: delivery.orderId.toString(),
+      agentId: delivery.agentId?.toString(),
+      status: delivery.status,
+      proofOfDelivery: delivery.proofOfDelivery,
+      timestamp: new Date().toISOString(),
+    };
+    
+    try {
+      await producer.send({
+        topic: "delivery.completed",
+        messages: [{ value: JSON.stringify(event) }],
+      });
+    } catch (kafkaErr) {
+       console.error("Failed to publish to kafka", kafkaErr);
+    }
+    
+    // HTTP CALL to order-service to update tracking timeline synchronously
+    try {
+      await axios.patch(`http://order-service:4004/api/orders/${delivery.orderId.toString()}/status`, { status });
+    } catch (httpErr: any) {
+      console.error("Failed to update order service via HTTP", httpErr.message);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Delivery status updated successfully",
+      data: delivery,
+    } as ApiResponse);
+  } catch (error: any) {
+    console.error("❌ Error updating delivery:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    } as ApiResponse);
+  }
+};
+
 // PATCH /api/deliveries/:id/start
 export const startDelivery = async (
   req: Request,
