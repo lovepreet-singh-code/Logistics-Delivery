@@ -1,11 +1,23 @@
 "use client";
 
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Bell, LogOut, User } from "lucide-react";
+import { Search, Bell, LogOut, User, CheckCircle2, Package, Truck } from "lucide-react";
 
 export default function TopNavbar() {
   const router = useRouter();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -28,13 +40,65 @@ export default function TopNavbar() {
       </div>
 
       {/* Right Side Actions */}
-      <div className="flex items-center gap-4 ml-auto">
+      <div className="flex items-center gap-4 ml-auto relative">
         
         {/* Notifications */}
-        <button className="relative p-2.5 rounded-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors shadow-sm">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
-        </button>
+        <div ref={dropdownRef} className="relative">
+          <button 
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative p-2.5 rounded-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors shadow-sm focus:outline-none"
+          >
+            <Bell className="w-5 h-5" />
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white shadow-sm">
+              3
+            </span>
+          </button>
+
+          {/* Dropdown Menu */}
+          {showNotifications && (
+            <div className="absolute top-12 right-0 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="font-bold text-slate-800">Notifications</h3>
+                <span className="text-xs text-indigo-600 font-medium cursor-pointer hover:underline">Mark all as read</span>
+              </div>
+              <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
+                <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 opacity-100">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                    <Package className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Parcel Picked Up</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Your package #60d5ec has been picked up by the agent.</p>
+                    <p className="text-[10px] text-slate-400 mt-1">10 mins ago</p>
+                  </div>
+                </div>
+                <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 opacity-100">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <Truck className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Delivery Expected Today</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Your package is out for delivery and will arrive by 5 PM.</p>
+                    <p className="text-[10px] text-slate-400 mt-1">1 hour ago</p>
+                  </div>
+                </div>
+                <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 opacity-60">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="w-4 h-4 text-slate-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Booking Confirmed</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Your booking for #59c4fa was successful.</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Yesterday</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 bg-slate-50 text-center text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer border-t border-slate-100">
+                View All Activity
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="w-px h-8 bg-slate-200 mx-2"></div>
 

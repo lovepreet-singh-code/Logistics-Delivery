@@ -115,7 +115,8 @@ export default function CustomerLayout({
           {upcomingLinks.map((item) => (
             <div
               key={item.name}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl opacity-50 cursor-not-allowed group font-medium text-slate-500"
+              title="Available in next release"
+              className="flex items-center gap-3 px-4 py-3 rounded-xl opacity-50 cursor-not-allowed group font-medium text-slate-500 hover:bg-slate-800/50 transition-colors"
             >
               <item.icon className="w-5 h-5" />
               {item.name}
@@ -123,6 +124,16 @@ export default function CustomerLayout({
             </div>
           ))}
         </nav>
+
+        {/* Sidebar Footer */}
+        <div className="px-6 py-4 mt-auto">
+          <div className="flex items-center gap-3 text-xs font-medium text-slate-500 mb-2">
+            <a href="#" className="hover:text-slate-300 transition-colors">Support</a>
+            <span>&bull;</span>
+            <a href="#" className="hover:text-slate-300 transition-colors">Privacy Policy</a>
+          </div>
+          <p className="text-[10px] text-slate-600">LogiCore Version 1.0.0</p>
+        </div>
 
         {/* User / Logout Area */}
         <div className="p-4 border-t border-slate-800 bg-slate-950/30">

@@ -17,7 +17,12 @@ import {
   Monitor,
   Wine,
   Calculator,
-  Info
+  Info,
+  Zap,
+  CalendarDays,
+  ShieldCheck,
+  Tag,
+  Truck
 } from "lucide-react";
 
 export default function BookParcelPage() {
@@ -42,7 +47,13 @@ export default function BookParcelPage() {
     heightCm: "10",
     parcelType: "Box",
     declaredValue: "1000",
+    serviceType: "Standard",
+    pickupDate: "",
+    insurance: false,
+    couponCode: ""
   });
+
+  const [couponApplied, setCouponApplied] = useState(false);
 
   const parcelTypes = [
     { id: "Document", icon: FileText, label: "Document", desc: "Letters & Papers" },
@@ -51,7 +62,19 @@ export default function BookParcelPage() {
     { id: "Fragile", icon: Wine, label: "Fragile", desc: "Glass & Breakables" }
   ];
 
-  const estimatedCost = Math.round(50 + (Number(formData.weightKg) * 15) + (Number(formData.declaredValue) * 0.01));
+  const serviceTypes = [
+    { id: "Standard", label: "Standard", desc: "3-5 Days", price: 0, icon: Package },
+    { id: "Express", label: "Express", desc: "1-2 Days", price: 50, icon: Zap },
+    { id: "Same Day", label: "Same Day", desc: "Within 24hrs", price: 100, icon: Truck }
+  ];
+
+  const baseFare = 50;
+  const weightCharge = Math.round(Number(formData.weightKg || 0) * 15);
+  const serviceCharge = serviceTypes.find(s => s.id === formData.serviceType)?.price || 0;
+  const insuranceCharge = formData.insurance ? 10 : 0;
+  const subTotal = baseFare + weightCharge + serviceCharge + insuranceCharge;
+  const discount = couponApplied ? Math.round(subTotal * 0.1) : 0;
+  const estimatedCost = subTotal - discount;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -102,8 +125,7 @@ export default function BookParcelPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setTrackingId(res.data.data._id);
-      setSuccess(true);
+      router.push(`/customer/success?id=${res.data.data._id}`);
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || err.message || "Failed to book parcel.");
@@ -112,33 +134,19 @@ export default function BookParcelPage() {
     }
   };
 
-  if (success) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 animate-in fade-in zoom-in duration-500">
-        <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-6">
-          <CheckCircle className="w-12 h-12 text-emerald-600" />
-        </div>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Booking Confirmed!</h1>
-        <p className="text-slate-500 mb-8 text-center max-w-md">
-          Your parcel has been successfully registered and is awaiting pickup.
-        </p>
-        
-        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm mb-8 text-center w-full max-w-md">
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Tracking ID</p>
-          <p className="text-2xl font-mono font-bold text-indigo-600 bg-indigo-50 py-3 rounded-xl">
-            {trackingId}
-          </p>
-        </div>
+  const applyCoupon = () => {
+    if (formData.couponCode.trim().toUpperCase() === "SAVE10") {
+      setCouponApplied(true);
+      setError("");
+    } else {
+      setCouponApplied(false);
+      setError("Invalid coupon code. Try 'SAVE10'.");
+    }
+  };
 
-        <button 
-          onClick={() => router.push("/customer/orders")}
-          className="bg-indigo-600 text-white px-8 py-4 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-500 transition-colors shadow-lg hover:shadow-indigo-500/30"
-        >
-          View My Orders <ArrowRight className="w-5 h-5" />
-        </button>
-      </div>
-    );
-  }
+  // Date boundaries for native picker
+  const today = new Date().toISOString().split('T')[0];
+  const maxDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   return (
     <div className="max-w-6xl mx-auto pb-12">
@@ -287,6 +295,59 @@ export default function BookParcelPage() {
             </div>
           </div>
           </div>
+
+          {/* SERVICE OPTIONS */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4">
+              <Truck className="w-5 h-5 text-slate-500" /> Service & Logistics
+            </h2>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-3">Service Type</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {serviceTypes.map((type) => (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, serviceType: type.id })}
+                    className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden group ${
+                      formData.serviceType === type.id 
+                        ? 'border-indigo-500 bg-indigo-50/50 shadow-md ring-2 ring-indigo-500/20' 
+                        : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <type.icon className={`w-6 h-6 mb-3 ${formData.serviceType === type.id ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-400'}`} />
+                    <p className={`font-bold text-sm flex justify-between ${formData.serviceType === type.id ? 'text-indigo-900' : 'text-slate-700'}`}>
+                      {type.label} <span className={formData.serviceType === type.id ? 'text-indigo-600' : 'text-slate-500'}>+{type.price > 0 ? `₹${type.price}` : 'Free'}</span>
+                    </p>
+                    <p className={`text-xs mt-1 ${formData.serviceType === type.id ? 'text-indigo-600/70' : 'text-slate-500'}`}>{type.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Pickup Date</label>
+                <div className="relative">
+                  <CalendarDays className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
+                  <input required type="date" min={today} max={maxDate} name="pickupDate" value={formData.pickupDate} onChange={handleChange} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+              <div>
+                <label className="text-sm font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={formData.insurance} onChange={(e) => setFormData({ ...formData, insurance: e.target.checked })} className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer" />
+                  Secure Package Insurance (+₹10)
+                </label>
+                <p className="text-xs text-slate-500 mt-1 ml-6">Protect your package against damage or loss.</p>
+              </div>
+              <ShieldCheck className={`w-8 h-8 ${formData.insurance ? 'text-emerald-500' : 'text-slate-300'}`} />
+            </div>
+
+          </div>
         </div>
 
         {/* RIGHT COLUMN: Sticky Summary */}
@@ -300,27 +361,51 @@ export default function BookParcelPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-400">Base Fare</span>
-                <span className="font-medium text-white">₹50</span>
+                <span className="font-medium text-white">₹{baseFare}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400">Weight Charge ({formData.weightKg || 0} kg)</span>
-                <span className="font-medium text-white">₹{Math.round(Number(formData.weightKg) * 15)}</span>
+                <span className="text-slate-400">Weight ({formData.weightKg || 0} kg)</span>
+                <span className="font-medium text-white">₹{weightCharge}</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400 flex items-center gap-1">
-                  Insurance (1%)
-                  <Info className="w-3 h-3 text-slate-500" />
-                </span>
-                <span className="font-medium text-white">₹{Math.round(Number(formData.declaredValue) * 0.01)}</span>
-              </div>
+              {serviceCharge > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-400">{formData.serviceType} Delivery</span>
+                  <span className="font-medium text-white">₹{serviceCharge}</span>
+                </div>
+              )}
+              {insuranceCharge > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-400 flex items-center gap-1">
+                    Insurance
+                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                  </span>
+                  <span className="font-medium text-white">₹{insuranceCharge}</span>
+                </div>
+              )}
+              {discount > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-emerald-400">Coupon Discount (10%)</span>
+                  <span className="font-medium text-emerald-400">-₹{discount}</span>
+                </div>
+              )}
             </div>
 
-            <div className="pt-4 border-t border-slate-800">
+            <div className="pt-4 border-t border-slate-800 space-y-4">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Tag className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input type="text" name="couponCode" value={formData.couponCode} onChange={handleChange} placeholder="Promo Code" className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase" disabled={couponApplied} />
+                </div>
+                <button type="button" onClick={applyCoupon} disabled={couponApplied || !formData.couponCode} className="px-4 py-2 bg-slate-800 text-indigo-400 text-sm font-bold rounded-lg border border-slate-700 hover:bg-slate-700 hover:text-indigo-300 disabled:opacity-50">
+                  {couponApplied ? "Applied" : "Apply"}
+                </button>
+              </div>
+
               <div className="flex justify-between items-center">
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">Estimated Total</span>
                 <span className="text-2xl font-black text-indigo-400">₹{estimatedCost}</span>
               </div>
-              <p className="text-xs text-slate-500 mt-2 text-right">Estimated Delivery: 2-3 Business Days</p>
+              <p className="text-xs text-slate-500 mt-2 text-right">Estimated Delivery: {formData.serviceType === 'Same Day' ? 'Today' : formData.serviceType === 'Express' ? '1-2 Days' : '3-5 Days'}</p>
             </div>
 
             <button 

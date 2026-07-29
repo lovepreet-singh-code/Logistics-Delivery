@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { 
   Package, 
   Truck, 
@@ -60,7 +61,8 @@ export default function CustomerDashboard() {
       icon: Package,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
-      border: "border-blue-500/20"
+      border: "border-blue-500/20",
+      href: "/customer/orders?filter=all"
     },
     {
       title: "Active Shipments",
@@ -68,7 +70,8 @@ export default function CustomerDashboard() {
       icon: Truck,
       color: "text-amber-500",
       bg: "bg-amber-500/10",
-      border: "border-amber-500/20"
+      border: "border-amber-500/20",
+      href: "/customer/orders?filter=transit"
     },
     {
       title: "Delivered Orders",
@@ -76,15 +79,17 @@ export default function CustomerDashboard() {
       icon: CheckCircle,
       color: "text-emerald-500",
       bg: "bg-emerald-500/10",
-      border: "border-emerald-500/20"
+      border: "border-emerald-500/20",
+      href: "/customer/orders?filter=delivered"
     },
     {
       title: "Cancelled Orders",
-      value: orders.filter(o => o.status === "CANCELLED").length, // Assuming status exists
+      value: orders.filter(o => o.status === "CANCELLED").length,
       icon: XCircle,
       color: "text-red-500",
       bg: "bg-red-500/10",
-      border: "border-red-500/20"
+      border: "border-red-500/20",
+      href: "/customer/orders?filter=all"
     }
   ];
 
@@ -113,9 +118,10 @@ export default function CustomerDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((m, i) => (
-          <div 
+          <Link 
             key={i}
-            className={`p-6 rounded-3xl bg-white border ${m.border} shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group`}
+            href={m.href}
+            className={`block p-6 rounded-3xl bg-white border ${m.border} shadow-sm hover:shadow-md transition-all relative overflow-hidden group hover:-translate-y-1`}
           >
             <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full ${m.bg} group-hover:scale-150 transition-transform duration-500`} />
             <div className="relative z-10 flex items-start justify-between">
@@ -127,7 +133,7 @@ export default function CustomerDashboard() {
                 <m.icon className="w-6 h-6" />
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 

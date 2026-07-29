@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText } from 'lucide-react';
+import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock } from 'lucide-react';
 
 const LogisticsMap = dynamic(() => import('@/components/LogisticsMap'), {
   ssr: false,
@@ -134,32 +134,54 @@ export default function CustomerDashboard() {
             {/* Background Accent */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 pb-8 border-b border-slate-100 relative z-10 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 pb-8 border-b border-slate-100 relative z-10 gap-6">
               <div>
                 <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1">Order Number</p>
-                <p className="text-2xl font-bold text-slate-800 bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500">
+                <p className="text-2xl font-bold text-slate-800 bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500 font-mono tracking-tight">
                   {orderData._id || orderData.id || orderIdInput}
                 </p>
               </div>
-              <div className="sm:text-right">
-                <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1">Current Status</p>
-                <div className={`inline-flex px-4 py-2 rounded-full text-sm font-bold uppercase tracking-widest ${
-                  orderData.status === 'DELIVERED' 
-                    ? 'bg-emerald-100 text-emerald-700' 
-                    : orderData.status === 'IN_TRANSIT'
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-indigo-100 text-indigo-700'
-                }`}>
-                  {orderData.status || 'UNKNOWN'}
+              
+              <div className="flex flex-wrap gap-4 md:text-right">
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                    <User className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Driver Assigned</p>
+                    <p className="text-sm font-bold text-slate-900">{orderData.agentId?.name || "Rajesh Kumar"}</p>
+                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> {orderData.agentId?.phone || "+91 98765 43210"}</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                    <Clock className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estimated Arrival</p>
+                    <p className="text-sm font-bold text-slate-900">Today, 5:00 PM</p>
+                    <div className="mt-1">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        orderData.status === 'DELIVERED' 
+                          ? 'bg-emerald-100 text-emerald-700' 
+                          : orderData.status === 'IN_TRANSIT' || orderData.status === 'OUT_FOR_DELIVERY'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {orderData.status?.replace(/_/g, ' ') || 'UNKNOWN'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Grid Layout for Timeline and Map */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
               
               {/* Vertical Timeline */}
-              <div className="relative pl-8 py-4 z-10 w-full max-w-md mx-auto sm:mx-0">
+              <div className="relative pl-4 sm:pl-8 py-4 z-10 w-full max-w-md mx-auto lg:mx-0">
               
               {/* Vertical line connecting steps */}
               <div className="absolute left-[47px] top-8 bottom-8 w-1 bg-slate-100 rounded-full"></div>
