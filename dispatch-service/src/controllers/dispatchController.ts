@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Manifest from "../models/Manifest";
 import Delivery from "../models/Delivery";
+import Order from "../models/Order";
 import { generateDailyManifests } from "../services/dispatchEngine";
 import { ApiResponse } from "../@types";
 import { producer } from "../config/kafka";
@@ -100,8 +101,14 @@ export const createMockManifest = async (
     const delivery = await Delivery.create({
       orderId: new mongoose.Types.ObjectId(orderId),
       agentId: new mongoose.Types.ObjectId(agentId),
-      status: "PENDING",
+      status: "IN_TRANSIT",
     });
+
+    // Also update the Order status in dispatch-service to match
+    await Order.findByIdAndUpdate(
+      new mongoose.Types.ObjectId(orderId),
+      { $set: { status: "IN_TRANSIT" } }
+    );
 
     res.status(201).json({
       success: true,

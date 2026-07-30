@@ -56,13 +56,15 @@ export default function PlanningPage() {
         console.error("Could not parse token for driverId fallback", e);
       }
 
-      // According to API gateway routing, planning is /planning or /dispatch
-      // Using /planning/dispatch as built in sprint 7
-      await apiClient.post('/planning/dispatch', { 
-        orderIds: selectedOrders,
-        vehicleId: selectedDriver,
-        driverId: fallbackDriverId
-      });
+      // Use the debug endpoint to bypass planning logic and assign directly to Agent
+      const dispatchPromises = selectedOrders.map(orderId => 
+        apiClient.post('/dispatch/debug/create-mock-manifest', {
+          agentId: fallbackDriverId,
+          orderId: orderId
+        })
+      );
+      
+      await Promise.all(dispatchPromises);
       alert(`Successfully dispatched ${selectedOrders.length} orders!`);
       // Remove dispatched orders from state
       setUnassignedOrders(prev => prev.filter(o => !selectedOrders.includes(o._id)));
