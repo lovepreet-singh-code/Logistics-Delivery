@@ -29,17 +29,32 @@ export default function CustomerDashboard() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
+        if (typeof window === "undefined") return;
+        
+        console.log("Fetching orders from API...");
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:8080/api/orders/my-orders", {
+        if (!token) {
+          console.error("No token found in localStorage");
+          setLoading(false);
+          return;
+        }
+
+        // Cache bypass by appending timestamp
+        const res = await axios.get(`http://localhost:8080/api/orders/my-orders?t=${Date.now()}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setOrders(res.data.data || []);
-      } catch (error) {
-        console.error("Failed to fetch orders", error);
+        
+        const data = res.data.data || res.data;
+        console.log("Orders received:", data);
+        
+        setOrders(Array.isArray(data) ? data : []);
+      } catch (error: any) {
+        console.error("Fetch Error:", error.response?.data || error.message || error);
       } finally {
         setLoading(false);
       }
     };
+    
     fetchOrders();
   }, []);
 
