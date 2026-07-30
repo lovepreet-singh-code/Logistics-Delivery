@@ -60,7 +60,7 @@ export default function CustomerDashboard() {
   const metrics = [
     {
       title: "Today's Pickups",
-      value: orders.filter(o => new Date(o.createdAt).toDateString() === today).length,
+      value: orders.filter(o => o.status === "PENDING").length,
       icon: Package,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
@@ -69,7 +69,7 @@ export default function CustomerDashboard() {
     },
     {
       title: "Active Shipments",
-      value: orders.filter(o => o.status !== "DELIVERED").length,
+      value: orders.filter(o => o.status === "IN_TRANSIT").length,
       icon: Truck,
       color: "text-amber-500",
       bg: "bg-amber-500/10",
@@ -122,7 +122,7 @@ export default function CustomerDashboard() {
     { name: 'Sun', shipments: 5 },
   ];
 
-  const totalSpend = orders.reduce((sum, order) => sum + (order.amount || order.fare || 0), 0);
+  const totalSpend = orders.reduce((sum, order) => sum + (order.amount || 0), 0);
   const avgDeliveryTime = "2.4 Days";
 
   return (
