@@ -96,7 +96,7 @@ export default function DeliveryExecutionPage() {
   const codAmount = 0; // Set to >0 to show COD UI
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white pb-32 relative">
+    <div className="min-h-screen bg-slate-950 text-white pb-40 relative">
       
       {/* Success Animation Overlay */}
       {showSuccessToast && (
@@ -254,24 +254,21 @@ export default function DeliveryExecutionPage() {
       </div>
 
       {/* Sticky Bottom Action Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 z-30 pb-safe">
-         <div className="max-w-md mx-auto">
-            <button 
-               onClick={handleVerifyAndDeliver}
-               disabled={completing || otp.length !== 6}
-               className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-2xl font-black text-lg transition-all disabled:opacity-50 disabled:bg-slate-800 flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(16,185,129,0.3)] disabled:shadow-none min-h-[48px] relative overflow-hidden group"
-            >
-               {completing ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-               ) : (
-                  <>
-                     <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                     <CheckCircle2 className="w-6 h-6 relative z-10" />
-                     <span className="relative z-10">Verify OTP & Mark Delivered</span>
-                  </>
-               )}
-            </button>
-         </div>
+      <div className="fixed bottom-[72px] left-0 right-0 max-w-md mx-auto p-4 bg-gradient-to-t from-[#0B0E14] via-[#0B0E14] to-transparent z-40">
+         <button 
+            onClick={handleVerifyAndDeliver}
+            disabled={completing || otp.length !== 6}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all text-lg flex items-center justify-center gap-2"
+         >
+            {completing ? (
+               <Loader2 className="w-6 h-6 animate-spin" />
+            ) : (
+               <>
+                  <CheckCircle2 className="w-6 h-6" />
+                  <span>Verify OTP & Mark Delivered</span>
+               </>
+            )}
+         </button>
       </div>
 
     </div>
