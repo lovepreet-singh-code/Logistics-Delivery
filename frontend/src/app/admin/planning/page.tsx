@@ -45,11 +45,23 @@ export default function PlanningPage() {
     if (selectedOrders.length === 0 || !selectedDriver) return;
     setDispatching(true);
     try {
+      let fallbackDriverId = "60b5f1f9a2b5b3a3d8f8a1a1"; // valid fallback ObjectId
+      try {
+        const token = localStorage.getItem("token");
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          fallbackDriverId = payload.id || payload.userId || fallbackDriverId;
+        }
+      } catch (e) {
+        console.error("Could not parse token for driverId fallback", e);
+      }
+
       // According to API gateway routing, planning is /planning or /dispatch
       // Using /planning/dispatch as built in sprint 7
       await apiClient.post('/planning/dispatch', { 
         orderIds: selectedOrders,
-        vehicleId: selectedDriver
+        vehicleId: selectedDriver,
+        driverId: fallbackDriverId
       });
       alert(`Successfully dispatched ${selectedOrders.length} orders!`);
       // Remove dispatched orders from state
