@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Phone, Navigation, Package, User as UserIcon, ShieldAlert, CheckCircle2, Loader2, MapPin, Camera, PenTool, Map as MapIcon, IndianRupee } from "lucide-react";
 import apiClient from "@/lib/apiClient";
 import Link from "next/link";
 
-export default function DeliveryExecutionPage({ params }: { params: { id: string } }) {
+export default function DeliveryExecutionPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params?.id;
   const [delivery, setDelivery] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [otp, setOtp] = useState("");
@@ -16,12 +18,12 @@ export default function DeliveryExecutionPage({ params }: { params: { id: string
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   useEffect(() => {
-    fetchDeliveryDetails();
-  }, [params.id]);
+    if (id) fetchDeliveryDetails();
+  }, [id]);
 
   const fetchDeliveryDetails = async () => {
     try {
-      const response = await apiClient.get(`/agent/deliveries/${params.id}`);
+      const response = await apiClient.get(`/agent/deliveries/${id}`);
       if (response.data.success && response.data.data) {
         setDelivery(response.data.data);
       } else {
@@ -42,12 +44,12 @@ export default function DeliveryExecutionPage({ params }: { params: { id: string
     setError("");
     setCompleting(true);
     try {
-      const res = await apiClient.post(`/agent/deliveries/${params.id}/verify`, { 
+      const response = await apiClient.post(`/agent/deliveries/${id}/verify`, { 
         otp, 
         photoUrl: null, 
         signatureUrl: null 
       });
-      if (res.data.success) {
+      if (response.data.success) {
         setShowSuccessToast(true);
         setTimeout(() => {
           router.push("/agent/history");
