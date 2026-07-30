@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Package, LogOut, CheckCircle, Loader2, Check } from "lucide-react";
 import apiClient from "@/lib/apiClient";
 import Link from "next/link";
+import axios from "axios";
 
 export default function AgentDashboard() {
   const router = useRouter();
@@ -26,17 +27,23 @@ export default function AgentDashboard() {
         return;
       }
 
-      const [activeRes, statsRes] = await Promise.all([
-        apiClient.get("/agent/deliveries/active"),
-        apiClient.get("/agent/stats")
-      ]);
+      const response = await axios.get("http://localhost:8080/api/orders", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       
-      if (activeRes.data.success) {
-        setActiveDeliveries(activeRes.data.data || []);
-      }
-      
-      if (statsRes.data.success) {
-        setStats(statsRes.data.data);
+      if (response.data.success && Array.isArray(response.data.data)) {
+        const allOrders = response.data.data;
+        const pendingOrders = allOrders.filter((o: any) => o.status !== 'DELIVERED');
+        const completedOrders = allOrders.filter((o: any) => o.status === 'DELIVERED');
+        
+        setActiveDeliveries(pendingOrders);
+        setStats({
+          pendingToday: pendingOrders.length,
+          completedToday: completedOrders.length,
+          totalToday: allOrders.length,
+          todayEarnings: completedOrders.length * 85,
+          distanceCovered: completedOrders.length * 8.5
+        });
       }
     } catch (err: any) {
       console.error("Failed to fetch agent data", err);
