@@ -16,6 +16,8 @@ export default function DeliveryExecutionPage() {
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState("");
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [photoTaken, setPhotoTaken] = useState(false);
+  const [signatureTaken, setSignatureTaken] = useState(false);
 
   useEffect(() => {
     if (id) fetchDeliveryDetails();
@@ -46,16 +48,16 @@ export default function DeliveryExecutionPage() {
     try {
       const response = await apiClient.post(`/agent/deliveries/${id}/verify`, { 
         otp, 
-        photoUrl: null, 
-        signatureUrl: null 
+        photoUrl: photoTaken ? "https://mock.example.com/photo.jpg" : null, 
+        signatureUrl: signatureTaken ? "https://mock.example.com/signature.png" : null 
       });
       if (response.data.success) {
         setShowSuccessToast(true);
         setTimeout(() => {
-          router.push("/agent/history");
+          window.location.href = "/agent/routes";
         }, 1500); // Wait for toast animation
       } else {
-        setError(res.data.message || "Failed to mark delivered.");
+        setError(response.data.message || "Failed to mark delivered.");
       }
     } catch (err) {
       setError("Network error occurred.");
@@ -140,11 +142,15 @@ export default function DeliveryExecutionPage() {
 
            {/* Action Buttons */}
            <div className="grid grid-cols-2 gap-3">
-              <button className="flex items-center justify-center gap-2 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 active:bg-slate-600 rounded-xl transition-colors min-h-[48px]">
+              <button 
+                 onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(dropAddress)}`, '_blank')}
+                 className="flex items-center justify-center gap-2 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 active:bg-slate-600 rounded-xl transition-colors min-h-[48px]">
                  <Navigation className="w-5 h-5 text-blue-400" />
                  <span className="font-bold text-sm text-white">Navigate</span>
               </button>
-              <button className="flex items-center justify-center gap-2 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 active:bg-emerald-500/30 rounded-xl transition-colors min-h-[48px]">
+              <button 
+                 onClick={() => window.open(`tel:${customerPhone}`, '_self')}
+                 className="flex items-center justify-center gap-2 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 active:bg-emerald-500/30 rounded-xl transition-colors min-h-[48px]">
                  <Phone className="w-5 h-5 text-emerald-400" />
                  <span className="font-bold text-sm text-emerald-400">Call Customer</span>
               </button>
@@ -208,15 +214,22 @@ export default function DeliveryExecutionPage() {
               Delivery Verification
            </h3>
            <p className="text-xs text-slate-400 text-center mb-6">Complete PoD requirements to mark as delivered.</p>
-           
-           <div className="grid grid-cols-2 gap-3 mb-6">
-              <button className="flex flex-col items-center justify-center gap-2 py-4 bg-slate-950/50 hover:bg-slate-800 border border-slate-800 rounded-xl transition-colors min-h-[48px]">
-                 <Camera className="w-6 h-6 text-indigo-400" />
-                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Take Photo</span>
+                      <div className="grid grid-cols-2 gap-3 mb-6">
+              <button 
+                 onClick={() => setPhotoTaken(true)}
+                 className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition-colors min-h-[48px] ${
+                   photoTaken ? "bg-indigo-500/10 border-indigo-500/50" : "bg-slate-950/50 hover:bg-slate-800 border-slate-800"
+                 }`}>
+                 {photoTaken ? <CheckCircle2 className="w-6 h-6 text-indigo-400" /> : <Camera className="w-6 h-6 text-indigo-400" />}
+                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{photoTaken ? "Captured" : "Take Photo"}</span>
               </button>
-              <button className="flex flex-col items-center justify-center gap-2 py-4 bg-slate-950/50 hover:bg-slate-800 border border-slate-800 rounded-xl transition-colors min-h-[48px]">
-                 <PenTool className="w-6 h-6 text-amber-400" />
-                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Signature</span>
+              <button 
+                 onClick={() => setSignatureTaken(true)}
+                 className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition-colors min-h-[48px] ${
+                   signatureTaken ? "bg-amber-500/10 border-amber-500/50" : "bg-slate-950/50 hover:bg-slate-800 border-slate-800"
+                 }`}>
+                 {signatureTaken ? <CheckCircle2 className="w-6 h-6 text-amber-400" /> : <PenTool className="w-6 h-6 text-amber-400" />}
+                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{signatureTaken ? "Signed" : "Signature"}</span>
               </button>
            </div>
 
