@@ -21,14 +21,11 @@ export default function DeliveryExecutionPage({ params }: { params: { id: string
 
   const fetchDeliveryDetails = async () => {
     try {
-      const response = await apiClient.get("/agent/deliveries/active");
-      if (response.data.success && Array.isArray(response.data.data)) {
-        const found = response.data.data.find((d: any) => d._id === params.id);
-        if (found) {
-          setDelivery(found);
-        } else {
-          setError("Delivery not found or already completed.");
-        }
+      const response = await apiClient.get(`/agent/deliveries/${params.id}`);
+      if (response.data.success && response.data.data) {
+        setDelivery(response.data.data);
+      } else {
+        setError("Delivery not found or already completed.");
       }
     } catch (err) {
       setError("Failed to load delivery details.");

@@ -42,6 +42,22 @@ export const getDeliveryHistory = async (req: Request, res: Response) => {
   }
 };
 
+export const getDeliveryById = async (req: Request, res: Response) => {
+  try {
+    let delivery = await Delivery.findById(req.params.id).populate('orderId');
+    if (!delivery) {
+      // Fallback: If they passed the Order ID instead of Delivery ID
+      delivery = await Delivery.findOne({ orderId: req.params.id, status: { $ne: 'DELIVERED' } }).populate('orderId');
+    }
+    if (!delivery) {
+      return res.status(404).json({ success: false, message: 'Delivery not found' });
+    }
+    res.status(200).json({ success: true, data: delivery });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const verifyDelivery = async (req: Request, res: Response) => {
   try {
     const { deliveryId } = req.params;

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getActiveDeliveries, getDeliveryHistory, verifyDelivery, getAgentStats } from "../controllers/agentController";
+import { getActiveDeliveries, getDeliveryHistory, verifyDelivery, getAgentStats, getDeliveryById } from "../controllers/agentController";
 
 // Using require to load middleware that we know exists in common structure, or assume express middleware for checking token exists
 // The existing routes probably use an auth middleware. Let's assume there is one.
@@ -14,6 +14,7 @@ router.use(requireRole(["AGENT", "DRIVER"]));
 
 router.get("/deliveries/active", getActiveDeliveries);
 router.get("/deliveries/history", getDeliveryHistory);
+router.get("/deliveries/:id", getDeliveryById);
 router.post("/deliveries/:deliveryId/verify", verifyDelivery);
 router.get("/stats", getAgentStats);
 
