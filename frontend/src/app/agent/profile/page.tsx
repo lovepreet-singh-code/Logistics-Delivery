@@ -7,25 +7,17 @@ import { User as UserIcon, LogOut, Star, Truck, Award, Settings, FileText, HelpC
 export default function ProfilePage() {
   const router = useRouter();
 
-  const [profile, setProfile] = useState<any>(null);
+  const [agentName, setAgentName] = useState<string>("Loading...");
+  const [agentId, setAgentId] = useState<string>("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          setProfile({
-            ...payload,
-            name: payload.name || "Delivery Partner"
-          });
-        } catch (err) {
-          console.error("Failed to decode token", err);
-          setProfile({ name: "Delivery Partner" });
-        }
-      } else {
-        setProfile({ name: "Delivery Partner" });
-      }
+      const storedName = localStorage.getItem("name") || "Delivery Partner";
+      const storedId = localStorage.getItem("agentId") || "";
+      console.log("Fetched from localStorage -> Name:", storedName, "ID:", storedId);
+      
+      setAgentName(storedName);
+      setAgentId(storedId);
     }
   }, []);
 
@@ -53,12 +45,14 @@ export default function ProfilePage() {
            <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl -translate-y-10 translate-x-10"></div>
            
            <div className="flex items-center gap-5 relative z-10">
-              <div className="w-20 h-20 rounded-full bg-slate-800 border-4 border-slate-950 flex items-center justify-center shadow-xl">
-                 <UserIcon className="w-10 h-10 text-slate-400" />
+               <div className="w-20 h-20 rounded-full bg-slate-800 border-4 border-slate-950 flex items-center justify-center shadow-xl">
+                 <span className="text-3xl font-black text-slate-400">
+                    {agentName !== "Loading..." ? agentName.charAt(0).toUpperCase() : ""}
+                 </span>
               </div>
               <div>
-                 <h2 className="text-2xl font-black text-white leading-tight">{profile?.name || "Loading..."}</h2>
-                 <p className="text-sm font-mono text-indigo-400 mt-1">ID: {profile?.id ? `AGT-${profile.id.slice(-6).toUpperCase()}` : "AGT-..."}</p>
+                 <h2 className="text-2xl font-black text-white leading-tight">{agentName}</h2>
+                 <p className="text-sm font-mono text-indigo-400 mt-1">ID: {agentId ? `AGT-${agentId.slice(-6).toUpperCase()}` : "AGT-..."}</p>
                  <div className="flex items-center gap-1 mt-2 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md w-max">
                     <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                     <span className="text-xs font-bold text-amber-500">4.92 Rating</span>

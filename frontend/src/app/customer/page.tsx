@@ -69,7 +69,7 @@ export default function CustomerDashboard() {
     },
     {
       title: "Active Shipments",
-      value: orders.filter(o => !["DELIVERED", "PENDING", "CANCELLED"].includes(o.status)).length,
+      value: orders.filter(o => o.status !== "DELIVERED").length,
       icon: Truck,
       color: "text-amber-500",
       bg: "bg-amber-500/10",
@@ -122,7 +122,7 @@ export default function CustomerDashboard() {
     { name: 'Sun', shipments: 5 },
   ];
 
-  const totalSpend = orders.reduce((sum, order) => sum + (order.fare || 50), 0);
+  const totalSpend = orders.reduce((sum, order) => sum + (order.amount || order.fare || 0), 0);
   const avgDeliveryTime = "2.4 Days";
 
   return (
@@ -244,7 +244,7 @@ export default function CustomerDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {orders.slice(0, 5).map((order) => (
+                {orders.slice(0, 3).map((order) => (
                   <tr key={order._id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="p-4 pl-6">
                       <span className="font-mono font-bold text-slate-800">{order._id.substring(0, 8)}</span>

@@ -55,11 +55,21 @@ export default function AuthPortal() {
         
       const res = await axios.post(endpoint, payload);
       
-      const { token, user } = res.data.data;
+      const data = res.data.data || res.data;
+      const { token, user } = data;
       
       // Save to localStorage
       localStorage.setItem("token", token);
       localStorage.setItem("role", user.role);
+
+      // Save name to localStorage so Profile page can read it
+      if (data.user && data.user.name) {
+        localStorage.setItem('name', data.user.name);
+      } else if (data.name) {
+        localStorage.setItem('name', data.name);
+      } else if (user && user.name) {
+        localStorage.setItem('name', user.name);
+      }
       
       // Save to cookie for Next.js Middleware
       document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax; Secure`;
