@@ -54,8 +54,9 @@ export default function AgentDashboard() {
     window.location.href = "/";
   };
 
-  const pendingCount = activeDeliveries.length;
+  const pendingCount = stats?.pendingToday || activeDeliveries.length;
   const completedCount = stats?.completedToday || 0;
+  const totalStops = stats?.totalToday || (pendingCount + completedCount);
   const earnings = stats?.todayEarnings || 0;
   const distance = stats?.distanceCovered || 0;
 
@@ -91,7 +92,7 @@ export default function AgentDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm">
               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Stops</span>
-              <span className="text-xl font-black text-white">{pendingCount + completedCount}</span>
+              <span className="text-xl font-black text-white">{totalStops}</span>
             </div>
             <div className="bg-slate-900 border border-emerald-500/30 px-4 py-3 rounded-2xl flex flex-col gap-1 shadow-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-emerald-500/5"></div>

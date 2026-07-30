@@ -129,6 +129,11 @@ export const getAgentStats = async (req: Request, res: Response) => {
       updatedAt: { $gte: startOfDay, $lte: endOfDay }
     });
 
+    const pendingDeliveries = await Delivery.countDocuments({
+      agentId,
+      status: { $in: [DeliveryStatus.ASSIGNED, DeliveryStatus.IN_TRANSIT, DeliveryStatus.OUT_FOR_DELIVERY] }
+    });
+
     // Mock calculations
     const todayEarnings = completedDeliveries * 85; // ₹85 per delivery
     const distanceCovered = completedDeliveries * 8.5; // Mock 8.5km per delivery
@@ -138,6 +143,8 @@ export const getAgentStats = async (req: Request, res: Response) => {
       success: true,
       data: {
         completedToday: completedDeliveries,
+        pendingToday: pendingDeliveries,
+        totalToday: completedDeliveries + pendingDeliveries,
         todayEarnings,
         distanceCovered,
         rating

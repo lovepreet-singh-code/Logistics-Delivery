@@ -1,10 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { User as UserIcon, LogOut, Star, Truck, Award, Settings, FileText, HelpCircle } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();
+
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        setProfile(payload);
+      } catch (err) {
+        console.error("Failed to decode token", err);
+      }
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -34,8 +49,8 @@ export default function ProfilePage() {
                  <UserIcon className="w-10 h-10 text-slate-400" />
               </div>
               <div>
-                 <h2 className="text-2xl font-black text-white leading-tight">Rahul Kumar</h2>
-                 <p className="text-sm font-mono text-indigo-400 mt-1">ID: AGT-9910-BX</p>
+                 <h2 className="text-2xl font-black text-white leading-tight">{profile?.name || "Loading..."}</h2>
+                 <p className="text-sm font-mono text-indigo-400 mt-1">ID: {profile?.id ? `AGT-${profile.id.slice(-6).toUpperCase()}` : "AGT-..."}</p>
                  <div className="flex items-center gap-1 mt-2 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md w-max">
                     <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                     <span className="text-xs font-bold text-amber-500">4.92 Rating</span>

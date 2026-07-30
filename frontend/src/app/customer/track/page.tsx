@@ -335,6 +335,20 @@ export default function CustomerDashboard() {
                 </div>
               </div>
 
+              {/* Secure OTP Display */}
+              {orderData.status !== 'DELIVERED' && orderData.otp && (
+                <div className="mt-8 p-6 bg-indigo-50 border-2 border-indigo-100 rounded-2xl relative overflow-hidden group shadow-inner ml-4 sm:ml-8 max-w-sm">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-200/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                  <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-indigo-600" /> Secure Delivery OTP
+                  </h4>
+                  <p className="text-xs text-indigo-700/80 mb-4 font-medium">Share this pin with the delivery agent to receive your package.</p>
+                  <div className="bg-white px-6 py-4 rounded-xl border border-indigo-100 shadow-sm inline-block">
+                    <span className="text-3xl font-black text-indigo-600 tracking-[0.25em] font-mono">{orderData.otp}</span>
+                  </div>
+                </div>
+              )}
+
             </div>
 
               {/* Map Container */}
