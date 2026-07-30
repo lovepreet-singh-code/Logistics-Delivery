@@ -68,11 +68,11 @@ export default function RoutesPage() {
         ) : (
           <div className="space-y-4">
             {pendingDeliveries.map((delivery, index) => {
-              const order = delivery.orderId;
-              const trackingId = order?._id?.slice(-8).toUpperCase() || "UNKNOWN";
+              const order = typeof delivery.orderId === 'object' ? delivery.orderId : {};
+              const trackingId = (order?._id || delivery.orderId)?.toString().slice(-8).toUpperCase() || "UNKNOWN";
               const pickupAddress = order?.pickupAddress?.fullAddress || "Hub";
               const dropAddress = order?.deliveryAddress?.fullAddress || "Unknown Destination";
-              const weight = order?.parcelDetails?.weight ? `${order.parcelDetails.weight}kg` : 'N/A';
+              const weight = order?.parcelDetails?.weightKg ? `${order.parcelDetails.weightKg}kg` : 'N/A';
               const isOutForDelivery = delivery.status === "OUT_FOR_DELIVERY" || delivery.status === "IN_TRANSIT";
 
               return (

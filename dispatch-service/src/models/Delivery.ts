@@ -5,6 +5,7 @@ const deliverySchema = new Schema<IDeliveryDocument>(
   {
     orderId: {
       type: Schema.Types.ObjectId,
+      ref: "Order",
       required: [true, "Order ID is required"],
     },
     agentId: {
