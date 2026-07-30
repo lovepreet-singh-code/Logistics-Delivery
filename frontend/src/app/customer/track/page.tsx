@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin } from 'lucide-react';
+import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin, ShieldAlert } from 'lucide-react';
 
 const LogisticsMap = dynamic(() => import('@/components/LogisticsMap'), {
   ssr: false,
@@ -12,39 +12,49 @@ const LogisticsMap = dynamic(() => import('@/components/LogisticsMap'), {
 });
 
 export default function CustomerDashboard() {
-  const searchParams = useSearchParams();
-  const idFromQuery = searchParams.get('id') || '';
-  
-  const [orderIdInput, setOrderIdInput] = useState(idFromQuery);
+  const [isMounted, setIsMounted] = useState(false);
+  const [orderIdInput, setOrderIdInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [orderData, setOrderData] = useState<any>(null);
 
-  // Auto-fetch if ID provided in URL
   useEffect(() => {
-    if (idFromQuery) {
-      handleTrackOrder();
+    setIsMounted(true);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const idFromQuery = params.get('id');
+      if (idFromQuery) {
+        setOrderIdInput(idFromQuery);
+        handleTrackOrder(undefined, idFromQuery);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idFromQuery]);
+  }, []);
 
-  const handleTrackOrder = async (e?: React.FormEvent) => {
+  const handleTrackOrder = async (e?: React.FormEvent, overrideId?: string) => {
     if (e) e.preventDefault();
-    if (!orderIdInput.trim()) return;
+    if (typeof window === 'undefined') return;
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/';
+      return;
+    }
+
+    const trackingId = overrideId || orderIdInput.trim();
+    if (!trackingId) return;
 
     try {
       setLoading(true);
       setError('');
       setOrderData(null);
       
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`http://localhost:8080/api/orders/${orderIdInput.trim()}`, {
+      const res = await axios.get(`http://localhost:8080/api/orders/${trackingId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
       // Ensure we extract the data object according to standard backend response { success: true, data: { ... } }
-      setOrderData(res.data.data || res.data);
+      setOrderData(res?.data?.data || res?.data);
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || 'Order not found. Please check your tracking number and try again.');
@@ -81,6 +91,8 @@ export default function CustomerDashboard() {
     if (currentIndex === targetIndex) return 'active';
     return 'pending';
   };
+
+  if (!isMounted) return null; // Server par kuch render mat karo
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans selection:bg-indigo-500/30">
