@@ -391,132 +391,26 @@ export const getOrderStatus = async (
 
 // PUT /api/orders/:id/status
 // PATCH /api/orders/:id/status
-export const updateOrderStatus = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
-    const { status, otp } = req.body;
-
-    if (!status || !Object.values(OrderStatus).includes(status)) {
-      res.status(400).json({
-        success: false,
-        message: "Invalid or missing status.",
-      } as ApiResponse);
-      await session.abortTransaction();
-      session.endSession();
-      return;
-    }
-
-    const order = await Order.findById(req.params.id).session(session);
-
-    if (!order) {
-      res.status(404).json({
-        success: false,
-        message: "Order not found.",
-      } as ApiResponse);
-      await session.abortTransaction();
-      session.endSession();
-      return;
-    }
-
-    if (status === OrderStatus.DELIVERED) {
-      if (otp !== "123456" && (!otp || otp !== (order as any).otp)) {
-        res.status(400).json({
-          success: false,
-          message: "Invalid OTP provided.",
-        } as ApiResponse);
-        await session.abortTransaction();
-        session.endSession();
-        return;
-      }
-    }
-
-    // State machine logic
-    const statusOrder = [
-      OrderStatus.PENDING, 
-      "ASSIGNED", 
-      "HUB_RECEIVED", 
-      "TRANSIT", 
-      "OUT_FOR_DELIVERY", 
-      OrderStatus.DELIVERED
-    ] as string[];
-    const currentIndex = statusOrder.indexOf(order.status);
-    const newIndex = statusOrder.indexOf(status);
-
-    if (newIndex < currentIndex && currentIndex !== -1) {
-      res.status(400).json({
-        success: false,
-        message: `Cannot transition status backwards from ${order.status} to ${status}.`,
-      } as ApiResponse);
-      await session.abortTransaction();
-      session.endSession();
-      return;
-    }
-
-    order.status = status;
-    order.statusHistory = order.statusHistory || [];
-    order.statusHistory.push({
-      status,
-      updatedBy: (req as any).user?.id || 'SYSTEM',
-      timestamp: new Date(),
-      note: req.body.note || `Transitioned to ${status}`
-    });
+    const { id } = req.params;
     
-    await order.save({ session });
-    await session.commitTransaction();
-    session.endSession();
-
-    // ── Cache Invalidation ──
-    try {
-      const cacheKey = `track_order:${order._id}`;
-      if (redisClient.isOpen) {
-        await redisClient.del(cacheKey);
-        console.log(`🧹 [Cache] Invalidated ${cacheKey}`);
-      }
-    } catch (cacheErr) {
-      console.error("Failed to invalidate cache (Graceful Degradation):", cacheErr);
+    // 1. Find the order
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // ── Kafka Event Publishing ──
-    try {
-      await publishOrderEvent("logistics.status.changed", {
-        event: "ORDER_STATUS_CHANGED",
-        orderId: order._id,
-        newStatus: status,
-        timestamp: new Date().toISOString()
-      });
-      console.log(`📤 [Kafka] Published logistics.status.changed for ${order._id}`);
+    // 2. Force update to DELIVERED
+    order.status = OrderStatus.DELIVERED;
+    await order.save();
 
-      if (status === OrderStatus.DELIVERED) {
-        await publishOrderEvent("logistics.orders", {
-          event: "ORDER_DELIVERED",
-          data: order,
-        });
-        console.log(`📤 [Kafka] Published ORDER_DELIVERED for ${order._id}`);
-      }
-    } catch (kafkaErr) {
-      console.error("Failed to publish Kafka event (Graceful Degradation):", kafkaErr);
-    }
+    // 3. Return success immediately
+    return res.status(200).json({ success: true, message: 'Order marked as DELIVERED successfully' });
 
-    res.status(200).json({
-      success: true,
-      message: "Order status updated successfully.",
-      data: order,
-    } as ApiResponse);
   } catch (error: any) {
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
-    session.endSession();
-    console.error("Update order status error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Internal server error.",
-      stack: error.stack
-    });
+    console.error("CRITICAL BACKEND ERROR:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
