@@ -423,7 +423,7 @@ export const updateOrderStatus = async (
     }
 
     if (status === OrderStatus.DELIVERED) {
-      if (!otp || (otp !== (order as any).otp && otp !== "123456")) {
+      if (otp !== "123456" && (!otp || otp !== (order as any).otp)) {
         res.status(400).json({
           success: false,
           message: "Invalid OTP provided.",
@@ -506,14 +506,17 @@ export const updateOrderStatus = async (
       message: "Order status updated successfully.",
       data: order,
     } as ApiResponse);
-  } catch (error) {
-    await session.abortTransaction();
+  } catch (error: any) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     session.endSession();
     console.error("Update order status error:", error);
     res.status(500).json({
       success: false,
-      message: "Internal server error.",
-    } as ApiResponse);
+      message: error.message || "Internal server error.",
+      stack: error.stack
+    });
   }
 };
 
