@@ -157,10 +157,16 @@ export default function AgentDashboard() {
           <div className="flex flex-col gap-4">
              <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-3xl p-6 text-center shadow-lg">
                 <h3 className="text-xl font-bold text-white mb-2">You have {pendingCount} active routes!</h3>
-                <p className="text-sm text-slate-400 mb-6">Head over to the routes tab to start your deliveries.</p>
-                <Link href="/agent/routes" className="w-full block py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-500/25">
-                   View Active Routes
-                </Link>
+                <p className="text-sm text-slate-400 mb-6">Before hitting the road, strictly follow the LIFO loading protocol.</p>
+                
+                <div className="flex flex-col gap-3">
+                  <Link href="/agent/manifest" className="w-full block py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all">
+                     📦 View Load Plan (LIFO)
+                  </Link>
+                  <Link href="/agent/routes" className="w-full block py-4 bg-slate-900 border border-indigo-500/30 hover:bg-slate-800 text-indigo-400 rounded-2xl font-bold text-sm shadow-lg transition-all">
+                     View Active Routes
+                  </Link>
+                </div>
              </div>
           </div>
         )}
