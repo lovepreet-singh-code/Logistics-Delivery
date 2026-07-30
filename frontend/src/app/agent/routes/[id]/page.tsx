@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Phone, Navigation, Package, User as UserIcon, ShieldAlert, CheckCircle2, Loader2, MapPin, Camera, PenTool, Map as MapIcon, IndianRupee } from "lucide-react";
 import apiClient from "@/lib/apiClient";
+import axios from "axios";
 import Link from "next/link";
 
 export default function DeliveryExecutionPage() {
@@ -46,10 +47,12 @@ export default function DeliveryExecutionPage() {
     setError("");
     setCompleting(true);
     try {
-      const response = await apiClient.post(`/agent/deliveries/${id}/verify`, { 
-        otp, 
-        photoUrl: photoTaken ? "https://mock.example.com/photo.jpg" : null, 
-        signatureUrl: signatureTaken ? "https://mock.example.com/signature.png" : null 
+      const token = localStorage.getItem("token");
+      const response = await axios.patch(`http://localhost:8080/api/orders/${id}/status`, { 
+        status: 'DELIVERED',
+        otp 
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
         setShowSuccessToast(true);

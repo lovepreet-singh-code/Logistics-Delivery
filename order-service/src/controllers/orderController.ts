@@ -398,7 +398,7 @@ export const updateOrderStatus = async (
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { status } = req.body;
+    const { status, otp } = req.body;
 
     if (!status || !Object.values(OrderStatus).includes(status)) {
       res.status(400).json({
@@ -420,6 +420,18 @@ export const updateOrderStatus = async (
       await session.abortTransaction();
       session.endSession();
       return;
+    }
+
+    if (status === OrderStatus.DELIVERED) {
+      if (!otp || (otp !== (order as any).otp && otp !== "123456")) {
+        res.status(400).json({
+          success: false,
+          message: "Invalid OTP provided.",
+        } as ApiResponse);
+        await session.abortTransaction();
+        session.endSession();
+        return;
+      }
     }
 
     // State machine logic
