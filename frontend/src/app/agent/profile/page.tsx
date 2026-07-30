@@ -10,24 +10,32 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setProfile(payload);
-      } catch (err) {
-        console.error("Failed to decode token", err);
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          setProfile({
+            ...payload,
+            name: payload.name || "Delivery Partner"
+          });
+        } catch (err) {
+          console.error("Failed to decode token", err);
+          setProfile({ name: "Delivery Partner" });
+        }
+      } else {
+        setProfile({ name: "Delivery Partner" });
       }
     }
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("agentId");
-    localStorage.removeItem("role");
-    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = "/";
+    if (typeof window !== "undefined") {
+      localStorage.clear();
+      document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      window.location.href = "/";
+    }
   };
 
   return (
@@ -73,28 +81,28 @@ export default function ProfilePage() {
 
         {/* Menu Items */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-2 shadow-xl mb-8 space-y-1">
-           <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-slate-800 transition-colors">
+           <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-slate-800/30 transition-colors">
               <div className="flex items-center gap-3">
                  <Award className="w-5 h-5 text-slate-400" />
                  <span className="font-bold text-slate-300">Achievements</span>
               </div>
               <span className="text-slate-600">→</span>
            </button>
-           <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-slate-800 transition-colors">
+           <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-slate-800/30 transition-colors">
               <div className="flex items-center gap-3">
                  <FileText className="w-5 h-5 text-slate-400" />
                  <span className="font-bold text-slate-300">Duty Logs</span>
               </div>
               <span className="text-slate-600">→</span>
            </button>
-           <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-slate-800 transition-colors">
+           <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-slate-800/30 transition-colors">
               <div className="flex items-center gap-3">
                  <Settings className="w-5 h-5 text-slate-400" />
                  <span className="font-bold text-slate-300">App Settings</span>
               </div>
               <span className="text-slate-600">→</span>
            </button>
-           <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-slate-800 transition-colors">
+           <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-slate-800/30 transition-colors">
               <div className="flex items-center gap-3">
                  <HelpCircle className="w-5 h-5 text-slate-400" />
                  <span className="font-bold text-slate-300">Support & Help</span>
@@ -106,7 +114,7 @@ export default function ProfilePage() {
         {/* Logout Button */}
         <button 
            onClick={handleLogout}
-           className="w-full py-5 bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 border border-red-500/20 text-red-500 rounded-2xl font-black text-base uppercase tracking-widest transition-all flex items-center justify-center gap-3"
+           className="w-full py-5 bg-red-950/20 hover:bg-red-900/30 active:bg-red-900/50 border-2 border-red-500/50 hover:border-red-500 text-red-500 hover:text-red-400 rounded-2xl font-black text-base uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-lg shadow-red-500/10"
         >
            <LogOut className="w-5 h-5" />
            Logout
