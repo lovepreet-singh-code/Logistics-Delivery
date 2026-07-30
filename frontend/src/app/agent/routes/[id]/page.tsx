@@ -26,13 +26,22 @@ export default function DeliveryExecutionPage() {
 
   const fetchDeliveryDetails = async () => {
     try {
-      const response = await apiClient.get(`/agent/deliveries/${id}`);
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        window.location.href = "/";
+        return;
+      }
+      const response = await axios.get(`http://localhost:8080/api/orders/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (response.data.success && response.data.data) {
         setDelivery(response.data.data);
       } else {
         setError("Delivery not found or already completed.");
       }
     } catch (err) {
+      console.error(err);
       setError("Failed to load delivery details.");
     } finally {
       setLoading(false);
@@ -89,7 +98,8 @@ export default function DeliveryExecutionPage() {
     );
   }
 
-  const order = delivery.orderId;
+  // If we fetched an order directly, it IS the order. If from dispatch, it's nested in orderId.
+  const order = delivery.orderId || delivery;
   const trackingId = order?._id?.slice(-8).toUpperCase() || "UNKNOWN";
   const customerName = "Rahul Verma"; // Mocked if missing
   const customerPhone = order?.customerPhone || "+91 98765 43210";
