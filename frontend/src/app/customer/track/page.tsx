@@ -37,7 +37,12 @@ export default function CustomerDashboard() {
       setError('');
       setOrderData(null);
       
-      const res = await axios.get(`http://localhost:8080/api/orders/${orderIdInput.trim()}`);
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`http://localhost:8080/api/orders/${orderIdInput.trim()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       // Ensure we extract the data object according to standard backend response { success: true, data: { ... } }
       setOrderData(res.data.data || res.data);
     } catch (err: any) {
