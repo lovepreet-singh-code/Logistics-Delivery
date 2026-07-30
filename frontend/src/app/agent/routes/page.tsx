@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Route, Navigation, Loader2, Play, MapPin, Package, Clock } from "lucide-react";
-import apiClient from "@/lib/apiClient";
+import axios from "axios";
 import Link from "next/link";
 
 export default function RoutesPage() {
@@ -24,9 +24,15 @@ export default function RoutesPage() {
         return;
       }
 
-      const response = await apiClient.get("/agent/deliveries/active");
+      const response = await axios.get("http://localhost:8080/api/orders", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
       if (response.data.success && Array.isArray(response.data.data)) {
-        setDeliveries(response.data.data);
+        const activeOrders = response.data.data.filter((order: any) => 
+          order.status === 'PENDING' || order.status === 'IN_TRANSIT' || order.status === 'OUT_FOR_DELIVERY' || order.status === 'ASSIGNED'
+        );
+        setDeliveries(activeOrders);
       } else {
         setDeliveries([]);
       }
@@ -67,16 +73,15 @@ export default function RoutesPage() {
            </div>
         ) : (
           <div className="space-y-4">
-            {pendingDeliveries.map((delivery, index) => {
-              const order = typeof delivery.orderId === 'object' ? delivery.orderId : {};
-              const trackingId = (order?._id || delivery.orderId)?.toString().slice(-8).toUpperCase() || "UNKNOWN";
+            {pendingDeliveries.map((order, index) => {
+              const trackingId = order?._id?.toString().slice(-8).toUpperCase() || "UNKNOWN";
               const pickupAddress = order?.pickupAddress?.fullAddress || "Hub";
               const dropAddress = order?.deliveryAddress?.fullAddress || "Unknown Destination";
               const weight = order?.parcelDetails?.weightKg ? `${order.parcelDetails.weightKg}kg` : 'N/A';
-              const isOutForDelivery = delivery.status === "OUT_FOR_DELIVERY" || delivery.status === "IN_TRANSIT";
+              const isOutForDelivery = order.status === "OUT_FOR_DELIVERY" || order.status === "IN_TRANSIT";
 
               return (
-                <div key={delivery._id} className="bg-slate-900/80 backdrop-blur-xl rounded-[2rem] p-5 border border-slate-700/50 shadow-xl relative overflow-hidden group">
+                <div key={order._id} className="bg-slate-900/80 backdrop-blur-xl rounded-[2rem] p-5 border border-slate-700/50 shadow-xl relative overflow-hidden group">
                   <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
                   
                   <div className="flex justify-between items-start mb-4 relative z-10">
@@ -124,7 +129,7 @@ export default function RoutesPage() {
                      <button className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-300 rounded-2xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
                         <Navigation className="w-4 h-4" /> Nav
                      </button>
-                     <Link href={`/agent/routes/${delivery._id}`} className="flex-[2] py-3.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25">
+                     <Link href={`/agent/routes/${order._id}`} className="flex-[2] py-3.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25">
                         <Play className="w-4 h-4 fill-white" /> Start Delivery
                      </Link>
                   </div>
