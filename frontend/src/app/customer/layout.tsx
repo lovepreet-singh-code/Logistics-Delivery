@@ -90,7 +90,7 @@ export default function CustomerLayout({
         <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 px-4">Main Menu</div>
           {navigation.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (item.href !== "/customer" && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.name}

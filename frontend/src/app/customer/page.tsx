@@ -99,7 +99,7 @@ export default function CustomerDashboard() {
   const quickActions = [
     { name: "Book New Parcel", icon: PlusCircle, color: "text-indigo-600", bg: "bg-indigo-50 hover:bg-indigo-100", border: "border-indigo-100", onClick: () => router.push("/customer/book") },
     { name: "Track Shipment", icon: MapPin, color: "text-blue-600", bg: "bg-blue-50 hover:bg-blue-100", border: "border-blue-100", onClick: () => router.push("/customer/track") },
-    { name: "Download Invoice", icon: FileText, color: "text-emerald-600", bg: "bg-emerald-50 hover:bg-emerald-100", border: "border-emerald-100", onClick: () => router.push("/customer/orders") },
+    { name: "Download Invoice", icon: FileText, color: "text-emerald-600", bg: "bg-emerald-50 hover:bg-emerald-100", border: "border-emerald-100", onClick: () => alert("Invoice generation is coming soon!") },
     { name: "Contact Support", icon: HeadphonesIcon, color: "text-amber-600", bg: "bg-amber-50 hover:bg-amber-100", border: "border-amber-100", onClick: () => {} },
   ];
 
