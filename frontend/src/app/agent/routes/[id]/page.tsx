@@ -66,7 +66,7 @@ export default function DeliveryExecutionPage() {
       if (response.data.success) {
         setShowSuccessToast(true);
         setTimeout(() => {
-          window.location.href = "/agent/routes";
+          router.push("/agent");
         }, 1500); // Wait for toast animation
       } else {
         setError(response.data.message || "Failed to mark delivered.");
@@ -101,9 +101,9 @@ export default function DeliveryExecutionPage() {
   // If we fetched an order directly, it IS the order. If from dispatch, it's nested in orderId.
   const order = delivery.orderId || delivery;
   const trackingId = order?._id?.slice(-8).toUpperCase() || "UNKNOWN";
-  const customerName = "Rahul Verma"; // Mocked if missing
+  const customerName = "Rahul Sharma"; // Mocked if missing
   const customerPhone = order?.customerPhone || "+91 98765 43210";
-  const dropAddress = order?.deliveryAddress?.fullAddress || "Sector 17, Chandigarh, 160017";
+  const dropAddress = order?.deliveryAddress?.fullAddress || "123 Delivery Ave, Mumbai";
   const weight = order?.parcelDetails?.weight ? `${order.parcelDetails.weight}kg` : '2.5kg';
   const isFragile = true; // Hardcoded for UI showcase
   const codAmount = 0; // Set to >0 to show COD UI
@@ -128,8 +128,8 @@ export default function DeliveryExecutionPage() {
           <ArrowLeft className="w-5 h-5 text-slate-300" />
         </Link>
         <div>
-          <h1 className="text-lg font-black tracking-tight text-white">{trackingId}</h1>
-          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Execution View</p>
+          <h1 className="text-lg font-black tracking-tight text-white">Active Delivery</h1>
+          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">{trackingId}</p>
         </div>
       </div>
 
