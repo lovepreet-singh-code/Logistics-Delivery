@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Package, Search, RefreshCw, Loader2, Navigation, AlertTriangle, MapPin, Filter, Calendar, Building, MoreVertical, Eye, Truck, Printer, Car, User } from 'lucide-react';
+import axios from 'axios';
+import { Package, Search, RefreshCw, Loader2, Navigation, AlertTriangle, MapPin, Filter, Calendar, Building, MoreVertical, Eye, Truck, Printer, Car, User, Edit2 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 
 interface Order {
@@ -58,6 +59,23 @@ export default function OrdersPage() {
     setActiveDropdown(activeDropdown === id ? null : id);
   };
 
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.patch(`http://localhost:8080/api/orders/${orderId}/status`, 
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setOrders(orders.map(o => o._id === orderId ? { ...o, status: newStatus } : o));
+      setActiveDropdown(null);
+      alert(`Status successfully updated to ${newStatus}`);
+    } catch (error: any) {
+      console.error("Failed to update status", error);
+      alert("Failed to update status: " + (error.response?.data?.message || error.message));
+    }
+  };
+
   const filteredOrders = orders.filter(order => 
     order._id.toLowerCase().includes(searchQuery.toLowerCase()) ||
     order.customerId.toLowerCase().includes(searchQuery.toLowerCase())
@@ -69,9 +87,12 @@ export default function OrdersPage() {
         return <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg text-[10px] font-bold tracking-wider uppercase">Delivered</span>;
       case 'IN_TRANSIT':
       case 'OUT_FOR_DELIVERY':
+      case 'DESTINATION_HUB':
+      case 'PICKED_UP':
         return <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-lg text-[10px] font-bold tracking-wider uppercase">{status.replace(/_/g, ' ')}</span>;
+      case 'ORDER_PLACED':
       case 'PENDING':
-        return <span className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg text-[10px] font-bold tracking-wider uppercase">Pending</span>;
+        return <span className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg text-[10px] font-bold tracking-wider uppercase">{status.replace(/_/g, ' ')}</span>;
       default:
         return <span className="px-3 py-1 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-[10px] font-bold tracking-wider uppercase">{status.replace(/_/g, ' ')}</span>;
     }
@@ -233,6 +254,25 @@ export default function OrdersPage() {
                             <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white rounded-xl transition-colors">
                               <Printer className="w-4 h-4 text-slate-400" /> Print Label
                             </button>
+                            <div className="h-px bg-slate-700 my-1 mx-2"></div>
+                            <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                              <Edit2 className="w-3 h-3" /> Update Status
+                            </div>
+                            <div className="max-h-48 overflow-y-auto no-scrollbar">
+                              {['ORDER_PLACED', 'PICKED_UP', 'IN_TRANSIT', 'DESTINATION_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'].map(s => (
+                                <button 
+                                  key={s}
+                                  onClick={(e) => { e.stopPropagation(); handleUpdateStatus(order._id, s); }}
+                                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                                    order.status === s 
+                                      ? 'bg-indigo-500/20 text-indigo-400 font-bold' 
+                                      : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                                  }`}
+                                >
+                                  {s.replace(/_/g, ' ')}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       )}
