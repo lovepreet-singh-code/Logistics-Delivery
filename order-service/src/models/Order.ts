@@ -124,6 +124,10 @@ const orderSchema = new Schema<IOrderDocument>(
       ref: "User",
       required: [true, "Customer ID is required"],
     },
+    awb: {
+      type: String,
+      unique: true,
+    },
     pickupAddress: {
       type: addressSchema,
       required: [true, "Pickup address is required"],

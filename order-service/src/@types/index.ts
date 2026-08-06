@@ -59,6 +59,7 @@ export interface IRouting {
 export interface IOrder {
   _id: Types.ObjectId;
   customerId: Types.ObjectId;
+  awb?: string;
   pickupAddress: IAddress;
   deliveryAddress: IAddress;
   parcelDetails: IParcelDetails;

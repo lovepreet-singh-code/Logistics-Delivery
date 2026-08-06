@@ -6,6 +6,8 @@ import { producer, publishOrderEvent } from "../config/kafka";
 import { ApiResponse, IOrderCreatedEvent, OrderStatus } from "../@types";
 import { geocodeAddress } from "../utils/geocoder";
 import { generateInvoicePDF } from "../utils/invoiceGenerator";
+import stream from "stream";
+import csvParser from "csv-parser";
 
 // Initialize Redis Client
 const redisClient = createClient({
@@ -348,6 +350,103 @@ export const bulkCreateOrders = async (
   }
 };
 
+// POST /api/orders/bulk-upload
+export const bulkUploadOrders = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, message: "No CSV file uploaded." } as ApiResponse);
+      return;
+    }
+
+    const customerId = req.body.customerId || "000000000000000000000000";
+
+    const results: any[] = [];
+    const bufferStream = new stream.PassThrough();
+    bufferStream.end(req.file.buffer);
+
+    bufferStream
+      .pipe(csvParser())
+      .on("data", (data) => results.push(data))
+      .on("end", async () => {
+        const validOrders = [];
+        const errors = [];
+        let failed = 0;
+
+        for (let i = 0; i < results.length; i++) {
+          const row = results[i];
+          try {
+            const awb = `AWB-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+            
+            const newOrder = new Order({
+              customerId,
+              awb,
+              pickupAddress: {
+                pinCode: row.SenderPincode || "000000",
+                fullAddress: row.SenderAddress || "Default Pickup Address",
+                senderName: row.SenderName || "Unknown Sender",
+                senderPhone: row.SenderPhone || "0000000000",
+                lat: 0,
+                lng: 0
+              },
+              deliveryAddress: {
+                pinCode: row.ReceiverPincode || "000000",
+                fullAddress: row.ReceiverAddress || "Default Delivery Address",
+                receiverName: row.ReceiverName || "Unknown Receiver",
+                receiverPhone: row.ReceiverPhone || "0000000000",
+                lat: 0,
+                lng: 0
+              },
+              parcelDetails: {
+                weightKg: parseFloat(row.Weight) || 1,
+                parcelType: ["Document", "Box", "Electronics", "Fragile"].includes(row.ServiceType) ? row.ServiceType : "Box",
+                dimensions: { lengthCm: 10, widthCm: 10, heightCm: 10 }
+              }
+            });
+
+            const validationError = newOrder.validateSync();
+            if (validationError) {
+              failed++;
+              errors.push(`Row ${i + 1}: ${validationError.message}`);
+            } else {
+              validOrders.push(newOrder);
+            }
+          } catch (err: any) {
+             failed++;
+             errors.push(`Row ${i + 1}: ${err.message}`);
+          }
+        }
+
+        if (validOrders.length > 0) {
+          try {
+             await Order.insertMany(validOrders, { ordered: false });
+          } catch (insertError: any) {
+             console.error("Bulk Insert Warning:", insertError);
+             // With ordered: false, successful inserts are saved. 
+             // We can extract failed duplicates if necessary.
+          }
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "Bulk upload processed",
+          data: {
+             totalProcessed: results.length,
+             successful: validOrders.length,
+             failed,
+             errors
+          }
+        } as ApiResponse);
+      });
+      
+  } catch (error: any) {
+    console.error("Bulk upload CSV error:", error);
+    res.status(500).json({ success: false, message: "Server error during bulk upload." } as ApiResponse);
+  }
+};
+
 // GET /api/orders/:id/status
 export const getOrderStatus = async (
   req: Request,
@@ -497,7 +596,7 @@ export const getRoutedOrdersByFranchise = async (
     }
 
     const orders = await Order.find({
-      status: OrderStatus.ROUTED,
+      status: OrderStatus.ORDER_PLACED,
       "routing.originFranchiseId": franchiseId,
     }).sort({ createdAt: 1 });
 

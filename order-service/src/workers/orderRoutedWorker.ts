@@ -44,7 +44,7 @@ export const startOrderRoutedWorker = async (): Promise<void> => {
                   event.destinationFranchiseId
                 ),
                 "routing.isInterFranchise": event.isInterFranchise,
-                status: OrderStatus.ROUTED,
+                status: OrderStatus.ORDER_PLACED,
               },
             },
             { new: true }
@@ -52,7 +52,7 @@ export const startOrderRoutedWorker = async (): Promise<void> => {
 
           if (updatedOrder) {
             console.log(
-              `✅ [order] Order ${event.orderId} updated to ROUTED | Inter-franchise: ${event.isInterFranchise}`
+              `✅ [order] Order ${event.orderId} updated to ORDER_PLACED (Routed) | Inter-franchise: ${event.isInterFranchise}`
             );
           } else {
             console.error(

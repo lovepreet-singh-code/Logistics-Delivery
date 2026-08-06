@@ -11,10 +11,14 @@ import {
   getOrderStats,
   generateInvoice,
   bulkCreateOrders,
+  bulkUploadOrders,
   getMyOrders,
 } from "../controllers/orderController";
+import multer from "multer";
+import { adminAuth } from "../middleware/authMiddleware";
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // ──── Dashboard Stats ────
 router.get("/stats", getOrderStats);
@@ -26,6 +30,7 @@ router.route("/")
   .get(getAllOrders);
 
 router.post("/bulk", bulkCreateOrders);
+router.post("/bulk-upload", adminAuth, upload.single("file"), bulkUploadOrders);
 
 // ──── Internal API (used by Dispatch Service) ────
 router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);

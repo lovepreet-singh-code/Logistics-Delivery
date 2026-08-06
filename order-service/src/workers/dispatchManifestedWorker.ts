@@ -31,19 +31,19 @@ export const startDispatchManifestedWorker = async (): Promise<void> => {
             `📩 [order] Received dispatch.manifested: Manifest ${event.manifestId} | ${event.orderIds.length} orders`
           );
 
-          // Bulk update all orders in the manifest to MANIFESTED
+          // Bulk update all orders in the manifest to PICKED_UP
           const result = await Order.updateMany(
             {
               _id: { $in: event.orderIds },
-              status: OrderStatus.ROUTED,
+              status: OrderStatus.ORDER_PLACED,
             },
             {
-              $set: { status: OrderStatus.MANIFESTED },
+              $set: { status: OrderStatus.PICKED_UP },
             }
           );
 
           console.log(
-            `✅ [order] ${result.modifiedCount}/${event.orderIds.length} orders updated to MANIFESTED for manifest ${event.manifestId}`
+            `✅ [order] ${result.modifiedCount}/${event.orderIds.length} orders updated to PICKED_UP for manifest ${event.manifestId}`
           );
         } catch (err) {
           console.error(
