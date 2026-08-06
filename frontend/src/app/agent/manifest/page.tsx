@@ -191,19 +191,19 @@ export default function LoadingManifest() {
           {allLoaded ? (
             <a 
               href="/agent"
-              className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm uppercase tracking-widest shadow-[0_0_30px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-3 animate-in slide-in-from-bottom-2"
+              className="w-full h-16 p-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm uppercase tracking-widest shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 animate-in slide-in-from-bottom-2"
             >
               <Truck className="w-6 h-6 animate-pulse" />
-              Start Delivery Route
+              START DELIVERY ROUTE
             </a>
           ) : (
-            <button 
-              disabled
-              className="w-full h-16 rounded-2xl bg-slate-900 text-slate-600 font-bold text-sm uppercase tracking-widest border-2 border-slate-800 cursor-not-allowed flex items-center justify-center gap-3 transition-colors"
+            <a 
+              href="#"
+              className="w-full h-16 p-4 rounded-2xl bg-slate-800 text-slate-500 font-bold text-sm uppercase tracking-widest pointer-events-none flex items-center justify-center gap-3"
             >
               <Package className="w-5 h-5" />
-              Load All Packages To Start
-            </button>
+              LOAD ALL PACKAGES TO START
+            </a>
           )}
         </div>
       </div>
