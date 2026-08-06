@@ -3,13 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
+import 'leaflet/dist/leaflet.css';
 import dynamic from 'next/dynamic';
 import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin, ShieldAlert } from 'lucide-react';
 
-const LogisticsMap = dynamic(() => import('@/components/LogisticsMap'), {
-  ssr: false,
-  loading: () => <div className="w-full h-full bg-slate-100 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Loading Map Engine...</div>
-});
+const Map = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
 
 export default function CustomerDashboard() {
   const [isMounted, setIsMounted] = useState(false);
@@ -362,11 +361,21 @@ export default function CustomerDashboard() {
             </div>
 
               {/* Map Container */}
-              <div className="w-full h-80 lg:h-auto min-h-[350px] rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200 relative z-10">
-                <LogisticsMap 
-                  pickupCoords={orderData.pickupAddress?.lat ? [orderData.pickupAddress.lat, orderData.pickupAddress.lng] : undefined}
-                  deliveryCoords={orderData.deliveryAddress?.lat ? [orderData.deliveryAddress.lat, orderData.deliveryAddress.lng] : undefined}
-                />
+              <div className="w-full h-full min-h-[500px] rounded-xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200 relative z-10">
+                <Map 
+                  center={
+                    orderData.deliveryAddress?.lat 
+                      ? [orderData.deliveryAddress.lat, orderData.deliveryAddress.lng] 
+                      : [28.6139, 77.2090]
+                  } 
+                  zoom={12} 
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                </Map>
               </div>
 
             </div>
