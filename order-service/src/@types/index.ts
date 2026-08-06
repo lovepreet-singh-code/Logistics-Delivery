@@ -2,12 +2,13 @@ import { Types, Document } from "mongoose";
 
 // ──── Order Status ────
 export enum OrderStatus {
-  PENDING = "PENDING",
-  ROUTED = "ROUTED",
-  MANIFESTED = "MANIFESTED",
+  ORDER_PLACED = "ORDER_PLACED",
+  PICKED_UP = "PICKED_UP",
   IN_TRANSIT = "IN_TRANSIT",
+  DESTINATION_HUB = "DESTINATION_HUB",
   OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY",
   DELIVERED = "DELIVERED",
+  CANCELLED = "CANCELLED",
 }
 
 export enum PaymentStatus {

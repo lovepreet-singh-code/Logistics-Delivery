@@ -144,9 +144,9 @@ const orderSchema = new Schema<IOrderDocument>(
       type: String,
       enum: {
         values: Object.values(OrderStatus),
-        message: "Status must be one of: PENDING, ROUTED, MANIFESTED, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED",
+        message: "Status must be one of: ORDER_PLACED, PICKED_UP, IN_TRANSIT, DESTINATION_HUB, OUT_FOR_DELIVERY, DELIVERED, CANCELLED",
       },
-      default: OrderStatus.PENDING,
+      default: OrderStatus.ORDER_PLACED,
     },
     paymentStatus: {
       type: String,
