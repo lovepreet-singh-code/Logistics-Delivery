@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Map, Truck, Package, LogOut, Search, 
   Users, UserCog, UserCheck, Warehouse, Navigation, 
   MapPin, BarChart3, PieChart, Settings, SearchIcon,
-  Bell, FileText, Activity
+  Bell, FileText, Activity, Upload
 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -48,6 +48,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/orders" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <Package className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Orders</span>
+          </Link>
+          <Link href="/admin/bulk-upload" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <Upload className="w-5 h-5 group-hover:text-indigo-400" />
+            <span className="font-medium text-sm">Bulk Upload</span>
           </Link>
           <Link href="/admin/customers" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <Users className="w-5 h-5 group-hover:text-indigo-400" />
