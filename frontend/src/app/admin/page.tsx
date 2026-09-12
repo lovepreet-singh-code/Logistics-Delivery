@@ -1,6 +1,6 @@
 "use client";
 
-import { Truck, Package, CheckCircle, AlertTriangle, Users, IndianRupee, XCircle, Activity, MapPin, ChevronRight, Calendar, Navigation } from 'lucide-react';
+import { Truck, Package, CheckCircle, AlertTriangle, Users, IndianRupee, XCircle, Activity, MapPin, ChevronRight, Calendar, Navigation, Loader2 } from 'lucide-react';
 import AdminChart from './AdminChart';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -18,31 +18,50 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const [pendingOrders, setPendingOrders] = useState(0);
+  const [pendingPickups, setPendingPickups] = useState(0);
   const [activeFleet, setActiveFleet] = useState(0);
 
+  const [recentOrdersList, setRecentOrdersList] = useState<any[]>([]);
+  const [unassignedOrdersList, setUnassignedOrdersList] = useState<any[]>([]);
+  const [listsLoading, setListsLoading] = useState(true);
+
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const response = await apiClient.get('/analytics/dashboard-stats');
-        setStats(response.data.data);
-        setPendingOrders(response.data.data.pendingPickups || 0);
-        setActiveFleet(response.data.data.activeDrivers || 0);
+        setLoading(true);
+        setListsLoading(true);
+        
+        // Fetch stats
+        const statsRes = await apiClient.get('/analytics/dashboard-stats');
+        setStats(statsRes.data.data);
+        setPendingPickups(statsRes.data.data.pendingPickups || 0);
+        setActiveFleet(statsRes.data.data.activeDrivers || 0);
+        
+        // Fetch recent and unassigned orders
+        const [recentRes, unassignedRes] = await Promise.all([
+          apiClient.get('/orders/recent'),
+          apiClient.get('/orders/unassigned')
+        ]);
+        
+        setRecentOrdersList(recentRes.data.data || []);
+        setUnassignedOrdersList(unassignedRes.data.data || []);
+        
       } catch (err) {
-        console.error("Failed to fetch dashboard stats", err);
+        console.error("Failed to fetch dashboard data", err);
         setError(true);
       } finally {
         setLoading(false);
+        setListsLoading(false);
       }
     };
-    fetchStats();
+    fetchDashboardData();
   }, []);
 
   const kpis = [
     { title: "Total Customers", value: "1,245", icon: Users, color: "text-indigo-400", bg: "bg-indigo-500/20", glow: "group-hover:bg-indigo-500/20" },
-    { title: "Total Revenue", value: stats?.revenueTotal ? `₹${stats.revenueTotal.toLocaleString()}` : "₹0", icon: IndianRupee, color: "text-emerald-400", bg: "bg-emerald-500/20", glow: "group-hover:bg-emerald-500/20" },
+    { title: "Total Revenue", value: stats?.revenueTotal ? `?${stats.revenueTotal.toLocaleString()}` : "?0", icon: IndianRupee, color: "text-emerald-400", bg: "bg-emerald-500/20", glow: "group-hover:bg-emerald-500/20" },
     { title: "Active Drivers", value: activeFleet.toString(), icon: Truck, color: "text-blue-400", bg: "bg-blue-500/20", glow: "group-hover:bg-blue-500/20" },
-    { title: "Pending Pickups", value: pendingOrders.toString(), icon: Package, color: "text-amber-400", bg: "bg-amber-500/20", glow: "group-hover:bg-amber-500/20" },
+    { title: "Pending Pickups", value: pendingPickups.toString(), icon: Package, color: "text-amber-400", bg: "bg-amber-500/20", glow: "group-hover:bg-amber-500/20" },
     { title: "Success Rate", value: stats?.successRate ? `${stats.successRate}%` : "0%", icon: CheckCircle, color: "text-emerald-400", bg: "bg-emerald-500/20", glow: "group-hover:bg-emerald-500/20" }
   ];
 
@@ -53,13 +72,6 @@ export default function AdminDashboard() {
     { time: "15:50", text: "Driver Priya (V-103) started transit", type: "transit" },
     { time: "15:30", text: "Vehicle V-102 reported maintenance", type: "alert" },
     { time: "15:15", text: "Order LG-9888 picked up from sender", type: "pickup" },
-  ];
-
-  const recentOrders = [
-    { id: "LG-9925", customer: "John Doe", status: "PENDING", driver: "Unassigned", time: "10 mins ago" },
-    { id: "LG-9912", customer: "Alice Smith", status: "DELIVERED", driver: "Rahul (V-101)", time: "25 mins ago" },
-    { id: "LG-9888", customer: "Bob Johnson", status: "IN_TRANSIT", driver: "Priya (V-103)", time: "1 hour ago" },
-    { id: "LG-9870", customer: "Emma Davis", status: "ROUTED", driver: "Amit (V-102)", time: "3 hours ago" },
   ];
 
   return (
@@ -136,38 +148,53 @@ export default function AdminDashboard() {
                 <Link href="/admin/orders" className="text-indigo-400 text-sm font-bold hover:text-indigo-300">View All</Link>
               </div>
               <div className="overflow-x-auto flex-1 p-2">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-800/50">
-                      <th className="p-3 pl-4">Order / Customer</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Driver</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/50">
-                    {recentOrders.map((order, i) => (
-                      <tr key={i} className="hover:bg-slate-800/30 transition-colors group">
-                        <td className="p-3 pl-4">
-                          <div className="font-mono font-bold text-slate-300 text-sm">{order.id}</div>
-                          <div className="text-xs text-slate-500">{order.customer}</div>
-                        </td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                            order.status === 'DELIVERED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                            order.status === 'PENDING' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                            'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                          }`}>
-                            {order.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <div className="text-sm font-medium text-slate-300">{order.driver}</div>
-                          <div className="text-[10px] text-slate-500">{order.time}</div>
-                        </td>
+                {listsLoading ? (
+                  <div className="flex justify-center items-center h-40">
+                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                  </div>
+                ) : (
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-800/50">
+                        <th className="p-3 pl-4">Order / Customer</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3">Driver</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50">
+                      {recentOrdersList.map((order, i) => (
+                        <tr key={order._id || i} className="hover:bg-slate-800/30 transition-colors group">
+                          <td className="p-3 pl-4">
+                            <div className="font-mono font-bold text-slate-300 text-sm">{order.awb || order._id?.slice(-8).toUpperCase()}</div>
+                            <div className="text-xs text-slate-500">{order.customerId?.slice(-6) || 'Unknown'}</div>
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              order.status === 'DELIVERED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                              order.status === 'PENDING' || order.status === 'ORDER_PLACED' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                              'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                            }`}>
+                              {(order.status || 'UNKNOWN').replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <div className="text-sm font-medium text-slate-300">
+                              {order.routing?.agentId ? 'Assigned' : 'Unassigned'}
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {recentOrdersList.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="p-6 text-center text-slate-500">No recent orders found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </div>
@@ -183,27 +210,28 @@ export default function AdminDashboard() {
               <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2">
                 <Navigation className="w-5 h-5 text-amber-500" /> Planning
               </h2>
-              <span className="px-2 py-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase rounded-md">2 Unassigned</span>
+              <span className="px-2 py-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase rounded-md">{unassignedOrdersList.length} Unassigned</span>
             </div>
-            <div className="p-4 space-y-3">
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex items-center justify-between group">
-                <div>
-                  <div className="font-mono font-bold text-slate-300 text-sm">LG-9925</div>
-                  <div className="text-xs text-slate-500 mt-1">To: Bangalore Hub</div>
+            <div className="p-4 space-y-3 max-h-[300px] overflow-y-auto">
+              {listsLoading ? (
+                <div className="flex justify-center items-center h-20">
+                  <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
                 </div>
-                <button className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-lg transition-colors opacity-0 group-hover:opacity-100">
-                  Dispatch
-                </button>
-              </div>
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex items-center justify-between group">
-                <div>
-                  <div className="font-mono font-bold text-slate-300 text-sm">LG-9926</div>
-                  <div className="text-xs text-slate-500 mt-1">To: Mumbai Hub</div>
-                </div>
-                <button className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-lg transition-colors opacity-0 group-hover:opacity-100">
-                  Dispatch
-                </button>
-              </div>
+              ) : unassignedOrdersList.length > 0 ? (
+                unassignedOrdersList.map(order => (
+                  <div key={order._id} className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex items-center justify-between group">
+                    <div>
+                      <div className="font-mono font-bold text-slate-300 text-sm">{order.awb || order._id?.slice(-8).toUpperCase()}</div>
+                      <div className="text-xs text-slate-500 mt-1">To: {order.deliveryAddress?.pinCode || 'Unknown'}</div>
+                    </div>
+                    <Link href={`/admin/orders`} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                      Dispatch
+                    </Link>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-sm text-slate-500 py-4">All orders assigned.</div>
+              )}
             </div>
           </div>
 

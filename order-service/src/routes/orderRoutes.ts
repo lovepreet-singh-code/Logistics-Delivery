@@ -13,6 +13,8 @@ import {
   bulkCreateOrders,
   bulkUploadOrders,
   getMyOrders,
+  getRecentOrders,
+  getUnassignedOrders,
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
@@ -37,6 +39,8 @@ router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);
 
 // ──── Order Detail Endpoints ────
 router.get("/my-orders", getMyOrders);
+router.get("/recent", adminAuth, getRecentOrders);
+router.get("/unassigned", adminAuth, getUnassignedOrders);
 router.get("/:id", getOrderById);
 router.get("/:id/invoice", generateInvoice);
 router.get("/:id/status", getOrderStatus);

@@ -639,3 +639,53 @@ export const getOrderStats = async (
     res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
+
+// GET /api/orders/recent
+export const getRecentOrders = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.status(200).json({
+      success: true,
+      message: "Recent orders fetched successfully.",
+      data: orders,
+    } as ApiResponse);
+  } catch (error) {
+    console.error("Get recent orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    } as ApiResponse);
+  }
+};
+
+// GET /api/orders/unassigned
+export const getUnassignedOrders = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const orders = await Order.find({
+      status: { $in: [OrderStatus.ORDER_PLACED, "PENDING"] }
+    })
+      .sort({ createdAt: 1 })
+      .limit(10); // You can adjust the limit as needed
+
+    res.status(200).json({
+      success: true,
+      message: "Unassigned orders fetched successfully.",
+      data: orders,
+    } as ApiResponse);
+  } catch (error) {
+    console.error("Get unassigned orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    } as ApiResponse);
+  }
+};
