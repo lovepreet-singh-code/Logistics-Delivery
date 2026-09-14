@@ -42,4 +42,20 @@ router.route("/managers/:id")
   .put(authorizeRoles(UserRole.ADMIN), updateManager)
   .delete(authorizeRoles(UserRole.ADMIN), deleteManager);
 
+import {
+  getUsers,
+  updateUserStatus,
+  deleteUser
+} from "../controllers/userController";
+
+// ──── Users (General) ────
+router.route("/users")
+  .get(authorizeRoles(UserRole.ADMIN, UserRole.MANAGER), getUsers);
+
+router.route("/users/:id/status")
+  .patch(authorizeRoles(UserRole.ADMIN, UserRole.MANAGER), updateUserStatus);
+
+router.route("/users/:id")
+  .delete(authorizeRoles(UserRole.ADMIN), deleteUser);
+
 export default router;
