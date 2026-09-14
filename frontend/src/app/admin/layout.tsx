@@ -49,9 +49,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Package className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Orders</span>
           </Link>
-          <Link href="/admin/bulk-upload" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <Upload className="w-5 h-5 group-hover:text-indigo-400" />
-            <span className="font-medium text-sm">Bulk Upload</span>
+          <Link href="/admin/tracking" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <MapPin className="w-5 h-5 group-hover:text-indigo-400" />
+            <span className="font-medium text-sm">Tracking</span>
           </Link>
           <Link href="/admin/customers" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <Users className="w-5 h-5 group-hover:text-indigo-400" />
@@ -59,51 +59,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
 
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-4">Operations</div>
-          <Link href="/admin/fleet" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <Truck className="w-5 h-5 group-hover:text-amber-400" />
-            <span className="font-medium text-sm">Vehicles</span>
-          </Link>
-          <Link href="/admin/hubs" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <Map className="w-5 h-5 group-hover:text-amber-400" />
-            <span className="font-medium text-sm">Hubs</span>
+          <Link href="/admin/planning" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <Navigation className="w-5 h-5 group-hover:text-indigo-400" />
+            <span className="font-medium text-sm">Route Planning</span>
           </Link>
           <Link href="/admin/agents" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <UserCheck className="w-5 h-5 group-hover:text-amber-400" />
             <span className="font-medium text-sm">Delivery Agents</span>
           </Link>
-          <Link href="/admin/managers" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <UserCog className="w-5 h-5 group-hover:text-amber-400" />
-            <span className="font-medium text-sm">Managers</span>
-          </Link>
-          <Link href="/admin/warehouses" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <Warehouse className="w-5 h-5 group-hover:text-amber-400" />
-            <span className="font-medium text-sm">Warehouses</span>
-          </Link>
-          <Link href="/admin/franchises" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <MapPin className="w-5 h-5 group-hover:text-amber-400" />
-            <span className="font-medium text-sm">Franchises</span>
-          </Link>
-
-          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-4">Analytics & Tools</div>
-          <Link href="/admin/planning" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <Navigation className="w-5 h-5 group-hover:text-indigo-400" />
-            <span className="font-medium text-sm">Planning</span>
-          </Link>
-          <Link href="/admin/tracking" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <MapPin className="w-5 h-5 group-hover:text-indigo-400" />
-            <span className="font-medium text-sm">Tracking</span>
-          </Link>
-          <Link href="/admin/reports" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <BarChart3 className="w-5 h-5 group-hover:text-indigo-400" />
-            <span className="font-medium text-sm">Reports</span>
-          </Link>
-          <Link href="/admin/analytics" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
-            <PieChart className="w-5 h-5 group-hover:text-indigo-400" />
-            <span className="font-medium text-sm">Analytics</span>
-          </Link>
-          <Link href="/admin/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group mt-4">
-            <Settings className="w-5 h-5 group-hover:text-indigo-400" />
-            <span className="font-medium text-sm">Settings</span>
+          <Link href="/admin/vehicles" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <Truck className="w-5 h-5 group-hover:text-amber-400" />
+            <span className="font-medium text-sm">Vehicles</span>
           </Link>
         </nav>
         
