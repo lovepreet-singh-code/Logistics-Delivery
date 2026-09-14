@@ -16,16 +16,16 @@ export default function PlanningPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordersRes, fleetRes] = await Promise.all([
+        const [ordersRes, agentsRes] = await Promise.all([
           apiClient.get('/orders'),
-          apiClient.get('/fleet/vehicles')
+          apiClient.get('/management/agents') // Or the correct endpoint for users/agents
         ]);
         
-        const pending = (ordersRes.data.data || []).filter((o: any) => o.status === 'PENDING');
+        const pending = (ordersRes.data.data || ordersRes.data || []).filter((o: any) => o.status === 'PENDING' || o.status === 'ORDER_PLACED');
         setUnassignedOrders(pending);
         
-        const available = (fleetRes.data.data || []).filter((v: any) => v.status === 'AVAILABLE');
-        setAvailableFleet(available);
+        const agents = (agentsRes.data.data || agentsRes.data || []);
+        setAvailableFleet(agents);
       } catch (error) {
         console.error("Failed to load planning data", error);
       } finally {
@@ -150,42 +150,42 @@ export default function PlanningPage() {
         <div className="flex-1 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col shadow-xl">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2">
-              <Truck className="w-5 h-5 text-emerald-400" /> Available Fleet
+              <Truck className="w-5 h-5 text-emerald-400" /> Available Agents
             </h2>
           </div>
           <div className="flex-1 overflow-y-auto space-y-4 pr-2">
             {loading ? (
               <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>
             ) : availableFleet.length === 0 ? (
-              <div className="text-center text-slate-500 p-8">No available fleet vehicles.</div>
+              <div className="text-center text-slate-500 p-8">No available delivery agents.</div>
             ) : (
-              availableFleet.map(fleet => (
+              availableFleet.map(agent => (
                 <div 
-                  key={fleet._id}
-                  onClick={() => setSelectedDriver(fleet._id)}
+                  key={agent._id || agent.id}
+                  onClick={() => setSelectedDriver(agent._id || agent.id)}
                   className={`p-5 rounded-2xl border cursor-pointer transition-all ${
-                    selectedDriver === fleet._id 
+                    selectedDriver === (agent._id || agent.id) 
                       ? 'bg-emerald-500/10 border-emerald-500/50 relative overflow-hidden' 
                       : 'bg-slate-950 border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  {selectedDriver === fleet._id && (
+                  {selectedDriver === (agent._id || agent.id) && (
                     <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/20 blur-2xl"></div>
                   )}
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-slate-200 text-lg flex items-center gap-2">
-                        {fleet.registrationNumber}
-                        {selectedDriver === fleet._id && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                        {agent.name}
+                        {selectedDriver === (agent._id || agent.id) && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                       </h3>
-                      <p className="text-sm font-mono text-slate-400 mt-1">{fleet.vehicleType}</p>
+                      <p className="text-sm font-mono text-slate-400 mt-1">{agent.email}</p>
                     </div>
                     <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase rounded-md border border-emerald-500/30">
                       Available
                     </span>
                   </div>
                   <div className="mt-4 pt-4 border-t border-slate-800/50 flex justify-between text-xs text-slate-400">
-                    <span className="font-mono">Capacity: {fleet.capacity?.weight} kg</span>
+                    <span className="font-mono">Role: {agent.role || 'AGENT'}</span>
                   </div>
                 </div>
               ))
