@@ -493,6 +493,7 @@ export const getOrderStatus = async (
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { status } = req.body;
     
     // 1. Find the order
     const order = await Order.findById(id);
@@ -500,12 +501,12 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // 2. Force update to DELIVERED
-    order.status = OrderStatus.DELIVERED;
+    // 2. Update status
+    order.status = status || OrderStatus.DELIVERED;
     await order.save();
 
     // 3. Return success immediately
-    return res.status(200).json({ success: true, message: 'Order marked as DELIVERED successfully' });
+    return res.status(200).json({ success: true, message: `Order marked as ${order.status} successfully` });
 
   } catch (error: any) {
     console.error("CRITICAL BACKEND ERROR:", error);
