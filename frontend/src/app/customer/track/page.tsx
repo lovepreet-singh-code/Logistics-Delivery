@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import 'leaflet/dist/leaflet.css';
 import dynamic from 'next/dynamic';
-import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin, ShieldAlert } from 'lucide-react';
+import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin, ShieldAlert, Printer } from 'lucide-react';
 import { io } from "socket.io-client";
 import L from "leaflet";
+import { useReactToPrint } from 'react-to-print';
+import ShippingLabel from '@/components/ShippingLabel';
 
 const Map = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
@@ -21,6 +23,12 @@ export default function CustomerDashboard() {
   const [error, setError] = useState('');
   const [orderData, setOrderData] = useState<any>(null);
   const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
+
+  const printRef = useRef(null);
+  const handlePrintLabel = useReactToPrint({
+    content: () => printRef.current,
+    documentTitle: `ShippingLabel_${orderData?._id || 'AWB'}`,
+  });
 
   useEffect(() => {
     if (!orderData || !orderData._id) return;
@@ -172,9 +180,16 @@ export default function CustomerDashboard() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 pb-8 border-b border-slate-100 relative z-10 gap-6">
               <div>
                 <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1">Order Number</p>
-                <p className="text-2xl font-bold text-slate-800 bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500 font-mono tracking-tight">
+                <p className="text-2xl font-bold text-slate-800 bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500 font-mono tracking-tight mb-3">
                   {orderData._id || orderData.id || orderIdInput}
                 </p>
+                <button
+                  onClick={handlePrintLabel}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-sm border border-indigo-200 transition-colors shadow-sm active:scale-95"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print Shipping Label
+                </button>
               </div>
               
               <div className="flex flex-wrap gap-4 md:text-right">
@@ -426,6 +441,13 @@ export default function CustomerDashboard() {
         )}
 
       </div>
+
+      {/* Hidden Shipping Label for Printing */}
+      {orderData && (
+        <div style={{ display: 'none' }}>
+          <ShippingLabel ref={printRef} order={orderData} />
+        </div>
+      )}
     </div>
   );
 }

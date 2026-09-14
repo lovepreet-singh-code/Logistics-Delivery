@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { 
   Package, 
@@ -9,10 +9,13 @@ import {
   ArrowLeft,
   Truck,
   MapPin,
-  ListOrdered
+  ListOrdered,
+  Camera,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Html5Qrcode } from "html5-qrcode";
 
 interface Order {
   _id: string;
@@ -33,6 +36,9 @@ export default function LoadingManifest() {
   const [loadPlan, setLoadPlan] = useState<LoadItem[]>([]);
   const [loadedItems, setLoadedItems] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+
+  const [scannerActive, setScannerActive] = useState(false);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
     const fetchAssignedOrders = async () => {
@@ -85,6 +91,87 @@ export default function LoadingManifest() {
     fetchAssignedOrders();
   }, [router]);
 
+  const playBeep = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+      oscillator.start(audioCtx.currentTime);
+      oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) {
+      console.error("Audio beep failed", e);
+    }
+  };
+
+  const startScanner = async () => {
+    setScannerActive(true);
+    setTimeout(() => {
+      if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode("reader");
+      }
+      scannerRef.current.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          // Match decodedText with loadPlan _id
+          // Either exact match or if ID is embedded (e.g. tracking URL)
+          setLoadPlan(currentPlan => {
+            const matchedItem = currentPlan.find(item => 
+              item._id === decodedText || 
+              decodedText.includes(item._id) || 
+              item._id.includes(decodedText)
+            );
+            
+            if (matchedItem) {
+              setLoadedItems(prev => {
+                if (!prev[matchedItem._id]) {
+                  playBeep();
+                  return { ...prev, [matchedItem._id]: true };
+                }
+                return prev;
+              });
+            }
+            return currentPlan;
+          });
+        },
+        (errorMessage) => {
+          // ignore scan stream errors
+        }
+      ).catch(err => {
+        console.error("Scanner failed to start", err);
+        setScannerActive(false);
+      });
+    }, 200);
+  };
+
+  const stopScanner = () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      scannerRef.current.stop().then(() => {
+        scannerRef.current?.clear();
+        setScannerActive(false);
+      }).catch(err => {
+        console.error(err);
+        setScannerActive(false);
+      });
+    } else {
+      setScannerActive(false);
+    }
+  };
+  
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, []);
+
   const toggleLoaded = (id: string) => {
     setLoadedItems(prev => ({
       ...prev,
@@ -104,7 +191,47 @@ export default function LoadingManifest() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 pb-32">
+    <div className="min-h-screen bg-slate-950 pb-40">
+      
+      {/* SCANNER OVERLAY */}
+      {scannerActive && (
+        <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center animate-in fade-in">
+          <div className="w-full h-full relative max-w-lg mx-auto bg-black flex items-center justify-center">
+            
+            {/* The actual video feed container */}
+            <div id="reader" className="w-full h-full object-cover"></div>
+            
+            {/* Custom Overlay (Targeting Reticle) */}
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+               <div className="w-64 h-64 border border-indigo-500/20 relative shadow-[inset_0_0_30px_rgba(99,102,241,0.2)]">
+                 {/* Corner Accents */}
+                 <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-indigo-500"></div>
+                 <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-indigo-500"></div>
+                 <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-indigo-500"></div>
+                 <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-indigo-500"></div>
+                 
+                 {/* Scanning laser line (simulated via pulse) */}
+                 <div className="w-full h-0.5 bg-indigo-500 absolute top-1/2 left-0 shadow-[0_0_10px_rgba(99,102,241,1)] animate-pulse"></div>
+               </div>
+            </div>
+
+            {/* Close Button */}
+            <button 
+              onClick={stopScanner}
+              className="absolute top-8 right-6 w-12 h-12 bg-slate-900/80 backdrop-blur-sm rounded-full flex items-center justify-center border border-slate-700 z-20 hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+            
+            <div className="absolute bottom-12 inset-x-0 text-center z-20">
+               <p className="text-white font-medium bg-slate-950/80 border border-slate-800 inline-block px-6 py-3 rounded-full backdrop-blur-md shadow-lg">
+                 Position AWB/QR code in frame
+               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-30 px-6 py-4 flex items-center gap-4 shadow-md">
         <Link href="/agent" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -185,13 +312,25 @@ export default function LoadingManifest() {
         </div>
       </div>
 
-      {/* Floating Action Button */}
+      {/* Action Buttons */}
       <div className="fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-slate-950 via-slate-950 to-transparent z-40">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-lg mx-auto flex flex-col gap-3">
+          
+          {/* CAMERA SCANNER FAB */}
+          {!allLoaded && (
+            <button 
+              onClick={startScanner}
+              className="w-full h-16 p-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm uppercase tracking-widest shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:shadow-[0_0_40px_rgba(99,102,241,0.5)] transition-all flex items-center justify-center gap-3 active:scale-95"
+            >
+              <Camera className="w-6 h-6" />
+              OPEN CAMERA TO SCAN PARCEL
+            </button>
+          )}
+
           {allLoaded ? (
             <a 
               href="/agent"
-              className="w-full h-16 p-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm uppercase tracking-widest shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 animate-in slide-in-from-bottom-2"
+              className="w-full h-16 p-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm uppercase tracking-widest shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 animate-in slide-in-from-bottom-2 active:scale-95"
             >
               <Truck className="w-6 h-6 animate-pulse" />
               START DELIVERY ROUTE
