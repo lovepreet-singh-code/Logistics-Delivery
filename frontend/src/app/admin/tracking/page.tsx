@@ -19,14 +19,11 @@ export default function TrackingPage() {
   useEffect(() => {
     const fetchTrackingData = async () => {
       try {
-        const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-
         // Fetch IN_TRANSIT orders and Active Vehicles
         // We will hit our real APIs via API Gateway
         const [ordersRes, vehiclesRes] = await Promise.all([
-          axios.get('http://localhost:8080/api/orders', { headers }).catch(() => ({ data: { data: [] } })),
-          axios.get('http://localhost:8080/api/fleet/vehicles', { headers }).catch(() => ({ data: { data: [] } }))
+          apiClient.get('/orders').catch(() => ({ data: { data: [] } })),
+          apiClient.get('/fleet/vehicles').catch(() => ({ data: { data: [] } }))
         ]);
 
         const transitOrders = (ordersRes.data.data || []).filter((o: any) => o.status === 'TRANSIT' || o.status === 'OUT_FOR_DELIVERY');

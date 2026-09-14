@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserCheck, Search, Plus, MoreVertical, Edit2, Trash2, MapPin, Truck } from 'lucide-react';
 import axios from 'axios';
+import apiClient from '@/lib/apiClient';
 
 interface Agent {
   _id: string;
@@ -18,15 +19,18 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, this would fetch from /api/management/agents
-    // Mocking for now to show the UI
-    const mockAgents: Agent[] = [
-      { _id: '1', name: 'Rahul Kumar', assignedHubId: 'HUB-DEL-01', vehicleId: 'DL 1M 1234', status: 'AVAILABLE', rating: 4.8 },
-      { _id: '2', name: 'Amit Singh', assignedHubId: 'HUB-DEL-02', vehicleId: 'DL 2C 5678', status: 'IN_TRANSIT', rating: 4.5 },
-      { _id: '3', name: 'Vikram Das', assignedHubId: 'HUB-BOM-01', vehicleId: 'MH 12 9012', status: 'OFFLINE', rating: 4.9 },
-    ];
-    setAgents(mockAgents);
-    setLoading(false);
+    const fetchAgents = async () => {
+      try {
+        setLoading(true);
+        const res = await apiClient.get('/management/agents');
+        setAgents(res.data.data || []);
+      } catch (error) {
+        console.error("Failed to load agents", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAgents();
   }, []);
 
   return (

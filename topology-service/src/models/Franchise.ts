@@ -21,6 +21,15 @@ const franchiseSchema = new Schema<IFranchiseDocument>(
       trim: true,
       match: [/^\d{4,10}$/, "Pin code must be 4–10 digits"],
     },
+    latitude: {
+      type: Number,
+    },
+    longitude: {
+      type: Number,
+    },
+    volumeCapacity: {
+      type: Number,
+    },
   },
   {
     timestamps: true,

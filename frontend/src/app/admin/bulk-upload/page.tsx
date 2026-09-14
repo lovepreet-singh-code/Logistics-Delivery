@@ -88,15 +88,13 @@ export default function BulkUploadPage() {
       if (!token) {
         throw new Error("Authentication required. Please log in again.");
       }
-
       const formData = new FormData();
       formData.append("file", file);
       formData.append("customerId", customerId || "000000000000000000000000");
 
-      const response = await axios.post("http://localhost:8080/api/orders/bulk-upload", formData, {
+      const response = await apiClient.post("/orders/bulk-upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`,
         },
       });
 

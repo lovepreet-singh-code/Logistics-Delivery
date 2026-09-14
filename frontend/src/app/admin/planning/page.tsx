@@ -16,18 +16,26 @@ export default function PlanningPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
+        const token = localStorage.getItem('token') || '';
+        const headers = { Authorization: `Bearer ${token}` };
+        
         const [ordersRes, agentsRes] = await Promise.all([
-          apiClient.get('/orders'),
-          apiClient.get('/management/agents') // Or the correct endpoint for users/agents
+          apiClient.get('/orders', { headers }),
+          apiClient.get('/management/agents', { headers })
         ]);
         
-        const pending = (ordersRes.data.data || ordersRes.data || []).filter((o: any) => o.status === 'PENDING' || o.status === 'ORDER_PLACED');
-        setUnassignedOrders(pending);
+        console.log("Fetched Orders Response:", ordersRes.data);
+        console.log("Fetched Agents Response:", agentsRes.data);
         
-        const agents = (agentsRes.data.data || agentsRes.data || []);
-        setAvailableFleet(agents);
+        const ordersArray = ordersRes.data.data || ordersRes.data || [];
+        const agentsArray = agentsRes.data.data || agentsRes.data || [];
+        
+        const pending = ordersArray.filter((o: any) => o.status === 'ORDER_PLACED' || o.status === 'PENDING');
+        setUnassignedOrders(pending);
+        setAvailableFleet(agentsArray);
       } catch (error) {
-        console.error("Failed to load planning data", error);
+        console.error("Failed to load planning data:", error);
       } finally {
         setLoading(false);
       }
@@ -161,31 +169,31 @@ export default function PlanningPage() {
             ) : (
               availableFleet.map(agent => (
                 <div 
-                  key={agent._id || agent.id}
-                  onClick={() => setSelectedDriver(agent._id || agent.id)}
+                  key={agent._id}
+                  onClick={() => setSelectedDriver(agent.userId || agent._id)}
                   className={`p-5 rounded-2xl border cursor-pointer transition-all ${
-                    selectedDriver === (agent._id || agent.id) 
+                    selectedDriver === (agent.userId || agent._id) 
                       ? 'bg-emerald-500/10 border-emerald-500/50 relative overflow-hidden' 
                       : 'bg-slate-950 border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  {selectedDriver === (agent._id || agent.id) && (
+                  {selectedDriver === (agent.userId || agent._id) && (
                     <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/20 blur-2xl"></div>
                   )}
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-slate-200 text-lg flex items-center gap-2">
                         {agent.name}
-                        {selectedDriver === (agent._id || agent.id) && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                        {selectedDriver === (agent.userId || agent._id) && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                       </h3>
-                      <p className="text-sm font-mono text-slate-400 mt-1">{agent.email}</p>
+                      <p className="text-sm font-mono text-slate-400 mt-1">Status: {agent.status}</p>
                     </div>
                     <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase rounded-md border border-emerald-500/30">
                       Available
                     </span>
                   </div>
                   <div className="mt-4 pt-4 border-t border-slate-800/50 flex justify-between text-xs text-slate-400">
-                    <span className="font-mono">Role: {agent.role || 'AGENT'}</span>
+                    <span className="font-mono">Rating: {agent.rating}/5.0</span>
                   </div>
                 </div>
               ))

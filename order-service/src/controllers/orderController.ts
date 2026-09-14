@@ -508,6 +508,15 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     }
     await order.save();
 
+    // 2.5 Invalidate Redis cache
+    try {
+      if (redisClient.isOpen) {
+        await redisClient.del(`track_order:${id}`);
+      }
+    } catch (redisError) {
+      console.error("Redis delete error:", redisError);
+    }
+
     // 3. Return success immediately
     return res.status(200).json({ success: true, message: `Order marked as ${order.status} successfully` });
 

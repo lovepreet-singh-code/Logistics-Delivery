@@ -62,9 +62,8 @@ export default function OrdersPage() {
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:8080/api/orders/${orderId}/status`, 
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await apiClient.patch(`/orders/${orderId}/status`, 
+        { status: newStatus }
       );
       
       setOrders(orders.map(o => o._id === orderId ? { ...o, status: newStatus } : o));

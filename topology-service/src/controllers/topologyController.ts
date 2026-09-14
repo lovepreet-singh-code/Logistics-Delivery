@@ -18,7 +18,7 @@ export const createFranchise = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { name, region, basePinCode } = req.body;
+    const { name, region, basePinCode, latitude, longitude, volumeCapacity } = req.body;
 
     if (!name || !region || !basePinCode) {
       res.status(400).json({
@@ -28,7 +28,14 @@ export const createFranchise = async (
       return;
     }
 
-    const franchise = await Franchise.create({ name, region, basePinCode });
+    const franchise = await Franchise.create({ 
+      name, 
+      region, 
+      basePinCode, 
+      latitude: latitude ? parseFloat(latitude) : undefined, 
+      longitude: longitude ? parseFloat(longitude) : undefined, 
+      volumeCapacity: volumeCapacity ? parseFloat(volumeCapacity) : undefined 
+    });
 
     res.status(201).json({
       success: true,

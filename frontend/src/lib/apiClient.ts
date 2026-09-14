@@ -10,7 +10,11 @@ apiClient.interceptors.request.use((config) => {
   // Try adminToken first, fallback to standard token
   const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') || localStorage.getItem('token') : null;
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    if (config.headers && typeof config.headers.set === 'function') {
+      config.headers.set('Authorization', `Bearer ${token}`);
+    } else {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 }, (error) => {

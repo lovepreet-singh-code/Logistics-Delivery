@@ -6,6 +6,9 @@ export interface IFranchise {
   name: string;
   region: string;
   basePinCode: string;
+  latitude?: number;
+  longitude?: number;
+  volumeCapacity?: number;
   createdAt: Date;
   updatedAt: Date;
 }
