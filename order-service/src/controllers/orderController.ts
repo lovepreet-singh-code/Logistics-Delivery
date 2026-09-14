@@ -493,7 +493,7 @@ export const getOrderStatus = async (
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, signatureBase64 } = req.body;
     
     // 1. Find the order
     const order = await Order.findById(id);
@@ -501,8 +501,11 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // 2. Update status
+    // 2. Update status and POD signature
     order.status = status || OrderStatus.DELIVERED;
+    if (signatureBase64) {
+      order.proofOfDeliverySignature = signatureBase64;
+    }
     await order.save();
 
     // 3. Return success immediately

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Phone, Navigation, Package, User as UserIcon, ShieldAlert, CheckCircle2, Loader2, MapPin, Camera, PenTool, Map as MapIcon, IndianRupee } from "lucide-react";
+import { ArrowLeft, Phone, Navigation, Package, User as UserIcon, ShieldAlert, CheckCircle2, Loader2, MapPin, Camera, PenTool, Map as MapIcon, IndianRupee, Trash2 } from "lucide-react";
 import apiClient from "@/lib/apiClient";
 import axios from "axios";
 import Link from "next/link";
 import { io } from "socket.io-client";
+import SignatureCanvas from "react-signature-canvas";
 
 export default function DeliveryExecutionPage() {
   const router = useRouter();
@@ -19,7 +20,8 @@ export default function DeliveryExecutionPage() {
   const [error, setError] = useState("");
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [photoTaken, setPhotoTaken] = useState(false);
-  const [signatureTaken, setSignatureTaken] = useState(false);
+  
+  const sigCanvas = useRef<any>(null);
   
   const [liveTracking, setLiveTracking] = useState(false);
   const [socket, setSocket] = useState<any>(null);
@@ -86,13 +88,20 @@ export default function DeliveryExecutionPage() {
       setError("Please enter a valid 6-digit OTP.");
       return;
     }
+    if (sigCanvas.current?.isEmpty()) {
+      setError("Customer signature is required.");
+      return;
+    }
+    const signatureBase64 = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
+
     setError("");
     setCompleting(true);
     try {
       const token = localStorage.getItem("token");
       const response = await axios.patch(`http://localhost:8080/api/orders/${id}/status`, { 
         status: 'DELIVERED',
-        otp 
+        otp,
+        signatureBase64
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -262,22 +271,14 @@ export default function DeliveryExecutionPage() {
               Delivery Verification
            </h3>
            <p className="text-xs text-slate-400 text-center mb-6">Complete PoD requirements to mark as delivered.</p>
-                      <div className="grid grid-cols-2 gap-3 mb-6">
+           <div className="mb-4">
               <button 
                  onClick={() => setPhotoTaken(true)}
-                 className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition-colors min-h-[48px] ${
+                 className={`w-full flex items-center justify-center gap-2 py-4 border rounded-xl transition-colors ${
                    photoTaken ? "bg-indigo-500/10 border-indigo-500/50" : "bg-slate-950/50 hover:bg-slate-800 border-slate-800"
                  }`}>
-                 {photoTaken ? <CheckCircle2 className="w-6 h-6 text-indigo-400" /> : <Camera className="w-6 h-6 text-indigo-400" />}
-                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{photoTaken ? "Captured" : "Take Photo"}</span>
-              </button>
-              <button 
-                 onClick={() => setSignatureTaken(true)}
-                 className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition-colors min-h-[48px] ${
-                   signatureTaken ? "bg-amber-500/10 border-amber-500/50" : "bg-slate-950/50 hover:bg-slate-800 border-slate-800"
-                 }`}>
-                 {signatureTaken ? <CheckCircle2 className="w-6 h-6 text-amber-400" /> : <PenTool className="w-6 h-6 text-amber-400" />}
-                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{signatureTaken ? "Signed" : "Signature"}</span>
+                 {photoTaken ? <CheckCircle2 className="w-5 h-5 text-indigo-400" /> : <Camera className="w-5 h-5 text-indigo-400" />}
+                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{photoTaken ? "Proof Captured" : "Take Delivery Photo"}</span>
               </button>
            </div>
 
@@ -296,6 +297,26 @@ export default function DeliveryExecutionPage() {
                  placeholder="------"
                  className="w-full bg-slate-950 border-2 border-indigo-500/30 rounded-2xl py-4 text-center text-3xl tracking-[1em] font-mono font-black text-white focus:outline-none focus:border-indigo-500 transition-colors shadow-inner"
               />
+           </div>
+
+           {/* Customer Signature Pad */}
+           <div className="mt-6 mb-2">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Customer Signature</p>
+                <button 
+                  onClick={() => sigCanvas.current?.clear()} 
+                  className="text-[10px] font-bold text-slate-400 hover:text-red-400 flex items-center gap-1 transition-colors uppercase"
+                >
+                  <Trash2 className="w-3 h-3" /> Clear
+                </button>
+              </div>
+              <div className="bg-slate-50 rounded-xl overflow-hidden border-2 border-indigo-500/30 touch-none">
+                <SignatureCanvas 
+                  ref={sigCanvas}
+                  penColor="black"
+                  canvasProps={{ className: "w-full h-40 cursor-crosshair" }}
+                />
+              </div>
            </div>
            {error && <p className="text-red-400 text-xs text-center mt-2 font-bold">{error}</p>}
         </div>

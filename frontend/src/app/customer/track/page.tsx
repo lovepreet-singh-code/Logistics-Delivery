@@ -362,20 +362,47 @@ export default function CustomerDashboard() {
                 }`}>
                   <CheckCircle className="w-7 h-7" />
                 </div>
-                <div className="pt-2">
+                <div className="pt-2 w-full">
                   <h3 className={`text-lg font-bold transition-colors ${
                     getStepStatus('DELIVERED', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
                   }`}>Delivered</h3>
                   <p className="text-sm text-slate-500 mt-1">Successfully delivered to the destination.</p>
                   
+                  {/* Digital Signature Receipt */}
+                  {orderData.status === 'DELIVERED' && orderData.proofOfDeliverySignature && (
+                    <div className="mt-6 p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm inline-block max-w-sm w-full relative">
+                      <div className="absolute -top-3 left-6 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-emerald-200">
+                        Digital Receipt
+                      </div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 mt-2">Customer Signature / POD</p>
+                      <div className="bg-white border-2 border-dashed border-slate-200 rounded-xl p-2 mb-4">
+                        <img 
+                          src={orderData.proofOfDeliverySignature} 
+                          alt="Customer Signature" 
+                          className="w-full h-auto max-h-32 object-contain"
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500 text-center font-medium">Verified upon delivery by {orderData.agentId?.name || "Agent"}</p>
+                    </div>
+                  )}
+
                   {(getStepStatus('DELIVERED', orderData.status) === 'completed' || getStepStatus('DELIVERED', orderData.status) === 'active') && (
-                    <button
-                      onClick={handleDownloadInvoice}
-                      className="mt-6 flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
-                    >
-                      <FileText className="w-5 h-5" />
-                      Download Invoice
-                    </button>
+                    <div className="flex gap-4 mt-6">
+                      <button
+                        onClick={() => window.print()}
+                        className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
+                      >
+                        <Printer className="w-5 h-5" />
+                        Print Digital Receipt
+                      </button>
+                      <button
+                        onClick={handleDownloadInvoice}
+                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
+                      >
+                        <FileText className="w-5 h-5" />
+                        Download Invoice
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

@@ -168,7 +168,11 @@ const orderSchema = new Schema<IOrderDocument>(
         timestamp: { type: Date, default: Date.now },
         note: { type: String }
       }
-    ]
+    ],
+    proofOfDeliverySignature: {
+      type: String,
+      default: null,
+    }
   },
   {
     timestamps: true,

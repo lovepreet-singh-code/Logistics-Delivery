@@ -67,6 +67,7 @@ export interface IOrder {
   status: OrderStatus;
   paymentStatus?: PaymentStatus;
   otp?: string;
+  proofOfDeliverySignature?: string;
   statusHistory?: {
     status: string;
     updatedBy?: string;
