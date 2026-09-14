@@ -6,9 +6,13 @@ import { useRouter } from 'next/navigation';
 import 'leaflet/dist/leaflet.css';
 import dynamic from 'next/dynamic';
 import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin, ShieldAlert } from 'lucide-react';
+import { io } from "socket.io-client";
+import L from "leaflet";
 
 const Map = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
+const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false });
 
 export default function CustomerDashboard() {
   const [isMounted, setIsMounted] = useState(false);
@@ -16,6 +20,23 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [orderData, setOrderData] = useState<any>(null);
+  const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
+
+  useEffect(() => {
+    if (!orderData || !orderData._id) return;
+    
+    const socket = io("http://localhost:8080");
+    
+    socket.emit("join-room", orderData._id);
+    
+    socket.on("location-updated", (data: {lat: number, lng: number}) => {
+      setDriverLocation(data);
+    });
+    
+    return () => {
+      socket.disconnect();
+    };
+  }, [orderData]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -364,7 +385,9 @@ export default function CustomerDashboard() {
               <div className="w-full h-full min-h-[500px] rounded-xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200 relative z-10">
                 <Map 
                   center={
-                    orderData.deliveryAddress?.lat 
+                    driverLocation 
+                      ? [driverLocation.lat, driverLocation.lng]
+                      : orderData.deliveryAddress?.lat 
                       ? [orderData.deliveryAddress.lat, orderData.deliveryAddress.lng] 
                       : [28.6139, 77.2090]
                   } 
@@ -375,6 +398,26 @@ export default function CustomerDashboard() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   />
+                  
+                  {/* Delivery Destination Marker */}
+                  {orderData.deliveryAddress?.lat && (
+                     <Marker position={[orderData.deliveryAddress.lat, orderData.deliveryAddress.lng]}>
+                       <Popup>Destination: {orderData.deliveryAddress.fullAddress}</Popup>
+                     </Marker>
+                  )}
+
+                  {/* Live Driver Marker */}
+                  {driverLocation && (
+                     <Marker 
+                       position={[driverLocation.lat, driverLocation.lng]}
+                       icon={new L.Icon({
+                         iconUrl: 'https://cdn-icons-png.flaticon.com/512/2769/2769339.png',
+                         iconSize: [40, 40]
+                       })}
+                     >
+                       <Popup>Live Tracking: Delivery Agent</Popup>
+                     </Marker>
+                  )}
                 </Map>
               </div>
 

@@ -58,10 +58,38 @@ const startServer = async (): Promise<void> => {
   await startDispatchManifestedWorker();
   await startDeliveryCompletedWorker();
 
-  const server = app.listen(config.port, '0.0.0.0', () => {
+  const httpServer = require("http").createServer(app);
+  const { Server } = require("socket.io");
+  
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    },
+    path: "/socket.io/"
+  });
+
+  io.on("connection", (socket: any) => {
+    console.log(`[Socket] New connection: ${socket.id}`);
+
+    socket.on("join-room", (orderId: string) => {
+      socket.join(`room:${orderId}`);
+      console.log(`[Socket] Client ${socket.id} joined room:room:${orderId}`);
+    });
+
+    socket.on("update-location", (data: { orderId: string, lat: number, lng: number }) => {
+      io.to(`room:${data.orderId}`).emit("location-updated", { lat: data.lat, lng: data.lng });
+    });
+
+    socket.on("disconnect", () => {
+      console.log(`[Socket] Disconnected: ${socket.id}`);
+    });
+  });
+
+  const server = httpServer.listen(config.port, '0.0.0.0', () => {
     console.log(`
     ╔══════════════════════════════════════════╗
-    ║   📦  Order Service                     ║
+    ║   📦  Order Service (with Socket.io)    ║
     ║   📡  Port: ${String(config.port).padEnd(27)}║
     ║   🌍  Env:  ${config.nodeEnv.padEnd(27)}║
     ╚══════════════════════════════════════════╝

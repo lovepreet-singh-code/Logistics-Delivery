@@ -6,6 +6,7 @@ import { ArrowLeft, Phone, Navigation, Package, User as UserIcon, ShieldAlert, C
 import apiClient from "@/lib/apiClient";
 import axios from "axios";
 import Link from "next/link";
+import { io } from "socket.io-client";
 
 export default function DeliveryExecutionPage() {
   const router = useRouter();
@@ -19,6 +20,38 @@ export default function DeliveryExecutionPage() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [photoTaken, setPhotoTaken] = useState(false);
   const [signatureTaken, setSignatureTaken] = useState(false);
+  
+  const [liveTracking, setLiveTracking] = useState(false);
+  const [socket, setSocket] = useState<any>(null);
+
+  useEffect(() => {
+    const newSocket = io("http://localhost:8080");
+    setSocket(newSocket);
+    return () => { newSocket.close(); };
+  }, []);
+
+  useEffect(() => {
+    let watchId: number;
+    if (liveTracking && socket && id) {
+      if (navigator.geolocation) {
+        watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            socket.emit("update-location", {
+              orderId: id,
+              lat: latitude,
+              lng: longitude,
+            });
+          },
+          (error) => console.error(error),
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        );
+      }
+    }
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+    };
+  }, [liveTracking, socket, id]);
 
   useEffect(() => {
     if (id) fetchDeliveryDetails();
@@ -211,12 +244,14 @@ export default function DeliveryExecutionPage() {
            }}></div>
            <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
               <MapIcon className="w-10 h-10 text-indigo-500 mb-2 opacity-80" />
-              <div className="bg-slate-950/80 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-800">
-                 <p className="text-xs font-bold text-indigo-400 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Live GPS Routing Active
-                 </p>
-              </div>
+              <button 
+                 onClick={() => setLiveTracking(!liveTracking)}
+                 className={`px-4 py-2 rounded-full border text-xs font-bold flex items-center gap-2 ${
+                    liveTracking ? "bg-slate-950/80 border-indigo-500 text-indigo-400" : "bg-emerald-500/20 border-emerald-500 text-emerald-400"
+                 }`}>
+                 <span className={`w-2 h-2 rounded-full ${liveTracking ? "bg-emerald-500 animate-pulse" : "bg-slate-500"}`}></span>
+                 {liveTracking ? "Live GPS Routing Active" : "Start Live Tracking"}
+              </button>
            </div>
         </div>
 
