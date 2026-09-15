@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Navigation, Package, Clock } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import axios from 'axios';
+import apiClient from '@/lib/apiClient';
 
 // Dynamically import the Leaflet map so it only runs on client
 const TrackingMap = dynamic(() => import('@/components/TrackingMap'), { 

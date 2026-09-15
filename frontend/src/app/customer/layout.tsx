@@ -30,18 +30,10 @@ export default function CustomerLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navigation = [
-    { name: "Dashboard", href: "/customer", icon: LayoutDashboard, active: true },
+    { name: "Track Shipment", href: "/customer", icon: MapPin, active: true },
     { name: "Book Parcel", href: "/customer/book", icon: PackagePlus, active: true },
     { name: "My Orders", href: "/customer/orders", icon: ListOrdered, active: true },
-    { name: "Track Shipment", href: "/customer/track", icon: MapPin, active: true },
-  ];
-
-  const upcomingLinks = [
-    { name: "Saved Addresses", icon: Bookmark },
-    { name: "Invoices", icon: CreditCard },
-    { name: "Notifications", icon: BellRing },
-    { name: "Support", icon: HelpCircle },
-    { name: "Settings", icon: Settings },
+    { name: "Profile/Settings", href: "/customer/profile", icon: Settings, active: true },
   ];
 
   const handleLogout = () => {
@@ -111,30 +103,7 @@ export default function CustomerLayout({
               </Link>
             );
           })}
-
-          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-8 mb-4 px-4">Preferences (Coming Soon)</div>
-          {upcomingLinks.map((item) => (
-            <div
-              key={item.name}
-              title="Available in next release"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl opacity-50 cursor-not-allowed group font-medium text-slate-500 hover:bg-slate-800/50 transition-colors"
-            >
-              <item.icon className="w-5 h-5" />
-              {item.name}
-              <span className="ml-auto text-[10px] bg-slate-800 px-2 py-0.5 rounded-full">Soon</span>
-            </div>
-          ))}
         </nav>
-
-        {/* Sidebar Footer */}
-        <div className="px-6 py-4 mt-auto">
-          <div className="flex items-center gap-3 text-xs font-medium text-slate-500 mb-2">
-            <a href="#" className="hover:text-slate-300 transition-colors">Support</a>
-            <span>&bull;</span>
-            <a href="#" className="hover:text-slate-300 transition-colors">Privacy Policy</a>
-          </div>
-          <p className="text-[10px] text-slate-600">LogiCore Version 1.0.0</p>
-        </div>
 
         {/* User / Logout Area */}
         <div className="p-4 border-t border-slate-800 bg-slate-950/30">

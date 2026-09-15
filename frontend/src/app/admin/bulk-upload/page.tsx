@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import axios from "axios";
+import apiClient from "@/lib/apiClient";
 import { Upload, FileText, CheckCircle2, XCircle, AlertCircle, Loader2, Download, PackageOpen, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 
