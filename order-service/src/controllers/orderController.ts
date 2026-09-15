@@ -28,8 +28,9 @@ export const createOrder = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { customerId, pickupAddress, deliveryAddress, parcelDetails } =
-      req.body;
+    const user = (req as any).user;
+    const customerId = req.body.customerId || user?.id || user?._id || user?.userId;
+    const { pickupAddress, deliveryAddress, parcelDetails } = req.body;
 
     // Validate required fields
     if (!customerId || !pickupAddress || !deliveryAddress || !parcelDetails) {
@@ -50,9 +51,12 @@ export const createOrder = async (
     deliveryAddress.lat = dLat;
     deliveryAddress.lng = dLng;
 
+    const awb = `AWB-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
     // Create order (status defaults to PENDING, volume auto-calculated by pre-save hook)
     const order = await Order.create({
       customerId,
+      awb,
       pickupAddress,
       deliveryAddress,
       parcelDetails,
@@ -105,7 +109,7 @@ export const createOrder = async (
         } as ApiResponse);
       return;
     }
-    console.error("Create order error:", error);
+    console.error("Order Creation Error:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error.",
