@@ -252,10 +252,10 @@ export default function CustomerDashboard() {
             </div>
 
             {/* Grid Layout for Timeline and Map */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               
               {/* Vertical Timeline */}
-              <div className="relative pl-4 sm:pl-8 py-4 z-10 w-full max-w-md mx-auto lg:mx-0">
+              <div className="relative pl-4 sm:pl-8 py-4 z-10 w-full lg:col-span-7">
               
               {/* Vertical line connecting steps */}
               <div className="absolute left-[47px] top-8 bottom-8 w-1 bg-slate-100 rounded-full"></div>
@@ -424,7 +424,7 @@ export default function CustomerDashboard() {
             </div>
 
               {/* Map Container */}
-              <div className="w-full h-full min-h-[500px] rounded-xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200 relative z-10">
+              <div className="relative w-full h-[500px] rounded-xl overflow-hidden shadow-lg border border-slate-700/50 lg:col-span-5">
                 <Map 
                   center={
                     driverLocation 
