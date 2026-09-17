@@ -35,9 +35,9 @@ export default function CustomerDashboard() {
     
     const socket = io("http://localhost:8080");
     
-    socket.emit("join-room", orderData._id);
+    socket.emit("joinTrackingRoom", orderData._id);
     
-    socket.on("location-updated", (data: {lat: number, lng: number}) => {
+    socket.on("driverLocationUpdated", (data: {lat: number, lng: number}) => {
       setDriverLocation(data);
     });
     

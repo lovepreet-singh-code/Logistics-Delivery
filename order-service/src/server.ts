@@ -75,13 +75,13 @@ const startServer = async (): Promise<void> => {
   io.on("connection", (socket: any) => {
     console.log(`[Socket] New connection: ${socket.id}`);
 
-    socket.on("join-room", (orderId: string) => {
-      socket.join(`room:${orderId}`);
-      console.log(`[Socket] Client ${socket.id} joined room:room:${orderId}`);
+    socket.on("joinTrackingRoom", (trackingId: string) => {
+      socket.join(`room:${trackingId}`);
+      console.log(`[Socket] Client ${socket.id} joined room:room:${trackingId}`);
     });
 
-    socket.on("update-location", (data: { orderId: string, lat: number, lng: number }) => {
-      io.to(`room:${data.orderId}`).emit("location-updated", { lat: data.lat, lng: data.lng });
+    socket.on("agentLocationUpdate", (data: { trackingId: string, lat: number, lng: number }) => {
+      io.to(`room:${data.trackingId}`).emit("driverLocationUpdated", { lat: data.lat, lng: data.lng });
     });
 
     socket.on("disconnect", () => {

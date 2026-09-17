@@ -30,7 +30,7 @@ export default function DeliveryExecutionPage() {
   useEffect(() => {
     const newSocket = io("http://localhost:8080");
     setSocket(newSocket);
-    return () => { newSocket.close(); };
+    return () => { newSocket.disconnect(); };
   }, []);
 
   useEffect(() => {
@@ -40,15 +40,22 @@ export default function DeliveryExecutionPage() {
         watchId = navigator.geolocation.watchPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
-            socket.emit("update-location", {
-              orderId: id,
+            socket.emit("agentLocationUpdate", {
+              trackingId: id,
               lat: latitude,
               lng: longitude,
             });
           },
-          (error) => console.error(error),
+          (err) => {
+            console.error("GPS Error:", err);
+            setSubmitError("Location tracking failed. Please enable GPS permissions.");
+            setLiveTracking(false);
+          },
           { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
         );
+      } else {
+        setSubmitError("Geolocation is not supported by your browser.");
+        setLiveTracking(false);
       }
     }
     return () => {
