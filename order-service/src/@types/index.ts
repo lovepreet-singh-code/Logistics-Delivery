@@ -9,6 +9,8 @@ export enum OrderStatus {
   OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY",
   DELIVERED = "DELIVERED",
   CANCELLED = "CANCELLED",
+  ATTEMPT_FAILED = "ATTEMPT_FAILED",
+  RTO = "RTO",
 }
 
 export enum PaymentStatus {
@@ -66,8 +68,11 @@ export interface IOrder {
   routing: IRouting;
   status: OrderStatus;
   paymentStatus?: PaymentStatus;
+  paymentMethod?: "PREPAID" | "COD";
   totalAmount?: number;
   otp?: string;
+  exceptionReason?: string;
+  rtoImageUrl?: string;
   proofOfDeliverySignature?: string;
   podImageUrl?: string;
   sequenceOrder?: number;

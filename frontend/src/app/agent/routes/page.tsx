@@ -216,9 +216,9 @@ export default function RoutesPage() {
                   </div>
 
                   <div className="flex gap-3 relative z-10">
-                     <button className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-300 rounded-2xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                     <a href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryAddress?.lat},${order.deliveryAddress?.lng}`} target="_blank" className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-300 rounded-2xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
                         <Navigation className="w-4 h-4" /> Nav
-                     </button>
+                     </a>
                      <Link href={`/agent/routes/${order._id}`} className="flex-[2] py-3.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25">
                         <Play className="w-4 h-4 fill-white" /> Start Delivery
                      </Link>

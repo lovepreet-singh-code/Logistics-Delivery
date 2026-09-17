@@ -897,3 +897,68 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
   }
 };
 
+
+// ═══════════════════════════════════════════════
+//  EXCEPTION MANAGEMENT (RTO)
+// ═══════════════════════════════════════════════
+
+// PATCH /api/orders/:id/exception
+export const reportException = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { status, exceptionReason, base64Image } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" } as ApiResponse);
+      return;
+    }
+
+    if (base64Image) {
+      const uploadResult = await cloudinary.uploader.upload(base64Image, {
+        folder: "logistics_rto",
+        public_id: `rto_${id}_${Date.now()}`,
+      });
+      order.rtoImageUrl = uploadResult.secure_url;
+    }
+
+    order.status = status || "ATTEMPT_FAILED";
+    if (exceptionReason) {
+      order.exceptionReason = exceptionReason;
+    }
+
+    await order.save();
+
+    // EMIT order.status.updated KAFKA EVENT
+    try {
+      await producer.send({
+        topic: "order.status.updated",
+        messages: [{
+          value: JSON.stringify({
+            orderId: order._id.toString(),
+            status: order.status,
+            exceptionReason: order.exceptionReason,
+            customerId: order.customerId.toString(),
+            timestamp: new Date().toISOString()
+          })
+        }]
+      });
+    } catch (kafkaError) {
+      console.error("Kafka Publish Failed (order.status.updated):", kafkaError);
+    }
+
+    try {
+      if (redisClient.isOpen) {
+        await redisClient.del(`track_order:${id}`);
+      }
+    } catch (redisError) {
+      console.error("Redis delete error:", redisError);
+    }
+
+    res.status(200).json({ success: true, message: "Exception reported successfully", data: order } as ApiResponse);
+  } catch (error: any) {
+    console.error("Report Exception Error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to report exception." } as ApiResponse);
+  }
+};
+

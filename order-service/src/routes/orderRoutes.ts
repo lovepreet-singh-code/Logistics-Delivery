@@ -17,7 +17,8 @@ import {
   getUnassignedOrders,
   uploadPodImage,
   initPayment,
-  verifyPayment
+  verifyPayment,
+  reportException
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
@@ -50,6 +51,7 @@ router.get("/:id/status", getOrderStatus);
 router.post("/:id/pod", uploadPodImage);
 router.put("/:id/status", updateOrderStatus);
 router.patch("/:id/status", updateOrderStatus);
+router.patch("/:id/exception", reportException);
 router.put("/:orderId/assign", manualAssignOrder);
 
 // ──── Payments ────

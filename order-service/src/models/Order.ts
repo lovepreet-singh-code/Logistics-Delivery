@@ -148,9 +148,22 @@ const orderSchema = new Schema<IOrderDocument>(
       type: String,
       enum: {
         values: Object.values(OrderStatus),
-        message: "Status must be one of: ORDER_PLACED, PICKED_UP, IN_TRANSIT, DESTINATION_HUB, OUT_FOR_DELIVERY, DELIVERED, CANCELLED",
+        message: "Status must be one of: ORDER_PLACED, PICKED_UP, IN_TRANSIT, DESTINATION_HUB, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, ATTEMPT_FAILED, RTO",
       },
       default: OrderStatus.ORDER_PLACED,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["PREPAID", "COD"],
+      default: "PREPAID",
+    },
+    exceptionReason: {
+      type: String,
+      default: null,
+    },
+    rtoImageUrl: {
+      type: String,
+      default: null,
     },
     paymentStatus: {
       type: String,

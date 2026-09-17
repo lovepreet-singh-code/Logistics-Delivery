@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Phone, Navigation, Package, User as UserIcon, ShieldAlert, CheckCircle2, Loader2, MapPin, Camera, PenTool, Map as MapIcon, IndianRupee, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, Navigation, Package, User as UserIcon, ShieldAlert, CheckCircle2, Loader2, MapPin, Camera, PenTool, Map as MapIcon, IndianRupee, Trash2, AlertTriangle, UploadCloud } from "lucide-react";
 import apiClient from "@/lib/apiClient";
 import axios from "axios";
 import Link from "next/link";
 import { io } from "socket.io-client";
 import SignatureCanvas from "react-signature-canvas";
+import { Toaster, toast } from 'react-hot-toast';
 
 export default function DeliveryExecutionPage() {
   const router = useRouter();
@@ -22,7 +23,17 @@ export default function DeliveryExecutionPage() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [photoTaken, setPhotoTaken] = useState(false);
   
+  // Exception Modal State
+  const [showExceptionModal, setShowExceptionModal] = useState(false);
+  const [exceptionReason, setExceptionReason] = useState("");
+  const [damagedImageBase64, setDamagedImageBase64] = useState("");
+  const [reportingException, setReportingException] = useState(false);
+  
+  // COD State
+  const [cashCollected, setCashCollected] = useState(false);
+
   const sigCanvas = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [liveTracking, setLiveTracking] = useState(false);
   const [socket, setSocket] = useState<any>(null);
@@ -107,7 +118,6 @@ export default function DeliveryExecutionPage() {
     try {
       const token = localStorage.getItem("token");
       
-      // Step 1: Upload POD image to cloud
       const podResponse = await axios.post(`http://localhost:8080/api/orders/${id}/pod`, {
         signatureBase64
       }, {
@@ -120,7 +130,6 @@ export default function DeliveryExecutionPage() {
         return;
       }
 
-      // Step 2: Mark Order as Delivered
       const response = await axios.patch(`http://localhost:8080/api/orders/${id}/status`, { 
         status: 'DELIVERED',
         otp,
@@ -131,8 +140,8 @@ export default function DeliveryExecutionPage() {
       if (response.data.success) {
         setShowSuccessToast(true);
         setTimeout(() => {
-          router.push("/agent");
-        }, 1500); // Wait for toast animation
+          router.push("/agent/routes");
+        }, 1500); 
       } else {
         setSubmitError(response.data.message || "Failed to mark delivered.");
       }
@@ -144,6 +153,40 @@ export default function DeliveryExecutionPage() {
       }
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handleReportException = async () => {
+    if (!exceptionReason) return toast.error("Select a reason.");
+    if (exceptionReason === "Parcel Damaged" && !damagedImageBase64) return toast.error("Damage photo required.");
+
+    setReportingException(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.patch(`http://localhost:8080/api/orders/${id}/exception`, {
+        status: exceptionReason === "Parcel Damaged" ? "RTO" : "ATTEMPT_FAILED",
+        exceptionReason,
+        base64Image: damagedImageBase64
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success("Exception logged.");
+      setShowExceptionModal(false);
+      setTimeout(() => router.push("/agent/routes"), 1500);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to report exception.");
+    } finally {
+      setReportingException(false);
+    }
+  };
+
+  const handleCaptureImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setDamagedImageBase64(reader.result as string);
+      reader.readAsDataURL(file);
     }
   };
 
@@ -167,18 +210,20 @@ export default function DeliveryExecutionPage() {
     );
   }
 
-  // If we fetched an order directly, it IS the order. If from dispatch, it's nested in orderId.
   const order = delivery.orderId || delivery;
   const trackingId = order?._id?.slice(-8).toUpperCase() || "UNKNOWN";
-  const customerName = "Rahul Sharma"; // Mocked if missing
-  const customerPhone = order?.customerPhone || "+91 98765 43210";
-  const dropAddress = order?.deliveryAddress?.fullAddress || "123 Delivery Ave, Mumbai";
-  const weight = order?.parcelDetails?.weight ? `${order.parcelDetails.weight}kg` : '2.5kg';
-  const isFragile = true; // Hardcoded for UI showcase
-  const codAmount = 0; // Set to >0 to show COD UI
+  const customerName = order?.pickupAddress?.senderName || "Customer"; 
+  const customerPhone = order?.deliveryAddress?.receiverPhone || order?.customerPhone || "9999999999";
+  const dropLat = order?.deliveryAddress?.lat;
+  const dropLng = order?.deliveryAddress?.lng;
+  const dropAddress = order?.deliveryAddress?.fullAddress || "Address not provided";
+  const weight = order?.parcelDetails?.weightKg ? `${order.parcelDetails.weightKg}kg` : '1kg';
+  const paymentMethod = order?.paymentMethod || "PREPAID";
+  const totalAmount = order?.totalAmount || 0;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-40 relative">
+      <Toaster position="top-right" />
       
       {/* Success Animation Overlay */}
       {showSuccessToast && (
@@ -189,6 +234,69 @@ export default function DeliveryExecutionPage() {
                <p className="font-medium text-emerald-100 mt-1">Redirecting...</p>
             </div>
          </div>
+      )}
+
+      {/* Exception Modal Overlay */}
+      {showExceptionModal && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 border border-slate-800 animate-in slide-in-from-bottom-10 sm:zoom-in-95">
+            <h3 className="text-lg font-black text-white mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" /> Report Issue
+            </h3>
+            <p className="text-sm text-slate-400 mb-6">Log an exception for this delivery. This updates the backend tracking.</p>
+            
+            <div className="space-y-4">
+              <select
+                value={exceptionReason}
+                onChange={(e) => setExceptionReason(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-red-500 font-medium"
+              >
+                <option value="">Select Reason...</option>
+                <option value="Customer Unavailable">Customer Unavailable</option>
+                <option value="Address Not Found">Address Not Found</option>
+                <option value="Parcel Damaged">Parcel Damaged (RTO)</option>
+                <option value="Customer Refused">Customer Refused (RTO)</option>
+              </select>
+
+              {exceptionReason === "Parcel Damaged" && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Photographic Proof</p>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment"
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleCaptureImage}
+                  />
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-slate-950 border border-dashed border-slate-700 hover:border-indigo-500 rounded-xl py-6 flex flex-col items-center justify-center gap-2 transition-colors"
+                  >
+                    {damagedImageBase64 ? (
+                      <div className="relative w-full h-32 px-4">
+                         <img src={damagedImageBase64} alt="Damaged Parcel" className="w-full h-full object-contain rounded-lg" />
+                         <span className="absolute top-2 right-6 bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-bold">Captured</span>
+                      </div>
+                    ) : (
+                      <>
+                        <Camera className="w-6 h-6 text-slate-400" />
+                        <span className="text-xs font-bold text-slate-400">Tap to Capture Damaged Parcel</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button onClick={() => setShowExceptionModal(false)} className="flex-1 py-4 bg-slate-800 text-white rounded-xl font-bold">Cancel</button>
+              <button onClick={handleReportException} disabled={reportingException} className="flex-1 py-4 bg-red-600 text-white rounded-xl font-bold flex items-center justify-center gap-2">
+                {reportingException ? <Loader2 className="w-5 h-5 animate-spin" /> : "Submit Report"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Header */}
@@ -222,20 +330,21 @@ export default function DeliveryExecutionPage() {
               <p className="text-sm font-medium text-slate-300 leading-snug">{dropAddress}</p>
            </div>
 
-           {/* Action Buttons */}
+           {/* Quick Action Buttons */}
            <div className="grid grid-cols-2 gap-3">
-              <button 
-                 onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(dropAddress)}`, '_blank')}
+              <a 
+                 href={`https://www.google.com/maps/dir/?api=1&destination=${dropLat},${dropLng}`}
+                 target="_blank"
                  className="flex items-center justify-center gap-2 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 active:bg-slate-600 rounded-xl transition-colors min-h-[48px]">
                  <Navigation className="w-5 h-5 text-blue-400" />
                  <span className="font-bold text-sm text-white">Navigate</span>
-              </button>
-              <button 
-                 onClick={() => window.open(`tel:${customerPhone}`, '_self')}
+              </a>
+              <a 
+                 href={`tel:${customerPhone}`}
                  className="flex items-center justify-center gap-2 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 active:bg-emerald-500/30 rounded-xl transition-colors min-h-[48px]">
                  <Phone className="w-5 h-5 text-emerald-400" />
                  <span className="font-bold text-sm text-emerald-400">Call Customer</span>
-              </button>
+              </a>
            </div>
         </div>
 
@@ -253,28 +362,10 @@ export default function DeliveryExecutionPage() {
                  <p className="text-sm font-bold text-white">{weight}</p>
               </div>
            </div>
-
-           <div className="flex items-center gap-2">
-              {isFragile && (
-                 <span className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1.5 shrink-0">
-                    <ShieldAlert className="w-3.5 h-3.5" /> Fragile
-                 </span>
-              )}
-              {codAmount > 0 ? (
-                 <span className="px-3 py-1.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1.5">
-                    <IndianRupee className="w-3.5 h-3.5" /> Collect ₹{codAmount}
-                 </span>
-              ) : (
-                 <span className="px-3 py-1.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1.5">
-                    Prepaid
-                 </span>
-              )}
-           </div>
         </div>
 
         {/* Section 3: Live Map Placeholder */}
         <div className="bg-slate-900 rounded-[2rem] border border-slate-800 shadow-xl overflow-hidden h-48 relative">
-           {/* Mocked Map Background */}
            <div className="absolute inset-0 opacity-20" style={{
               backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%236366f1\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
            }}></div>
@@ -291,6 +382,31 @@ export default function DeliveryExecutionPage() {
            </div>
         </div>
 
+        {/* COD Blocker */}
+        {paymentMethod === "COD" && (
+           <div className="bg-orange-500/10 border-2 border-orange-500 rounded-[2rem] p-5 shadow-xl shadow-orange-500/5">
+             <div className="flex items-center gap-3 mb-4">
+               <div className="bg-orange-500 p-2 rounded-full">
+                 <IndianRupee className="w-6 h-6 text-white" />
+               </div>
+               <div>
+                 <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Cash on Delivery</p>
+                 <p className="text-xl font-black text-orange-400">Collect ₹{totalAmount}</p>
+               </div>
+             </div>
+             
+             <label className="flex items-center gap-3 p-4 bg-slate-950/50 rounded-xl cursor-pointer hover:bg-slate-950 transition-colors">
+               <input 
+                 type="checkbox" 
+                 checked={cashCollected}
+                 onChange={(e) => setCashCollected(e.target.checked)}
+                 className="w-6 h-6 rounded border-orange-500 text-orange-500 focus:ring-orange-500 bg-transparent"
+               />
+               <span className="font-bold text-sm text-slate-300">I have collected ₹{totalAmount} in cash from the customer.</span>
+             </label>
+           </div>
+        )}
+
         {/* Section 4: Proof of Delivery (PoD) Workflow */}
         <div className="bg-gradient-to-b from-slate-900 to-indigo-950/20 rounded-[2rem] p-5 border border-indigo-500/20 shadow-xl">
            <h3 className="text-lg font-black text-white text-center mb-1 flex justify-center items-center gap-2">
@@ -298,17 +414,7 @@ export default function DeliveryExecutionPage() {
               Delivery Verification
            </h3>
            <p className="text-xs text-slate-400 text-center mb-6">Complete PoD requirements to mark as delivered.</p>
-           <div className="mb-4">
-              <button 
-                 onClick={() => setPhotoTaken(true)}
-                 className={`w-full flex items-center justify-center gap-2 py-4 border rounded-xl transition-colors ${
-                   photoTaken ? "bg-indigo-500/10 border-indigo-500/50" : "bg-slate-950/50 hover:bg-slate-800 border-slate-800"
-                 }`}>
-                 {photoTaken ? <CheckCircle2 className="w-5 h-5 text-indigo-400" /> : <Camera className="w-5 h-5 text-indigo-400" />}
-                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{photoTaken ? "Proof Captured" : "Take Delivery Photo"}</span>
-              </button>
-           </div>
-
+           
            <div className="mb-2">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 text-center">Customer OTP</p>
               <input 
@@ -351,20 +457,29 @@ export default function DeliveryExecutionPage() {
 
       {/* Sticky Bottom Action Button */}
       <div className="fixed bottom-[72px] left-0 right-0 max-w-md mx-auto p-4 bg-gradient-to-t from-[#0B0E14] via-[#0B0E14] to-transparent z-40">
-         <button 
-            onClick={handleVerifyAndDeliver}
-            disabled={completing || otp.length !== 6}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all text-lg flex items-center justify-center gap-2"
-         >
-            {completing ? (
-               <Loader2 className="w-6 h-6 animate-spin" />
-            ) : (
-               <>
-                  <CheckCircle2 className="w-6 h-6" />
-                  <span>Verify OTP & Mark Delivered</span>
-               </>
-            )}
-         </button>
+         <div className="flex gap-2">
+           <button 
+              onClick={() => setShowExceptionModal(true)}
+              className="px-4 bg-slate-900 border border-slate-800 text-red-500 rounded-xl active:bg-slate-800 transition-colors flex items-center justify-center shrink-0"
+              title="Report Issue"
+           >
+              <AlertTriangle className="w-6 h-6" />
+           </button>
+           <button 
+              onClick={handleVerifyAndDeliver}
+              disabled={completing || otp.length !== 6 || (paymentMethod === 'COD' && !cashCollected)}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100"
+           >
+              {completing ? (
+                 <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                 <>
+                    <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <span>Verify & Deliver</span>
+                 </>
+              )}
+           </button>
+         </div>
       </div>
 
     </div>
