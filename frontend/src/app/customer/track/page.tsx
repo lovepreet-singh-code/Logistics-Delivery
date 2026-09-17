@@ -26,7 +26,7 @@ export default function CustomerDashboard() {
 
   const printRef = useRef(null);
   const handlePrintLabel = useReactToPrint({
-    content: () => printRef.current,
+    contentRef: printRef,
     documentTitle: `ShippingLabel_${orderData?._id || 'AWB'}`,
   });
 

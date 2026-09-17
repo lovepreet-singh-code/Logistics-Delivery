@@ -6,10 +6,16 @@ import { Route, Navigation, Loader2, Play, MapPin, Package, Clock } from "lucide
 import axios from "axios";
 import Link from "next/link";
 
+import { Toaster, toast } from "react-hot-toast";
+import QrScanner from "@/components/QrScanner";
+import { Camera, X } from "lucide-react";
+
 export default function RoutesPage() {
   const router = useRouter();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showScanner, setShowScanner] = useState(false);
+  const [manualId, setManualId] = useState("");
 
   useEffect(() => {
     fetchTodayDeliveries();
@@ -43,19 +49,103 @@ export default function RoutesPage() {
     }
   };
 
-  const pendingDeliveries = deliveries; // Since we are fetching active only
+  const handleScan = async (scannedId: string) => {
+    const matchedOrder = deliveries.find(d => 
+      d._id === scannedId || 
+      d._id.slice(-8).toUpperCase() === scannedId.toUpperCase()
+    );
+
+    if (matchedOrder) {
+      if (matchedOrder.status === 'OUT_FOR_DELIVERY' || matchedOrder.status === 'IN_TRANSIT') {
+        toast('Already scanned & loaded!', { icon: 'ℹ️' });
+        return;
+      }
+      
+      try {
+        const token = localStorage.getItem("token");
+        await axios.patch(`http://localhost:8080/api/orders/${matchedOrder._id}/status`, {
+          status: 'OUT_FOR_DELIVERY'
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        toast.success(`Package ${scannedId} loaded successfully!`);
+        fetchTodayDeliveries();
+      } catch (err) {
+        toast.error("Failed to update status on server.");
+      }
+    } else {
+      toast.error(`Package ${scannedId} not found in your assigned route.`);
+    }
+  };
+
+  const pendingDeliveries = deliveries;
 
   return (
     <>
+      <Toaster position="top-center" />
       <div className="bg-slate-950/80 backdrop-blur-md border-b border-slate-800 shrink-0 z-20 sticky top-0 px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
           <Route className="w-5 h-5 text-indigo-500" />
           Active Routes
         </h1>
-        <div className="bg-indigo-500/10 border border-indigo-500/30 px-3 py-1 rounded-xl">
-           <span className="text-xs font-bold text-indigo-400">{pendingDeliveries.length} Pending</span>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowScanner(true)}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all"
+          >
+            <Camera className="w-3.5 h-3.5" /> Scan to Load
+          </button>
+          <div className="bg-indigo-500/10 border border-indigo-500/30 px-3 py-1.5 rounded-xl">
+             <span className="text-xs font-bold text-indigo-400">{pendingDeliveries.length} Pending</span>
+          </div>
         </div>
       </div>
+
+      {showScanner && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative shadow-2xl">
+            <button 
+              onClick={() => setShowScanner(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-slate-800 text-slate-400 rounded-full hover:bg-slate-700 hover:text-white transition-colors z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold text-white mb-6 text-center">Scan Package QR</h2>
+            
+            <QrScanner 
+              onScanSuccess={(text) => {
+                handleScan(text);
+                setShowScanner(false);
+              }}
+            />
+
+            <div className="mt-8 border-t border-slate-800 pt-6">
+              <p className="text-sm text-slate-400 text-center mb-3">Or enter Tracking ID manually</p>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={manualId}
+                  onChange={(e) => setManualId(e.target.value.toUpperCase())}
+                  placeholder="e.g. A1B2C3D4"
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-indigo-500 uppercase"
+                />
+                <button 
+                  onClick={() => {
+                    if(manualId.trim()){
+                      handleScan(manualId.trim());
+                      setManualId("");
+                      setShowScanner(false);
+                    }
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl transition-colors"
+                >
+                  Load
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 py-6">
         {loading ? (
