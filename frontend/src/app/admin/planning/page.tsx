@@ -12,6 +12,7 @@ export default function PlanningPage() {
   const [availableFleet, setAvailableFleet] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dispatching, setDispatching] = useState(false);
+  const [lastDispatch, setLastDispatch] = useState<{ agentName: string, orders: any[] } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,6 +75,14 @@ export default function PlanningPage() {
       
       await Promise.all(dispatchPromises);
       alert(`Successfully dispatched ${selectedOrders.length} orders!`);
+      
+      const agentObj = availableFleet.find(a => (a.userId || a._id) === selectedDriver);
+      const dispatchedOrdersObjects = unassignedOrders.filter(o => selectedOrders.includes(o._id));
+      setLastDispatch({
+        agentName: agentObj ? agentObj.name : "Unknown Agent",
+        orders: dispatchedOrdersObjects
+      });
+
       // Remove dispatched orders from state
       setUnassignedOrders(prev => prev.filter(o => !selectedOrders.includes(o._id)));
       setSelectedOrders([]);
@@ -88,15 +97,59 @@ export default function PlanningPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto h-full flex flex-col space-y-6">
-      <header>
-        <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-          <Navigation className="w-8 h-8 text-amber-500" />
-          Route Planning & Dispatch
-        </h1>
-        <p className="text-slate-400 mt-1">Select pending orders and assign them to available fleet.</p>
+      <header className="flex justify-between items-end print:hidden">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+            <Navigation className="w-8 h-8 text-amber-500" />
+            Route Planning & Dispatch
+          </h1>
+          <p className="text-slate-400 mt-1">Select pending orders and assign them to available fleet.</p>
+        </div>
+        {lastDispatch && (
+          <button 
+            onClick={() => window.print()}
+            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg"
+          >
+            Print Run Sheet
+          </button>
+        )}
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 h-[calc(100vh-200px)]">
+      {/* PRINT ONLY SECTION */}
+      {lastDispatch && (
+        <div className="hidden print:block text-black p-8">
+          <h1 className="text-2xl font-bold mb-4 border-b pb-2">LogiCore - Daily Run Sheet</h1>
+          <div className="flex justify-between mb-8">
+            <p><strong>Agent Name:</strong> {lastDispatch.agentName}</p>
+            <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+            <p><strong>Vehicle:</strong> Assigned Fleet</p>
+          </div>
+          <table className="w-full text-left border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 p-2">Seq</th>
+                <th className="border border-gray-300 p-2">Tracking ID</th>
+                <th className="border border-gray-300 p-2">Customer / Phone</th>
+                <th className="border border-gray-300 p-2">Delivery Address</th>
+                <th className="border border-gray-300 p-2">Signature</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lastDispatch.orders.map((order, idx) => (
+                <tr key={order._id}>
+                  <td className="border border-gray-300 p-2 text-center font-bold">{idx + 1}</td>
+                  <td className="border border-gray-300 p-2 font-mono text-sm">{order._id.slice(-8).toUpperCase()}</td>
+                  <td className="border border-gray-300 p-2">{order.customerPhone || 'N/A'}</td>
+                  <td className="border border-gray-300 p-2 text-sm">{order.deliveryAddress?.fullAddress}</td>
+                  <td className="border border-gray-300 p-2 w-32"></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 h-[calc(100vh-200px)] print:hidden">
         
         {/* Left Pane: Orders */}
         <div className="flex-1 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col shadow-xl">
