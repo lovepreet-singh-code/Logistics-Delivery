@@ -497,12 +497,22 @@ export const getOrderStatus = async (
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, signatureBase64 } = req.body;
+    const { status, signatureBase64, otp } = req.body;
     
     // 1. Find the order
     const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // OTP Validation for Delivery
+    if (status === OrderStatus.DELIVERED || status === "DELIVERED") {
+      if (!otp || String(otp) !== String(order.otp)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid OTP. Please ask the customer for the correct PIN."
+        });
+      }
     }
 
     // 2. Update status and POD signature

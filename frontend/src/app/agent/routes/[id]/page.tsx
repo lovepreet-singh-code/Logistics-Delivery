@@ -18,6 +18,7 @@ export default function DeliveryExecutionPage() {
   const [otp, setOtp] = useState("");
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [photoTaken, setPhotoTaken] = useState(false);
   
@@ -85,16 +86,16 @@ export default function DeliveryExecutionPage() {
 
   const handleVerifyAndDeliver = async () => {
     if (otp.length !== 6) {
-      setError("Please enter a valid 6-digit OTP.");
+      setSubmitError("Please enter a valid 6-digit OTP.");
       return;
     }
     if (sigCanvas.current?.isEmpty()) {
-      setError("Customer signature is required.");
+      setSubmitError("Customer signature is required.");
       return;
     }
     const signatureBase64 = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
 
-    setError("");
+    setSubmitError("");
     setCompleting(true);
     try {
       const token = localStorage.getItem("token");
@@ -111,10 +112,14 @@ export default function DeliveryExecutionPage() {
           router.push("/agent");
         }, 1500); // Wait for toast animation
       } else {
-        setError(response.data.message || "Failed to mark delivered.");
+        setSubmitError(response.data.message || "Failed to mark delivered.");
       }
-    } catch (err) {
-      setError("Network error occurred.");
+    } catch (err: any) {
+      if (err.response && err.response.status === 400 && err.response.data.message) {
+        setSubmitError(err.response.data.message);
+      } else {
+        setSubmitError("Network error occurred.");
+      }
     } finally {
       setCompleting(false);
     }
@@ -318,7 +323,7 @@ export default function DeliveryExecutionPage() {
                 />
               </div>
            </div>
-           {error && <p className="text-red-400 text-xs text-center mt-2 font-bold">{error}</p>}
+           {submitError && <p className="text-red-400 text-xs text-center mt-2 font-bold">{submitError}</p>}
         </div>
       </div>
 

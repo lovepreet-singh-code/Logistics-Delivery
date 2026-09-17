@@ -183,13 +183,21 @@ export default function CustomerDashboard() {
                 <p className="text-2xl font-bold text-slate-800 bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500 font-mono tracking-tight mb-3">
                   {orderData._id || orderData.id || orderIdInput}
                 </p>
-                <button
-                  onClick={handlePrintLabel}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-sm border border-indigo-200 transition-colors shadow-sm active:scale-95"
-                >
-                  <Printer className="w-4 h-4" />
-                  Print Shipping Label
-                </button>
+                <div className="flex flex-col items-start gap-3">
+                  <button
+                    onClick={handlePrintLabel}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-sm border border-indigo-200 transition-colors shadow-sm active:scale-95"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Print Shipping Label
+                  </button>
+                  {orderData.otp && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-sm font-bold shadow-sm" title="Development Testing OTP">
+                      <ShieldAlert className="w-4 h-4 text-amber-600" />
+                      Delivery PIN: {orderData.otp}
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div className="flex flex-wrap gap-4 md:text-right">
@@ -408,7 +416,7 @@ export default function CustomerDashboard() {
               </div>
 
               {/* Secure OTP Display */}
-              {orderData.status !== 'DELIVERED' && orderData.otp && (
+              {orderData.status === 'OUT_FOR_DELIVERY' && orderData.otp && (
                 <div className="mt-8 p-6 bg-indigo-50 border-2 border-indigo-100 rounded-2xl relative overflow-hidden group shadow-inner ml-4 sm:ml-8 max-w-sm">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-200/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                   <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-widest mb-2 flex items-center gap-2">
