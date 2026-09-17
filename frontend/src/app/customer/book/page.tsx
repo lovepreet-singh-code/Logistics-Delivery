@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, MapPin, CheckCircle, Loader2, Send, AlertTriangle } from 'lucide-react';
+import { Package, MapPin, CheckCircle, Loader2, Send, AlertTriangle, IndianRupee } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
+import { Toaster, toast } from 'react-hot-toast';
 
 export default function BookParcelPage() {
   const router = useRouter();
@@ -14,6 +15,93 @@ export default function BookParcelPage() {
   const [pickupAddress, setPickupAddress] = useState('');
   const [dropAddress, setDropAddress] = useState('');
   const [weight, setWeight] = useState('');
+
+  // Dynamically load Razorpay SDK
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const handlePayment = async (orderId: string, amount: number) => {
+    try {
+      // 1. Initialize Payment on Backend
+      const token = localStorage.getItem('token');
+      const initRes = await apiClient.post(`/orders/${orderId}/pay`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!initRes.data.success) {
+        throw new Error("Failed to initialize payment");
+      }
+
+      const razorpayOrder = initRes.data.data;
+
+      // 2. Open Razorpay Checkout
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_fallback",
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: "LogiCore Logistics",
+        description: "Parcel Delivery Fee",
+        order_id: razorpayOrder.id,
+        handler: async function (response: any) {
+          try {
+            // 3. Verify Payment
+            const verifyRes = await apiClient.post(`/orders/verify-payment`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (verifyRes.data.success) {
+              toast.success("Payment successful! Order booked.");
+              setTimeout(() => {
+                router.push(`/customer/track?id=${orderId}`);
+              }, 1500);
+            }
+          } catch (verifyErr) {
+            console.error(verifyErr);
+            toast.error("Payment verification failed.");
+            setLoading(false);
+          }
+        },
+        prefill: {
+          name: "Customer",
+          email: "customer@logicore.com",
+          contact: "9999999999",
+        },
+        theme: {
+          color: "#4f46e5",
+        },
+        modal: {
+          ondismiss: function () {
+            toast.error("Payment was cancelled.");
+            setLoading(false);
+          }
+        }
+      };
+
+      const rzp1 = new (window as any).Razorpay(options);
+      rzp1.on("payment.failed", function (response: any) {
+        toast.error("Payment failed. Please try again.");
+        setLoading(false);
+      });
+      rzp1.open();
+
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Failed to process payment");
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,31 +136,27 @@ export default function BookParcelPage() {
         }
       };
 
+      // Step 1: Create Order
       const res = await apiClient.post('/orders', payloadData);
 
       if (res.data && res.data.success) {
-        setSuccess('Order created successfully!');
+        toast.success('Order drafted! Redirecting to payment...');
         const orderId = res.data.data?._id || res.data.data?.id;
-
+        const totalAmount = res.data.data?.totalAmount || 50; // Fallback
         
-        setTimeout(() => {
-          if (orderId) {
-            router.push(`/customer/track?id=${orderId}`);
-          } else {
-            router.push('/customer');
-          }
-        }, 1500);
+        // Step 2 & 3: Handle Razorpay Payment
+        handlePayment(orderId, totalAmount);
       }
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || 'Failed to book parcel. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center p-4">
+      <Toaster position="top-right" />
       <div className="w-full max-w-2xl space-y-12">
         <header className="text-center mb-8 mt-4 relative">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -81,7 +165,7 @@ export default function BookParcelPage() {
             Book a Parcel
           </h1>
           <p className="text-slate-500 text-sm max-w-md mx-auto relative z-10">
-            Provide the basic details below to schedule your pickup and delivery.
+            Provide the basic details below to calculate dynamic pricing and schedule your delivery.
           </p>
         </header>
 
@@ -90,13 +174,6 @@ export default function BookParcelPage() {
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700">
               <AlertTriangle className="w-5 h-5 shrink-0" />
               <span className="text-sm font-bold">{error}</span>
-            </div>
-          )}
-
-          {success && (
-            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-center gap-3 text-emerald-700 animate-in fade-in zoom-in duration-300">
-              <CheckCircle className="w-5 h-5" />
-              <span className="text-sm font-bold">{success}</span>
             </div>
           )}
 
@@ -156,7 +233,7 @@ export default function BookParcelPage() {
                 {loading ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
                 ) : (
-                  <><Send className="w-5 h-5" /> Book Parcel</>
+                  <><IndianRupee className="w-5 h-5" /> Calculate Fare & Pay</>
                 )}
               </button>
             </div>

@@ -66,6 +66,7 @@ export interface IOrder {
   routing: IRouting;
   status: OrderStatus;
   paymentStatus?: PaymentStatus;
+  totalAmount?: number;
   otp?: string;
   proofOfDeliverySignature?: string;
   podImageUrl?: string;

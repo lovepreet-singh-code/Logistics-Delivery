@@ -9,6 +9,9 @@ import { generateInvoicePDF } from "../utils/invoiceGenerator";
 import stream from "stream";
 import csvParser from "csv-parser";
 import { v2 as cloudinary } from "cloudinary";
+import Razorpay from "razorpay";
+import crypto from "crypto";
+import { calculateTotalAmount } from "../utils/pricing";
 
 // Initialize Redis Client
 const redisClient = createClient({
@@ -52,6 +55,9 @@ export const createOrder = async (
     deliveryAddress.lat = dLat;
     deliveryAddress.lng = dLng;
 
+    // Calculate dynamic pricing
+    const totalAmount = calculateTotalAmount(pLat, pLng, dLat, dLng, parcelDetails.weightKg || 1);
+
     const awb = `AWB-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
     // Create order (status defaults to PENDING, volume auto-calculated by pre-save hook)
@@ -61,6 +67,8 @@ export const createOrder = async (
       pickupAddress,
       deliveryAddress,
       parcelDetails,
+      totalAmount,
+      paymentStatus: "PENDING_PAYMENT",
     });
 
     // Publish event to Kafka
@@ -811,3 +819,81 @@ export const uploadPodImage = async (
     res.status(500).json({ success: false, message: "Failed to upload POD image to cloud." } as ApiResponse);
   }
 };
+
+// ═══════════════════════════════════════════════
+//  PAYMENT GATEWAY (RAZORPAY)
+// ═══════════════════════════════════════════════
+
+// POST /api/orders/:id/pay
+export const initPayment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" } as ApiResponse);
+      return;
+    }
+
+    if (order.paymentStatus === "PAID") {
+      res.status(400).json({ success: false, message: "Order is already paid." } as ApiResponse);
+      return;
+    }
+
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_fallback",
+      key_secret: process.env.RAZORPAY_KEY_SECRET || "rzp_secret_fallback",
+    });
+
+    const options = {
+      amount: Math.round((order.totalAmount || 0) * 100), // amount in the smallest currency unit
+      currency: "INR",
+      receipt: order._id.toString(),
+    };
+
+    const razorpayOrder = await razorpay.orders.create(options);
+
+    res.status(200).json({
+      success: true,
+      message: "Razorpay order created",
+      data: razorpayOrder,
+    } as ApiResponse);
+  } catch (error: any) {
+    console.error("Razorpay init error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to initialize payment." } as ApiResponse);
+  }
+};
+
+// POST /api/orders/verify-payment
+export const verifyPayment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
+
+    const secret = process.env.RAZORPAY_KEY_SECRET || "rzp_secret_fallback";
+
+    // Create HMAC SHA256
+    const hmac = crypto.createHmac("sha256", secret);
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    const generatedSignature = hmac.digest("hex");
+
+    if (generatedSignature !== razorpay_signature) {
+      res.status(400).json({ success: false, message: "Payment verification failed. Invalid signature." } as ApiResponse);
+      return;
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" } as ApiResponse);
+      return;
+    }
+
+    order.paymentStatus = "PAID" as any;
+    await order.save();
+
+    res.status(200).json({ success: true, message: "Payment verified successfully", data: order } as ApiResponse);
+  } catch (error: any) {
+    console.error("Payment verification error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to verify payment." } as ApiResponse);
+  }
+};
+

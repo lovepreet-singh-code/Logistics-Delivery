@@ -157,6 +157,10 @@ const orderSchema = new Schema<IOrderDocument>(
       enum: Object.values(PaymentStatus),
       default: PaymentStatus.PENDING,
     },
+    totalAmount: {
+      type: Number,
+      default: 0,
+    },
     otp: {
       type: String,
       default: () => Math.floor(100000 + Math.random() * 900000).toString(),
