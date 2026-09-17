@@ -12,7 +12,7 @@ export enum OrderStatus {
 }
 
 export enum PaymentStatus {
-  PENDING = "PENDING",
+  PENDING_PAYMENT = "PENDING_PAYMENT",
   PAID = "PAID",
   FAILED = "FAILED",
 }

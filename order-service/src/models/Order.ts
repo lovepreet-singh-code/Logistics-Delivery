@@ -155,7 +155,7 @@ const orderSchema = new Schema<IOrderDocument>(
     paymentStatus: {
       type: String,
       enum: Object.values(PaymentStatus),
-      default: PaymentStatus.PENDING,
+      default: PaymentStatus.PENDING_PAYMENT,
     },
     totalAmount: {
       type: Number,
