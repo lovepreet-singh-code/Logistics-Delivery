@@ -17,7 +17,9 @@
   ],
   "license": "ISC",
   "dependencies": {
+    "@types/nodemailer": "^8.0.2",
     "axios": "^1.18.1",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.1",
     "dotenv": "^16.4.5",
@@ -27,6 +29,7 @@
     "mongoose": "^8.5.1",
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
+    "nodemailer": "^10.0.10",
     "pdfkit": "^0.19.1",
     "redis": "^6.1.0",
     "socket.io": "^4.8.3"

@@ -30,8 +30,8 @@ export default function RoutesPage() {
       
       if (response.data.success && Array.isArray(response.data.data)) {
         const activeOrders = response.data.data.filter((order: any) => 
-          order.status === 'PENDING' || order.status === 'IN_TRANSIT' || order.status === 'OUT_FOR_DELIVERY' || order.status === 'ASSIGNED'
-        );
+          order.status === 'PENDING' || order.status === 'IN_TRANSIT' || order.status === 'OUT_FOR_DELIVERY' || order.status === 'ASSIGNED' || order.status === 'PICKED_UP'
+        ).sort((a: any, b: any) => (a.sequenceOrder || 999) - (b.sequenceOrder || 999));
         setDeliveries(activeOrders);
       } else {
         setDeliveries([]);

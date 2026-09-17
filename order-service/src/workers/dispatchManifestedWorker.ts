@@ -32,18 +32,39 @@ export const startDispatchManifestedWorker = async (): Promise<void> => {
           );
 
           // Bulk update all orders in the manifest to PICKED_UP
-          const result = await Order.updateMany(
-            {
-              _id: { $in: event.orderIds },
-              status: OrderStatus.ORDER_PLACED,
-            },
-            {
-              $set: { status: OrderStatus.PICKED_UP },
+          let updatedCount = 0;
+          if (event.routeSequence && event.routeSequence.length > 0) {
+            for (const seq of event.routeSequence) {
+              const result = await Order.updateOne(
+                {
+                  _id: seq.orderId,
+                  status: OrderStatus.ORDER_PLACED,
+                },
+                {
+                  $set: { 
+                    status: OrderStatus.PICKED_UP,
+                    sequenceOrder: seq.sequenceOrder
+                  },
+                }
+              );
+              if (result.modifiedCount > 0) updatedCount++;
             }
-          );
+          } else {
+            // Fallback for older events without routeSequence
+            const result = await Order.updateMany(
+              {
+                _id: { $in: event.orderIds },
+                status: OrderStatus.ORDER_PLACED,
+              },
+              {
+                $set: { status: OrderStatus.PICKED_UP },
+              }
+            );
+            updatedCount = result.modifiedCount;
+          }
 
           console.log(
-            `✅ [order] ${result.modifiedCount}/${event.orderIds.length} orders updated to PICKED_UP for manifest ${event.manifestId}`
+            `✅ [order] ${updatedCount}/${event.orderIds.length} orders updated to PICKED_UP for manifest ${event.manifestId}`
           );
         } catch (err) {
           console.error(

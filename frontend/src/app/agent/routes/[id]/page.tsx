@@ -99,6 +99,21 @@ export default function DeliveryExecutionPage() {
     setCompleting(true);
     try {
       const token = localStorage.getItem("token");
+      
+      // Step 1: Upload POD image to cloud
+      const podResponse = await axios.post(`http://localhost:8080/api/orders/${id}/pod`, {
+        signatureBase64
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!podResponse.data.success) {
+        setSubmitError(podResponse.data.message || "Failed to upload signature to cloud.");
+        setCompleting(false);
+        return;
+      }
+
+      // Step 2: Mark Order as Delivered
       const response = await axios.patch(`http://localhost:8080/api/orders/${id}/status`, { 
         status: 'DELIVERED',
         otp,
@@ -118,7 +133,7 @@ export default function DeliveryExecutionPage() {
       if (err.response && err.response.status === 400 && err.response.data.message) {
         setSubmitError(err.response.data.message);
       } else {
-        setSubmitError("Network error occurred.");
+        setSubmitError("Network error occurred during delivery completion.");
       }
     } finally {
       setCompleting(false);

@@ -8,6 +8,7 @@ import { geocodeAddress } from "../utils/geocoder";
 import { generateInvoicePDF } from "../utils/invoiceGenerator";
 import stream from "stream";
 import csvParser from "csv-parser";
+import { v2 as cloudinary } from "cloudinary";
 
 // Initialize Redis Client
 const redisClient = createClient({
@@ -522,6 +523,25 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     }
     await order.save();
 
+    // EMIT order.status.updated KAFKA EVENT
+    try {
+      await producer.send({
+        topic: "order.status.updated",
+        messages: [{
+          value: JSON.stringify({
+            orderId: order._id.toString(),
+            status: order.status,
+            otp: order.otp,
+            customerId: order.customerId.toString(),
+            timestamp: new Date().toISOString()
+          })
+        }]
+      });
+      console.log(`📤 Published order.status.updated for order ${order._id.toString()} (Status: ${order.status})`);
+    } catch (kafkaError) {
+      console.error("Kafka Publish Failed (order.status.updated):", kafkaError);
+    }
+
     // 2.5 Invalidate Redis cache
     try {
       if (redisClient.isOpen) {
@@ -584,6 +604,25 @@ export const manualAssignOrder = async (
     order.routing.assignmentType = assignmentType || "MANUAL";
     
     await order.save();
+
+    // EMIT order.status.updated KAFKA EVENT
+    try {
+      await producer.send({
+        topic: "order.status.updated",
+        messages: [{
+          value: JSON.stringify({
+            orderId: order._id.toString(),
+            status: order.status,
+            otp: order.otp,
+            customerId: order.customerId.toString(),
+            timestamp: new Date().toISOString()
+          })
+        }]
+      });
+      console.log(`📤 Published order.status.updated for order ${order._id.toString()} (Status: ${order.status})`);
+    } catch (kafkaError) {
+      console.error("Kafka Publish Failed (order.status.updated):", kafkaError);
+    }
 
     // 4. Update Agent Availability
     await usersCollection.updateOne(
@@ -714,5 +753,61 @@ export const getUnassignedOrders = async (
       success: false,
       message: "Internal server error.",
     } as ApiResponse);
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  PROOF OF DELIVERY (CLOUD STORAGE)
+// ═══════════════════════════════════════════════
+
+// POST /api/orders/:id/pod
+export const uploadPodImage = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { signatureBase64 } = req.body;
+
+    if (!signatureBase64) {
+      res.status(400).json({ success: false, message: "No signature image provided." } as ApiResponse);
+      return;
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" } as ApiResponse);
+      return;
+    }
+
+    // Upload to Cloudinary
+    const uploadResult = await cloudinary.uploader.upload(signatureBase64, {
+      folder: "logistics_pod",
+      public_id: `pod_${id}_${Date.now()}`,
+    });
+
+    order.podImageUrl = uploadResult.secure_url;
+    // We can also keep the base64 just in case, but replacing it is fine.
+    order.proofOfDeliverySignature = signatureBase64;
+    await order.save();
+
+    // Invalidate cache
+    try {
+      if (redisClient.isOpen) {
+        await redisClient.del(`track_order:${id}`);
+      }
+    } catch (redisError) {
+      console.error("Redis delete error:", redisError);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "POD Image uploaded successfully",
+      data: { podImageUrl: uploadResult.secure_url }
+    } as ApiResponse);
+
+  } catch (error: any) {
+    console.error("Cloudinary Upload Error:", error);
+    res.status(500).json({ success: false, message: "Failed to upload POD image to cloud." } as ApiResponse);
   }
 };

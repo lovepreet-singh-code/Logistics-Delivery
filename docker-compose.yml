@@ -115,6 +115,8 @@ services:
     build: ./order-service
     container_name: logistics-order-service
     restart: unless-stopped
+    env_file:
+      - ./order-service/.env
     environment:
       - KAFKA_BROKER=kafka:9092
       - REDIS_URL=redis://:redis_secret@redis:6379

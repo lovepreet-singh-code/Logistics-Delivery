@@ -15,6 +15,7 @@ import {
   getMyOrders,
   getRecentOrders,
   getUnassignedOrders,
+  uploadPodImage,
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
@@ -44,6 +45,7 @@ router.get("/unassigned", adminAuth, getUnassignedOrders);
 router.get("/:id", getOrderById);
 router.get("/:id/invoice", generateInvoice);
 router.get("/:id/status", getOrderStatus);
+router.post("/:id/pod", uploadPodImage);
 router.put("/:id/status", updateOrderStatus);
 router.patch("/:id/status", updateOrderStatus);
 router.put("/:orderId/assign", manualAssignOrder);

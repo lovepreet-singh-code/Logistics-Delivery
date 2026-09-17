@@ -10,9 +10,11 @@ import orderRoutes from "./routes/orderRoutes";
 import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
 import { startDispatchManifestedWorker } from "./workers/dispatchManifestedWorker";
 import { startDeliveryCompletedWorker } from "./workers/deliveryCompletedWorker";
+import { startOrderStatusWorker } from "./workers/orderStatusWorker";
 
 // ──── Initialize Express App ────
 const app = express();
+
 
 // ──── Global Middleware ────
 app.use(helmet());
@@ -57,6 +59,7 @@ const startServer = async (): Promise<void> => {
   await startOrderRoutedWorker();
   await startDispatchManifestedWorker();
   await startDeliveryCompletedWorker();
+  await startOrderStatusWorker();
 
   const httpServer = require("http").createServer(app);
   const { Server } = require("socket.io");

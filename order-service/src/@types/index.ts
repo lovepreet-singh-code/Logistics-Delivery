@@ -68,6 +68,8 @@ export interface IOrder {
   paymentStatus?: PaymentStatus;
   otp?: string;
   proofOfDeliverySignature?: string;
+  podImageUrl?: string;
+  sequenceOrder?: number;
   statusHistory?: {
     status: string;
     updatedBy?: string;
@@ -104,6 +106,7 @@ export interface IDispatchManifestedEvent {
   franchiseId: string;
   vehicleId: string;
   orderIds: string[];
+  routeSequence?: { orderId: string; sequenceOrder: number }[];
   timestamp: string;
 }
 

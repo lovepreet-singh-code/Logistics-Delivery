@@ -172,6 +172,14 @@ const orderSchema = new Schema<IOrderDocument>(
     proofOfDeliverySignature: {
       type: String,
       default: null,
+    },
+    podImageUrl: {
+      type: String,
+      default: null,
+    },
+    sequenceOrder: {
+      type: Number,
+      default: null,
     }
   },
   {

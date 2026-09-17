@@ -105,15 +105,51 @@ export const generateDailyManifests = async (
     }
 
     // ──────────────────────────────────────────
-    //  STEP 3: Route Optimization + LIFO
+    //  STEP 3: Route Optimization (Nearest Neighbor)
     // ──────────────────────────────────────────
 
-    // Route Simulation: Sort by delivery latitude (ascending)
-    // This simulates a south-to-north delivery route.
-    // In production, replace with Google Maps Directions API.
-    const routeSorted = [...assignedOrders].sort(
-      (a, b) => a.deliveryAddress.lat - b.deliveryAddress.lat
-    );
+    function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * (Math.PI / 180);
+      const dLon = (lon2 - lon1) * (Math.PI / 180);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    // Default Hub coordinates (Mocked for franchise)
+    let currentLat = 19.0760; // e.g. Mumbai Hub
+    let currentLng = 72.8777;
+    
+    const unvisited = [...assignedOrders];
+    const routeSorted: IExternalOrder[] = [];
+
+    while (unvisited.length > 0) {
+      let nearestIndex = 0;
+      let minDistance = Infinity;
+
+      for (let i = 0; i < unvisited.length; i++) {
+        const order = unvisited[i];
+        const dist = getDistanceFromLatLonInKm(
+          currentLat,
+          currentLng,
+          order.deliveryAddress.lat,
+          order.deliveryAddress.lng
+        );
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearestIndex = i;
+        }
+      }
+
+      const nearestOrder = unvisited.splice(nearestIndex, 1)[0];
+      routeSorted.push(nearestOrder);
+      currentLat = nearestOrder.deliveryAddress.lat;
+      currentLng = nearestOrder.deliveryAddress.lng;
+    }
 
     // Build routeSequence (delivery order)
     const routeSequence: IRouteSequenceEntry[] = routeSorted.map((order) => ({
@@ -123,7 +159,6 @@ export const generateDailyManifests = async (
     }));
 
     // Build loadingSequence (LIFO = reverse of route)
-    // Last delivery loaded first → first delivery loaded last (on top)
     const loadingSequence = [...routeSequence]
       .reverse()
       .map((entry) => entry.orderId);
@@ -140,12 +175,18 @@ export const generateDailyManifests = async (
       date: new Date(),
     });
 
+    const routeSequenceArray = routeSorted.map((o, idx) => ({
+      orderId: o._id.toString(),
+      sequenceOrder: idx + 1
+    }));
+
     // Publish dispatch.manifested event
-    const event: IDispatchManifestedEvent = {
+    const event = {
       manifestId: manifest._id.toString(),
       franchiseId,
       vehicleId: vehicle._id,
       orderIds: assignedOrders.map((o) => o._id),
+      routeSequence: routeSequenceArray,
       timestamp: new Date().toISOString(),
     };
 
