@@ -9,8 +9,11 @@ import Link from "next/link";
 import { Toaster, toast } from "react-hot-toast";
 import QrScanner from "@/components/QrScanner";
 import { Camera, X } from "lucide-react";
+import localforage from 'localforage';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 
 export default function RoutesPage() {
+  useOfflineSync();
   const router = useRouter();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +33,14 @@ export default function RoutesPage() {
         return;
       }
 
+      if (!navigator.onLine) {
+        toast('Offline Mode: Loading cached routes.', { icon: '📴' });
+        const cached = await localforage.getItem<any[]>('agent_cache');
+        if (cached) setDeliveries(cached);
+        setLoading(false);
+        return;
+      }
+
       const response = await axios.get("http://localhost:8080/api/orders", {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -39,11 +50,18 @@ export default function RoutesPage() {
           order.status === 'PENDING' || order.status === 'IN_TRANSIT' || order.status === 'OUT_FOR_DELIVERY' || order.status === 'ASSIGNED' || order.status === 'PICKED_UP'
         ).sort((a: any, b: any) => (a.sequenceOrder || 999) - (b.sequenceOrder || 999));
         setDeliveries(activeOrders);
+        await localforage.setItem('agent_cache', activeOrders);
       } else {
         setDeliveries([]);
+        await localforage.setItem('agent_cache', []);
       }
     } catch (err: any) {
       console.error("Failed to fetch deliveries", err);
+      const cached = await localforage.getItem<any[]>('agent_cache');
+      if (cached) {
+         toast('Network Error: Loading cached routes.', { icon: '📴' });
+         setDeliveries(cached);
+      }
     } finally {
       setLoading(false);
     }

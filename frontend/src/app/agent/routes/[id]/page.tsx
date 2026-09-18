@@ -9,6 +9,8 @@ import Link from "next/link";
 import { io } from "socket.io-client";
 import SignatureCanvas from "react-signature-canvas";
 import { Toaster, toast } from 'react-hot-toast';
+import localforage from 'localforage';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 
 export default function DeliveryExecutionPage() {
   const router = useRouter();
@@ -37,6 +39,8 @@ export default function DeliveryExecutionPage() {
   
   const [liveTracking, setLiveTracking] = useState(false);
   const [socket, setSocket] = useState<any>(null);
+
+  useOfflineSync();
 
   useEffect(() => {
     const newSocket = io("http://localhost:8080");
@@ -86,6 +90,20 @@ export default function DeliveryExecutionPage() {
         window.location.href = "/";
         return;
       }
+      
+      if (!navigator.onLine) {
+         // Fallback to cache
+         const cachedArr = await localforage.getItem<any[]>('agent_cache');
+         const cachedOrder = cachedArr?.find(o => o._id === id || o.id === id);
+         if (cachedOrder) {
+           setDelivery(cachedOrder);
+         } else {
+           setError("Delivery not found in offline cache.");
+         }
+         setLoading(false);
+         return;
+      }
+
       const response = await axios.get(`http://localhost:8080/api/orders/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -96,7 +114,13 @@ export default function DeliveryExecutionPage() {
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to load delivery details.");
+      const cachedArr = await localforage.getItem<any[]>('agent_cache');
+      const cachedOrder = cachedArr?.find(o => o._id === id || o.id === id);
+      if (cachedOrder) {
+        setDelivery(cachedOrder);
+      } else {
+        setError("Failed to load delivery details.");
+      }
     } finally {
       setLoading(false);
     }
@@ -115,6 +139,33 @@ export default function DeliveryExecutionPage() {
 
     setSubmitError("");
     setCompleting(true);
+
+    if (!navigator.onLine) {
+      const queue = await localforage.getItem<any[]>('offline_sync_queue') || [];
+      queue.push({
+        id: `pod_${id}_${Date.now()}`,
+        url: `http://localhost:8080/api/orders/${id}/pod`,
+        method: 'POST',
+        payload: { signatureBase64 },
+        timestamp: Date.now()
+      });
+      queue.push({
+        id: `deliver_${id}_${Date.now()}`,
+        url: `http://localhost:8080/api/orders/${id}/status`,
+        method: 'PATCH',
+        payload: { status: 'DELIVERED', otp, signatureBase64 },
+        timestamp: Date.now()
+      });
+      await localforage.setItem('offline_sync_queue', queue);
+      
+      toast('⚠️ Offline Mode: Action saved securely. Will sync when network returns.', { duration: 4000 });
+      setShowSuccessToast(true);
+      setTimeout(() => {
+        router.push("/agent/routes");
+      }, 1500); 
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       
@@ -161,6 +212,28 @@ export default function DeliveryExecutionPage() {
     if (exceptionReason === "Parcel Damaged" && !damagedImageBase64) return toast.error("Damage photo required.");
 
     setReportingException(true);
+
+    if (!navigator.onLine) {
+      const queue = await localforage.getItem<any[]>('offline_sync_queue') || [];
+      queue.push({
+        id: `exception_${id}_${Date.now()}`,
+        url: `http://localhost:8080/api/orders/${id}/exception`,
+        method: 'PATCH',
+        payload: {
+          status: exceptionReason === "Parcel Damaged" ? "RTO" : "ATTEMPT_FAILED",
+          exceptionReason,
+          base64Image: damagedImageBase64
+        },
+        timestamp: Date.now()
+      });
+      await localforage.setItem('offline_sync_queue', queue);
+      
+      toast('⚠️ Offline Mode: Action saved securely. Will sync when network returns.', { duration: 4000 });
+      setShowExceptionModal(false);
+      setTimeout(() => router.push("/agent/routes"), 1500);
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       await axios.patch(`http://localhost:8080/api/orders/${id}/exception`, {
