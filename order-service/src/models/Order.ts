@@ -148,7 +148,7 @@ const orderSchema = new Schema<IOrderDocument>(
       type: String,
       enum: {
         values: Object.values(OrderStatus),
-        message: "Status must be one of: ORDER_PLACED, PICKED_UP, IN_TRANSIT, DESTINATION_HUB, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, ATTEMPT_FAILED, RTO",
+        message: "Status must be one of: ORDER_PLACED, PENDING_PICKUP, PICKED_UP, IN_TRANSIT, DESTINATION_HUB, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, ATTEMPT_FAILED, RTO",
       },
       default: OrderStatus.ORDER_PLACED,
     },
@@ -177,6 +177,18 @@ const orderSchema = new Schema<IOrderDocument>(
     otp: {
       type: String,
       default: () => Math.floor(100000 + Math.random() * 900000).toString(),
+    },
+    pickupOtp: {
+      type: String,
+      default: () => Math.floor(100000 + Math.random() * 900000).toString(),
+    },
+    pickupImageUrl: {
+      type: String,
+      default: null,
+    },
+    actualWeight: {
+      type: Number,
+      default: null,
     },
     statusHistory: [
       {

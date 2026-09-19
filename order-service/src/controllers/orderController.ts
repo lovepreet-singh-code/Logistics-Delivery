@@ -503,6 +503,75 @@ export const getOrderStatus = async (
 
 // PUT /api/orders/:id/status
 // PATCH /api/orders/:id/status
+// PATCH /api/orders/:id/pickup-confirm
+export const confirmPickup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { pickupOtp, actualWeight, pickupImageBase64 } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Order not found' });
+      return;
+    }
+
+    if (!pickupOtp || String(order.pickupOtp) !== String(pickupOtp)) {
+      res.status(400).json({ success: false, message: 'Invalid Pickup OTP.' });
+      return;
+    }
+
+    if (actualWeight) {
+      order.actualWeight = Number(actualWeight);
+      const pLat = order.pickupAddress.lat;
+      const pLng = order.pickupAddress.lng;
+      const dLat = order.deliveryAddress.lat;
+      const dLng = order.deliveryAddress.lng;
+      order.totalAmount = calculateTotalAmount(pLat, pLng, dLat, dLng, order.actualWeight);
+    }
+
+    if (pickupImageBase64) {
+      const uploadResult = await cloudinary.uploader.upload(pickupImageBase64, {
+        folder: "logistics_pickup",
+        public_id: `pickup_${id}_${Date.now()}`,
+      });
+      order.pickupImageUrl = uploadResult.secure_url;
+    }
+
+    order.status = OrderStatus.PICKED_UP;
+    await order.save();
+
+    try {
+      await producer.send({
+        topic: "order.status.updated",
+        messages: [{
+          value: JSON.stringify({
+            orderId: order._id.toString(),
+            status: order.status,
+            otp: order.otp,
+            customerId: order.customerId.toString(),
+            timestamp: new Date().toISOString()
+          })
+        }]
+      });
+    } catch (kafkaError) {
+      console.error("Kafka Publish Failed (order.status.updated):", kafkaError);
+    }
+
+    try {
+      if (redisClient.isOpen) {
+        await redisClient.del(`track_order:${id}`);
+      }
+    } catch (redisError) {
+      console.error("Redis delete error:", redisError);
+    }
+
+    res.status(200).json({ success: true, message: '✅ Parcel Picked Up Successfully & Price Updated!', data: order });
+  } catch (error: any) {
+    console.error("Pickup confirm error:", error);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

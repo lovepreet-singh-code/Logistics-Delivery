@@ -9,6 +9,7 @@ export default function PlanningPage() {
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
 
   const [unassignedOrders, setUnassignedOrders] = useState<any[]>([]);
+  const [filterTab, setFilterTab] = useState<'DELIVERIES' | 'PICKUPS'>('DELIVERIES');
   const [availableFleet, setAvailableFleet] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dispatching, setDispatching] = useState(false);
@@ -32,7 +33,7 @@ export default function PlanningPage() {
         const ordersArray = ordersRes.data.data || ordersRes.data || [];
         const agentsArray = agentsRes.data.data || agentsRes.data || [];
         
-        const pending = ordersArray.filter((o: any) => o.status === 'ORDER_PLACED' || o.status === 'PENDING');
+        const pending = ordersArray.filter((o: any) => o.status === 'ORDER_PLACED' || o.status === 'PENDING' || o.status === 'PENDING_PICKUP');
         setUnassignedOrders(pending);
         setAvailableFleet(agentsArray);
       } catch (error) {
@@ -95,6 +96,11 @@ export default function PlanningPage() {
     }
   };
 
+  // Define displayed orders based on the filter tab
+  const displayedOrders = unassignedOrders.filter(o => 
+    filterTab === 'PICKUPS' ? o.status === 'PENDING_PICKUP' : (o.status === 'ORDER_PLACED' || o.status === 'PENDING')
+  );
+
   return (
     <div className="p-8 max-w-7xl mx-auto h-full flex flex-col space-y-6">
       <header className="flex justify-between items-end print:hidden">
@@ -130,7 +136,7 @@ export default function PlanningPage() {
                 <th className="border border-gray-300 p-2">Seq</th>
                 <th className="border border-gray-300 p-2">Tracking ID</th>
                 <th className="border border-gray-300 p-2">Customer / Phone</th>
-                <th className="border border-gray-300 p-2">Delivery Address</th>
+                <th className="border border-gray-300 p-2">Address</th>
                 <th className="border border-gray-300 p-2">Signature</th>
               </tr>
             </thead>
@@ -140,7 +146,9 @@ export default function PlanningPage() {
                   <td className="border border-gray-300 p-2 text-center font-bold">{idx + 1}</td>
                   <td className="border border-gray-300 p-2 font-mono text-sm">{order._id.slice(-8).toUpperCase()}</td>
                   <td className="border border-gray-300 p-2">{order.customerPhone || 'N/A'}</td>
-                  <td className="border border-gray-300 p-2 text-sm">{order.deliveryAddress?.fullAddress}</td>
+                  <td className="border border-gray-300 p-2 text-sm">
+                    {order.status === 'PENDING_PICKUP' ? order.pickupAddress?.fullAddress : order.deliveryAddress?.fullAddress}
+                  </td>
                   <td className="border border-gray-300 p-2 w-32"></td>
                 </tr>
               ))}
@@ -153,19 +161,35 @@ export default function PlanningPage() {
         
         {/* Left Pane: Orders */}
         <div className="flex-1 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col shadow-xl">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2">
               <Package className="w-5 h-5 text-indigo-400" /> Pending Orders
             </h2>
             <span className="text-sm font-medium text-slate-400">{selectedOrders.length} selected</span>
           </div>
+          
+          <div className="flex bg-slate-950 p-1 rounded-xl mb-4">
+            <button
+              onClick={() => { setFilterTab('DELIVERIES'); setSelectedOrders([]); }}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${filterTab === 'DELIVERIES' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            >
+              Deliveries
+            </button>
+            <button
+              onClick={() => { setFilterTab('PICKUPS'); setSelectedOrders([]); }}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${filterTab === 'PICKUPS' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            >
+              Pickups
+            </button>
+          </div>
+
           <div className="flex-1 overflow-y-auto space-y-3 pr-2">
             {loading ? (
               <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
-            ) : unassignedOrders.length === 0 ? (
+            ) : displayedOrders.length === 0 ? (
               <div className="text-center text-slate-500 p-8">No pending orders to dispatch.</div>
             ) : (
-              unassignedOrders.map(order => (
+              displayedOrders.map(order => (
                 <div 
                   key={order._id}
                   onClick={() => handleOrderToggle(order._id)}

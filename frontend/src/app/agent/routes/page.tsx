@@ -7,8 +7,6 @@ import axios from "axios";
 import Link from "next/link";
 
 import { Toaster, toast } from "react-hot-toast";
-import QrScanner from "@/components/QrScanner";
-import { Camera, X } from "lucide-react";
 import localforage from 'localforage';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 
@@ -17,7 +15,6 @@ export default function RoutesPage() {
   const router = useRouter();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showScanner, setShowScanner] = useState(false);
   const [manualId, setManualId] = useState("");
 
   useEffect(() => {
@@ -120,65 +117,13 @@ export default function RoutesPage() {
           Active Routes
         </h1>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowScanner(true)}
-            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all"
-          >
-            <Camera className="w-3.5 h-3.5" /> Scan to Load
-          </button>
           <div className="bg-indigo-500/10 border border-indigo-500/30 px-3 py-1.5 rounded-xl">
              <span className="text-xs font-bold text-indigo-400">{pendingDeliveries.length} Pending</span>
           </div>
         </div>
       </div>
 
-      {showScanner && (
-        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative shadow-2xl">
-            <button 
-              onClick={() => setShowScanner(false)}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-slate-800 text-slate-400 rounded-full hover:bg-slate-700 hover:text-white transition-colors z-10"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <h2 className="text-xl font-bold text-white mb-6 text-center">Scan Package QR</h2>
-            
-            <QrScanner 
-              onScanSuccess={(text) => {
-                handleScan(text);
-                setShowScanner(false);
-              }}
-            />
-
-            <div className="mt-8 border-t border-slate-800 pt-6">
-              <p className="text-sm text-slate-400 text-center mb-3">Or enter Tracking ID manually</p>
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={manualId}
-                  onChange={(e) => setManualId(e.target.value.toUpperCase())}
-                  placeholder="e.g. A1B2C3D4"
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-indigo-500 uppercase"
-                />
-                <button 
-                  onClick={() => {
-                    if(manualId.trim()){
-                      handleScan(manualId.trim());
-                      setManualId("");
-                      setShowScanner(false);
-                    }
-                  }}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl transition-colors"
-                >
-                  Load
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="px-4 py-6">
+      <div className="px-4 pt-6 pb-28">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
@@ -259,6 +204,30 @@ export default function RoutesPage() {
             })}
           </div>
         )}
+      </div>
+
+      {/* Bottom Manual Entry UI */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-950/90 backdrop-blur-md border-t border-slate-800 z-30">
+        <div className="max-w-md mx-auto flex gap-2">
+          <input 
+            type="text" 
+            value={manualId}
+            onChange={(e) => setManualId(e.target.value.toUpperCase())}
+            placeholder="Enter Tracking ID..."
+            className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono focus:outline-none focus:border-indigo-500 uppercase shadow-inner"
+          />
+          <button 
+            onClick={() => {
+              if(manualId.trim()){
+                handleScan(manualId.trim());
+                setManualId("");
+              }
+            }}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-indigo-600/20 whitespace-nowrap"
+          >
+            Verify & Load
+          </button>
+        </div>
       </div>
     </>
   );

@@ -3,6 +3,7 @@ import { Types, Document } from "mongoose";
 // ──── Order Status ────
 export enum OrderStatus {
   ORDER_PLACED = "ORDER_PLACED",
+  PENDING_PICKUP = "PENDING_PICKUP",
   PICKED_UP = "PICKED_UP",
   IN_TRANSIT = "IN_TRANSIT",
   DESTINATION_HUB = "DESTINATION_HUB",
@@ -71,6 +72,9 @@ export interface IOrder {
   paymentMethod?: "PREPAID" | "COD";
   totalAmount?: number;
   otp?: string;
+  pickupOtp?: string;
+  pickupImageUrl?: string;
+  actualWeight?: number;
   exceptionReason?: string;
   rtoImageUrl?: string;
   proofOfDeliverySignature?: string;
