@@ -79,6 +79,19 @@ export default function RoutesPage() {
         return;
       }
       
+      // Strict LIFO Sequence Lock Validation
+      const firstPendingOrder = deliveries.find(d => d.status !== 'OUT_FOR_DELIVERY' && d.status !== 'IN_TRANSIT');
+      if (firstPendingOrder && firstPendingOrder._id !== matchedOrder._id) {
+        toast.error("🚨 WRONG PARCEL! Strict LIFO active. You must scan the top pending parcel first.", {
+          duration: 5000,
+          style: { background: '#ef4444', color: '#fff', fontWeight: 'bold' }
+        });
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([200, 100, 200]);
+        }
+        return;
+      }
+      
       try {
         const token = localStorage.getItem("token");
         await axios.patch(`http://localhost:8080/api/orders/${matchedOrder._id}/status`, {
