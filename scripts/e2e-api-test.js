@@ -74,7 +74,7 @@ async function run() {
       customerId: customerId,
       pickupAddress: { pinCode: "10001", lat: 40.7128, lng: -74.0060, fullAddress: "123 Logicore Warehouse" },
       deliveryAddress: { pinCode: "10001", lat: 40.7306, lng: -73.9352, fullAddress: "456 Customer Ave" },
-      parcelDetails: { weightKg: 5, dimensions: { lengthCm: 10, widthCm: 10, heightCm: 10 }, parcelType: "Box" }
+      parcelDetails: { weightKg: 5, dimensions: { lengthCm: 10, widthCm: 10, heightCm: 10 }, category: "DOCUMENT" }
     };
     
     let orderRes = await fetch(`${BASE_URL}/api/orders`, {

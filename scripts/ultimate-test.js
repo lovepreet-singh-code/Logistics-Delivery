@@ -93,7 +93,7 @@ async function run() {
       customerId: customerId,
       pickupAddress: { pinCode: "10001", lat: 40.7128, lng: -74.0060, fullAddress: "123 Warehouse" },
       deliveryAddress: { pinCode: "10001", lat: 40.7306, lng: -73.9352, fullAddress: "456 Customer" },
-      parcelDetails: { weightKg: 5, dimensions: { lengthCm: 10, widthCm: 10, heightCm: 10 }, parcelType: "Box" }
+      parcelDetails: { weightKg: 5, dimensions: { lengthCm: 10, widthCm: 10, heightCm: 10 }, category: "DOCUMENT" }
     };
     const orderRes = await fetch(`${BASE_URL}/api/orders`, {
       method: 'POST',

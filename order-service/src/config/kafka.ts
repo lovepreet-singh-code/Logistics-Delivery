@@ -3,7 +3,7 @@ import config from "./index";
 
 const kafka = new Kafka({
   clientId: config.kafka.clientId,
-  brokers: [process.env.KAFKA_BROKER || 'kafka:9092'],
+  brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
   logLevel: logLevel.WARN,
 });
 

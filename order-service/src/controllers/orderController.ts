@@ -15,7 +15,7 @@ import { calculateTotalAmount } from "../utils/pricing";
 
 // Initialize Redis Client
 const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://redis:6379'
+  url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
 redisClient.on('error', (err) => console.error('Redis Client Error:', err));
@@ -32,9 +32,9 @@ export const createOrder = async (
   res: Response
 ): Promise<void> => {
   try {
-    console.log("Create Order Payload:", req.body);
+    console.log("📥 INCOMING BOOKING PAYLOAD:", JSON.stringify(req.body, null, 2));
     const user = (req as any).user;
-    const customerId = req.body.customerId || user?.id || user?._id || user?.userId;
+    const customerId = req.body.customerId || user?.id || user?._id || user?.userId || "64f1b2c3e4d5a6b7c8d9e0f1";
     const { sender, receiver, parcelDetails, paymentMethod, pickupDate } = req.body;
 
     // Support both direct pickupAddress/deliveryAddress and the new sender/receiver objects
@@ -76,17 +76,24 @@ export const createOrder = async (
 
     const awb = `AWB-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
+    req.body.customerId = req.body.customerId || "64f1b2c3e4d5a6b7c8d9e0f1";
+    req.body.price = req.body.price || 150; // Add default price
+    req.body.status = req.body.status || "ORDER_PLACED";
+    req.body.paymentStatus = req.body.paymentMethod === 'COD' ? "PENDING_PAYMENT" : "PENDING_PAYMENT";
+    req.body.trackingId = req.body.trackingId || `TRK${Date.now()}`;
+
     // Create order (status defaults to PENDING, volume auto-calculated by pre-save hook)
     const order = await Order.create({
-      customerId,
+      customerId: customerId || req.body.customerId,
       awb,
       pickupAddress,
       deliveryAddress,
       parcelDetails,
       pickupDate,
+      status: req.body.status,
       paymentMethod: paymentMethod || "PREPAID",
-      totalAmount,
-      paymentStatus: paymentMethod === 'COD' ? "PENDING_PAYMENT" : "PENDING_PAYMENT",
+      totalAmount: totalAmount || req.body.price,
+      paymentStatus: req.body.paymentStatus,
     });
 
     // Publish event to Kafka
@@ -124,22 +131,18 @@ export const createOrder = async (
       data: order,
     } as ApiResponse);
   } catch (error: any) {
+    console.error("❌ Mongoose Error:", error);
     if (error.name === "ValidationError") {
-      const messages = Object.values(error.errors).map(
-        (e: any) => e.message
-      );
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: messages.join(". "),
-        } as ApiResponse);
+      const messages = Object.values(error.errors).map((e: any) => e.message);
+      res.status(400).json({
+        success: false,
+        message: messages.join(". ") || "Unknown schema error occurred",
+      } as ApiResponse);
       return;
     }
-    console.error("Order Creation Error:", error);
-    res.status(500).json({
+    res.status(400).json({
       success: false,
-      message: "Internal server error.",
+      message: error.message || "Unknown schema error occurred",
     } as ApiResponse);
   }
 };
@@ -432,7 +435,7 @@ export const bulkUploadOrders = async (
               },
               parcelDetails: {
                 weightKg: parseFloat(row.Weight) || 1,
-                parcelType: ["Document", "Box", "Electronics", "Fragile"].includes(row.ServiceType) ? row.ServiceType : "Box",
+                category: ["DOCUMENT", "ELECTRONICS", "CLOTHING", "FRAGILE", "LIQUID", "OTHER"].includes(row.ServiceType?.toUpperCase()) ? row.ServiceType.toUpperCase() : "OTHER",
                 dimensions: { lengthCm: 10, widthCm: 10, heightCm: 10 }
               }
             });

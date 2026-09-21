@@ -35,18 +35,18 @@ const dimensionsSchema = new Schema(
   {
     lengthCm: {
       type: Number,
-      required: [true, "Length is required"],
       min: [0, "Length cannot be negative"],
+      default: null,
     },
     widthCm: {
       type: Number,
-      required: [true, "Width is required"],
       min: [0, "Width cannot be negative"],
+      default: null,
     },
     heightCm: {
       type: Number,
-      required: [true, "Height is required"],
       min: [0, "Height cannot be negative"],
+      default: null,
     },
   },
   { _id: false }
@@ -62,7 +62,7 @@ const parcelDetailsSchema = new Schema(
     },
     dimensions: {
       type: dimensionsSchema,
-      required: [true, "Dimensions are required"],
+      default: () => ({}),
     },
     totalVolumeCm3: {
       type: Number,
@@ -230,7 +230,11 @@ const orderSchema = new Schema<IOrderDocument>(
 orderSchema.pre<IOrderDocument>("save", function (next) {
   if (this.parcelDetails?.dimensions) {
     const { lengthCm, widthCm, heightCm } = this.parcelDetails.dimensions;
-    this.parcelDetails.totalVolumeCm3 = lengthCm * widthCm * heightCm;
+    if (lengthCm && widthCm && heightCm) {
+      this.parcelDetails.totalVolumeCm3 = lengthCm * widthCm * heightCm;
+    } else {
+      this.parcelDetails.totalVolumeCm3 = 0;
+    }
   }
   next();
 });

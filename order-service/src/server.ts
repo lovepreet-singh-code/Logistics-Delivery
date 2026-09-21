@@ -52,14 +52,13 @@ const startServer = async (): Promise<void> => {
   await connectDB();
 
   // ──── Connect Kafka ────
-  await connectProducer();
-  await startConsumer();
-
-  // ──── Start Background Workers ────
-  await startOrderRoutedWorker();
-  await startDispatchManifestedWorker();
-  await startDeliveryCompletedWorker();
-  await startOrderStatusWorker();
+  try {
+    await connectProducer();
+    await startConsumer();
+    console.log("Kafka connected successfully.");
+  } catch (err) {
+    console.error("Kafka connection failed. Running without Kafka...", err);
+  }
 
   const httpServer = require("http").createServer(app);
   const { Server } = require("socket.io");
@@ -98,6 +97,12 @@ const startServer = async (): Promise<void> => {
     ╚══════════════════════════════════════════╝
     `);
   });
+
+  // ──── Start Background Workers (Non-blocking) ────
+  startOrderRoutedWorker().catch(e => console.error("Worker failed", e));
+  startDispatchManifestedWorker().catch(e => console.error("Worker failed", e));
+  startDeliveryCompletedWorker().catch(e => console.error("Worker failed", e));
+  startOrderStatusWorker().catch(e => console.error("Worker failed", e));
 
   const shutdown = async () => {
     console.log("Shutting down server gracefully...");

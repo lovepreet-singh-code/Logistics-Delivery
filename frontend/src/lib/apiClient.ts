@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Base API Client configured for the API Gateway
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api', // Pointing to NGINX API Gateway
+  baseURL: 'http://localhost:4004/api', // Temporarily pointing directly to order-service
 });
 
 // Request interceptor to attach Bearer token

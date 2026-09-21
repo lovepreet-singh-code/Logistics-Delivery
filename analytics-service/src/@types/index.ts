@@ -34,7 +34,7 @@ export interface IParcelDetails {
   weightKg: number;
   dimensions: IDimensions;
   totalVolumeCm3: number;
-  parcelType?: string; // Enum: Document, Box, Electronics, Fragile
+  category?: string; // Enum: DOCUMENT, ELECTRONICS, CLOTHING, FRAGILE, LIQUID, OTHER
   declaredValue?: number;
 }
 

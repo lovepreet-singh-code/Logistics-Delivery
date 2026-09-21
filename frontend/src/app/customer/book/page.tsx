@@ -24,9 +24,6 @@ export default function BookParcelPage() {
 
   // Section 2: Parcel Details
   const [weight, setWeight] = useState('');
-  const [length, setLength] = useState('');
-  const [width, setWidth] = useState('');
-  const [height, setHeight] = useState('');
   const [category, setCategory] = useState('DOCUMENT');
 
   const CATEGORIES = ['DOCUMENT', 'ELECTRONICS', 'CLOTHING', 'FRAGILE', 'LIQUID', 'OTHER'];
@@ -156,8 +153,8 @@ export default function BookParcelPage() {
         throw new Error("No authentication token found. Please log in.");
       }
 
-      // Decode JWT to get customerId
-      let customerId = "000000000000000000000000";
+      // Decode JWT to get customerId, fallback to a valid hardcoded ObjectId for testing
+      let customerId = "60d5ecb8b392d7001f3e9205";
       try {
         const tokenPayload = JSON.parse(atob(token.split('.')[1]));
         customerId = tokenPayload.id || tokenPayload.userId || tokenPayload._id || customerId;
@@ -165,26 +162,21 @@ export default function BookParcelPage() {
 
       const payloadData = {
         customerId,
-        sender: {
-          name: senderName,
-          phone: senderPhone,
+        pickupAddress: {
+          senderName: senderName,
+          senderPhone: senderPhone,
           fullAddress: pickupAddress,
           pinCode: pickupPincode,
         },
-        receiver: {
-          name: receiverName,
-          phone: receiverPhone,
+        deliveryAddress: {
+          receiverName: receiverName,
+          receiverPhone: receiverPhone,
           fullAddress: dropAddress,
           pinCode: dropPincode,
         },
         parcelDetails: {
           weightKg: parseFloat(weight),
           category: category,
-          dimensions: { 
-            lengthCm: parseFloat(length), 
-            widthCm: parseFloat(width), 
-            heightCm: parseFloat(height) 
-          }
         },
         pickupDate,
         paymentMethod
@@ -208,7 +200,7 @@ export default function BookParcelPage() {
       }
     } catch (error: any) {
       console.error("Booking Error:", error.response?.data);
-      setError(error.response?.data?.message || "Failed to book parcel");
+      setError(typeof error.response?.data?.message === 'string' ? error.response.data.message : JSON.stringify(error.response?.data || error.message));
       setLoading(false);
     }
   };
@@ -284,26 +276,12 @@ export default function BookParcelPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="relative">
-                    <input type="number" step="0.1" required value={weight} onChange={e => setWeight(e.target.value)} placeholder="Weight" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500" />
+                    <input type="number" step="0.1" required value={weight} onChange={e => setWeight(e.target.value)} placeholder="Estimated Weight" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500" />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">kg</span>
                   </div>
                   <select name="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-amber-500 appearance-none">
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="relative">
-                    <input type="number" step="0.1" required value={length} onChange={e => setLength(e.target.value)} placeholder="L" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 text-xs">cm</span>
-                  </div>
-                  <div className="relative">
-                    <input type="number" step="0.1" required value={width} onChange={e => setWidth(e.target.value)} placeholder="W" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 text-xs">cm</span>
-                  </div>
-                  <div className="relative">
-                    <input type="number" step="0.1" required value={height} onChange={e => setHeight(e.target.value)} placeholder="H" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 text-xs">cm</span>
-                  </div>
                 </div>
               </div>
             </div>

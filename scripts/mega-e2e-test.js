@@ -55,7 +55,7 @@ async function run() {
       customerId: customerAuth.user.id,
       pickupAddress: { pinCode: "110001", lat: 28.6139, lng: 77.2090, fullAddress: "Connaught Place, New Delhi" },
       deliveryAddress: { pinCode: "400001", lat: 18.9322, lng: 72.8264, fullAddress: "Nariman Point, Mumbai" },
-      parcelDetails: { weightKg: 10, dimensions: { lengthCm: 20, widthCm: 20, heightCm: 20 }, parcelType: "Electronics" }
+      parcelDetails: { weightKg: 10, dimensions: { lengthCm: 20, widthCm: 20, heightCm: 20 }, category: "ELECTRONICS" }
     };
 
     const orderRes = await axios.post(`${BASE_URL}/api/orders`, orderPayload, {

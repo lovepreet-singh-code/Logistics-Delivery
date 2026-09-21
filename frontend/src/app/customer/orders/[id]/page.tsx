@@ -172,7 +172,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Parcel Type</p>
-                  <p className="font-semibold text-slate-900">{order.parcelDetails?.parcelType || "Box"}</p>
+                  <p className="font-semibold text-slate-900">{order.parcelDetails?.category || "DOCUMENT"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Weight</p>
