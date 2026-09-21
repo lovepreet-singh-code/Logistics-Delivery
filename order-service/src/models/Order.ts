@@ -68,10 +68,10 @@ const parcelDetailsSchema = new Schema(
       type: Number,
       default: 0,
     },
-    parcelType: {
+    category: {
       type: String,
-      enum: ["Document", "Box", "Electronics", "Fragile"],
-      required: [true, "Parcel type is required"],
+      enum: ['DOCUMENT', 'ELECTRONICS', 'CLOTHING', 'FRAGILE', 'LIQUID', 'OTHER'],
+      required: [true, "Category is required"],
     },
     declaredValue: {
       type: Number,
@@ -143,6 +143,10 @@ const orderSchema = new Schema<IOrderDocument>(
     routing: {
       type: routingSchema,
       default: () => ({}),
+    },
+    pickupDate: {
+      type: Date,
+      default: null,
     },
     status: {
       type: String,

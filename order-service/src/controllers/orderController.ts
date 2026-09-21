@@ -32,9 +32,25 @@ export const createOrder = async (
   res: Response
 ): Promise<void> => {
   try {
+    console.log("Create Order Payload:", req.body);
     const user = (req as any).user;
     const customerId = req.body.customerId || user?.id || user?._id || user?.userId;
-    const { pickupAddress, deliveryAddress, parcelDetails } = req.body;
+    const { sender, receiver, parcelDetails, paymentMethod, pickupDate } = req.body;
+
+    // Support both direct pickupAddress/deliveryAddress and the new sender/receiver objects
+    const pickupAddress = sender ? {
+      fullAddress: sender.fullAddress,
+      pinCode: sender.pincode || sender.pinCode,
+      senderName: sender.name,
+      senderPhone: sender.phone,
+    } : req.body.pickupAddress;
+
+    const deliveryAddress = receiver ? {
+      fullAddress: receiver.fullAddress,
+      pinCode: receiver.pincode || receiver.pinCode,
+      receiverName: receiver.name,
+      receiverPhone: receiver.phone,
+    } : req.body.deliveryAddress;
 
     // Validate required fields
     if (!customerId || !pickupAddress || !deliveryAddress || !parcelDetails) {
@@ -67,8 +83,10 @@ export const createOrder = async (
       pickupAddress,
       deliveryAddress,
       parcelDetails,
+      pickupDate,
+      paymentMethod: paymentMethod || "PREPAID",
       totalAmount,
-      paymentStatus: "PENDING_PAYMENT",
+      paymentStatus: paymentMethod === 'COD' ? "PENDING_PAYMENT" : "PENDING_PAYMENT",
     });
 
     // Publish event to Kafka
