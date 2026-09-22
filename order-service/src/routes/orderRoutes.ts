@@ -13,6 +13,7 @@ import {
   generateInvoice,
   bulkCreateOrders,
   bulkUploadOrders,
+  inwardOrder,
   getMyOrders,
   getRecentOrders,
   getUnassignedOrders,
@@ -53,6 +54,7 @@ router.post("/:id/pod", uploadPodImage);
 router.put("/:id/status", updateOrderStatus);
 router.patch("/:id/status", updateOrderStatus);
 router.patch("/:id/pickup-confirm", confirmPickup);
+router.patch("/:id/inward", adminAuth, inwardOrder);
 router.patch("/:id/exception", reportException);
 router.put("/:orderId/assign", manualAssignOrder);
 

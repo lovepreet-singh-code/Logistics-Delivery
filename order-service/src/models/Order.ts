@@ -152,7 +152,7 @@ const orderSchema = new Schema<IOrderDocument>(
       type: String,
       enum: {
         values: Object.values(OrderStatus),
-        message: "Status must be one of: ORDER_PLACED, PENDING_PICKUP, PICKED_UP, IN_TRANSIT, DESTINATION_HUB, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, ATTEMPT_FAILED, RTO",
+        message: "Status must be one of: ORDER_PLACED, PENDING_PICKUP, PICKED_UP, AT_HUB, IN_TRANSIT, DESTINATION_HUB, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, ATTEMPT_FAILED, RTO",
       },
       default: OrderStatus.ORDER_PLACED,
     },

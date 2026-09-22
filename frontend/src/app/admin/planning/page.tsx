@@ -33,7 +33,7 @@ export default function PlanningPage() {
         const ordersArray = ordersRes.data.data || ordersRes.data || [];
         const agentsArray = agentsRes.data.data || agentsRes.data || [];
         
-        const pending = ordersArray.filter((o: any) => o.status === 'ORDER_PLACED' || o.status === 'PENDING' || o.status === 'PENDING_PICKUP');
+        const pending = ordersArray.filter((o: any) => ['ORDER_PLACED', 'PENDING', 'PENDING_PICKUP', 'AT_HUB'].includes(o.status));
         setUnassignedOrders(pending);
         setAvailableFleet(agentsArray);
       } catch (error) {
@@ -98,7 +98,9 @@ export default function PlanningPage() {
 
   // Define displayed orders based on the filter tab
   const displayedOrders = unassignedOrders.filter(o => 
-    filterTab === 'PICKUPS' ? o.status === 'PENDING_PICKUP' : (o.status === 'ORDER_PLACED' || o.status === 'PENDING')
+    filterTab === 'PICKUPS' 
+      ? (o.status === 'ORDER_PLACED' || o.status === 'PENDING' || o.status === 'PENDING_PICKUP') 
+      : (o.status === 'AT_HUB')
   );
 
   return (

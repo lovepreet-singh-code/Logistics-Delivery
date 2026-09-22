@@ -238,7 +238,14 @@ export const getOrderById = async (
     }
 
     // 2. Fallback: Fetch from DB (Cache Miss)
-    const order = await Order.findById(orderId);
+    const isValidId = mongoose.Types.ObjectId.isValid(orderId);
+    const order = await Order.findOne({
+      $or: [
+        { _id: isValidId ? new mongoose.Types.ObjectId(orderId) : null },
+        { awb: orderId },
+        { trackingId: orderId }
+      ]
+    });
 
     if (!order) {
       res.status(404).json({
@@ -657,6 +664,79 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// PATCH /api/orders/:id/inward
+  export const inwardOrder = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { lengthCm, widthCm, heightCm, actualWeightKg } = req.body;
+  
+      const isValidId = mongoose.Types.ObjectId.isValid(id);
+      const order = await Order.findOne({
+        $or: [
+          { _id: isValidId ? new mongoose.Types.ObjectId(id) : null },
+          { awb: id },
+          { trackingId: id }
+        ]
+      });
+  
+      if (!order) {
+        res.status(404).json({ success: false, message: "Order not found" });
+        return;
+      }
+  
+      // Update Dimensions
+      if (lengthCm && widthCm && heightCm) {
+        if (!order.parcelDetails.dimensions) {
+          order.parcelDetails.dimensions = { lengthCm: 0, widthCm: 0, heightCm: 0 };
+        }
+        order.parcelDetails.dimensions.lengthCm = Number(lengthCm);
+        order.parcelDetails.dimensions.widthCm = Number(widthCm);
+        order.parcelDetails.dimensions.heightCm = Number(heightCm);
+        order.parcelDetails.totalVolumeCm3 = Number(lengthCm) * Number(widthCm) * Number(heightCm);
+      }
+  
+      if (actualWeightKg) {
+        order.actualWeight = Number(actualWeightKg);
+      }
+  
+      // Calculate billing weight = max(actual, volumetric)
+      const volWeight = (order.parcelDetails.totalVolumeCm3 || 0) / 5000;
+      const actualWt = order.actualWeight || order.parcelDetails.weightKg || 1;
+      const billingWeight = Math.max(volWeight, actualWt);
+  
+      // Recalculate price
+      const updatedTotalAmount = calculateTotalAmount(
+        order.pickupAddress.lat,
+        order.pickupAddress.lng,
+        order.deliveryAddress.lat,
+        order.deliveryAddress.lng,
+        billingWeight
+      );
+  
+      order.totalAmount = updatedTotalAmount;
+      order.status = "AT_HUB" as any;
+      if (!order.statusHistory) {
+        order.statusHistory = [];
+      }
+      order.statusHistory.push({
+        status: "AT_HUB",
+        timestamp: new Date(),
+        note: "Inwarded at Hub with exact measurements",
+      });
+  
+      await order.save();
+  
+      res.status(200).json({
+        success: true,
+        message: "Order inwarded successfully",
+        data: order,
+      });
+    } catch (error: any) {
+      console.error("Inward Order Error:", error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
 
 // ═══════════════════════════════════════════════
 //  MANUAL ASSIGNMENT (TESTING BYPASS)

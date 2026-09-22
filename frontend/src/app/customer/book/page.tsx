@@ -78,8 +78,9 @@ export default function BookParcelPage() {
 
             if (verifyRes.data.success) {
               toast.success("Payment successful! Order booked.");
+              const trackingId = verifyRes.data.data?.awb || verifyRes.data.data?.trackingId || orderId;
               setTimeout(() => {
-                router.push(`/customer/track?id=${orderId}`);
+                router.push(`/customer/track?id=${trackingId}`);
               }, 1500);
             }
           } catch (verifyErr) {
@@ -186,11 +187,12 @@ export default function BookParcelPage() {
 
       if (res.data && res.data.success) {
         const orderId = res.data.data?._id || res.data.data?.id;
+        const trackingId = res.data.data?.awb || res.data.data?.trackingId || orderId;
         
         if (paymentMethod === 'COD') {
           toast.success('Order booked successfully via COD!');
           setTimeout(() => {
-            router.push(`/customer/track?id=${orderId}`);
+            router.push(`/customer/track?id=${trackingId}`);
           }, 1500);
         } else {
           toast.success('Order drafted! Redirecting to payment...');
