@@ -7,6 +7,7 @@ import config from "./config";
 import connectDB from "./config/database";
 import { connectProducer, startConsumer, disconnectKafka } from "./config/kafka";
 import orderRoutes from "./routes/orderRoutes";
+import hubRoutes from "./routes/hubRoutes";
 import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
 import { startDispatchManifestedWorker } from "./workers/dispatchManifestedWorker";
 import { startDeliveryCompletedWorker } from "./workers/deliveryCompletedWorker";
@@ -38,6 +39,7 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // ──── API Routes ────
 app.use("/api/orders", orderRoutes);
+app.use("/api/hubs", hubRoutes);
 
 // ──── 404 Handler ────
 app.use((_req: Request, res: Response) => {

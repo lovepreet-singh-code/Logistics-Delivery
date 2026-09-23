@@ -1,42 +1,42 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Map, Loader2, Plus, CheckCircle, AlertTriangle, Building, Navigation, User, Edit2, Trash2, Eye, Truck, Package, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
-import apiClient from '@/lib/apiClient';
+import { Plus, Building2, MapPin, Search, CheckCircle2, XCircle, Users, Phone } from 'lucide-react';
 
-interface Franchise {
+interface Hub {
   _id: string;
-  name: string;
-  region: string;
-  basePinCode: string;
+  hubName: string;
+  hubCode: string;
+  managerName: string;
+  contactNumber: string;
+  serviceablePincodes: string[];
+  isActive: boolean;
   createdAt: string;
 }
 
-export default function HubsPage() {
-  const [hubs, setHubs] = useState<Franchise[]>([]);
+export default function HubsManagementPage() {
+  const [hubs, setHubs] = useState<Hub[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   // Form State
   const [formData, setFormData] = useState({
-    name: '',
-    region: '',
-    basePinCode: '',
-    latitude: '',
-    longitude: '',
-    volumeCapacity: ''
+    hubName: '',
+    hubCode: '',
+    managerName: '',
+    contactNumber: '',
+    pincodesInput: '',
+    isActive: true,
   });
 
   const fetchHubs = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/topology/franchises');
+      const res = await axios.get('http://localhost:8080/api/hubs');
       setHubs(res.data.data || []);
     } catch (error) {
-      console.error("Failed to fetch hubs", error);
-      showToast('error', 'Failed to load existing hubs.');
+      console.error("Error fetching hubs", error);
     } finally {
       setLoading(false);
     }
@@ -46,249 +46,205 @@ export default function HubsPage() {
     fetchHubs();
   }, []);
 
-  const showToast = (type: 'success' | 'error', message: string) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleRegisterHub = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setSubmitting(true);
-      
-      await apiClient.post('/topology/franchises', formData);
-      
-      showToast('success', 'Hub registered successfully!');
-      setFormData({ name: '', region: '', basePinCode: '', latitude: '', longitude: '', volumeCapacity: '' });
-      fetchHubs(); // Refresh the list
+      const serviceablePincodes = formData.pincodesInput
+        .split(',')
+        .map(code => code.trim())
+        .filter(code => code.length > 0);
+
+      await axios.post('http://localhost:8080/api/hubs', {
+        hubName: formData.hubName,
+        hubCode: formData.hubCode,
+        managerName: formData.managerName,
+        contactNumber: formData.contactNumber,
+        serviceablePincodes,
+        isActive: formData.isActive
+      });
+
+      setIsModalOpen(false);
+      setFormData({ hubName: '', hubCode: '', managerName: '', contactNumber: '', pincodesInput: '', isActive: true });
+      fetchHubs();
     } catch (error: any) {
-      console.error("Registration failed", error);
-      showToast('error', error.response?.data?.message || 'Failed to register hub.');
-    } finally {
-      setSubmitting(false);
+      alert(error.response?.data?.message || 'Failed to register hub');
     }
   };
 
   return (
-    <div className="p-6 md:p-10 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-      
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transition-all animate-in slide-in-from-top-10 ${toast.type === 'success' ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'}`}>
-          {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
-          <span className="font-semibold">{toast.message}</span>
+    <div className="p-8 space-y-8 min-h-screen bg-[#0A0D14]">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#151921] p-6 rounded-3xl border border-slate-800 shadow-2xl">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+            <Building2 className="w-7 h-7 text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Hub & Franchise Management</h1>
+            <p className="text-slate-400 text-sm mt-1">Manage network topology and serviceability regions</p>
+          </div>
         </div>
-      )}
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          Register New Hub
+        </button>
+      </div>
 
-      <header className="mb-8">
-        <h1 className="text-3xl font-extrabold text-white flex items-center gap-3">
-          <Map className="w-8 h-8 text-indigo-400" />
-          Hubs & Topology
-        </h1>
-        <p className="text-slate-400 mt-2">Manage regional distribution hubs and service zones.</p>
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Table Section */}
+      <div className="bg-[#151921] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-[#1A1F29]">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-indigo-400" /> Network Hubs
+          </h2>
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input 
+              type="text" 
+              placeholder="Search hubs..." 
+              className="pl-9 pr-4 py-2 bg-[#0A0D14] border border-slate-800 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
         
-        {/* Left Column: Form */}
-        <div className="lg:col-span-5">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-indigo-400" />
-              Register New Hub
-            </h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-300">
+            <thead className="bg-[#0F131A] text-slate-400 text-xs uppercase font-semibold">
+              <tr>
+                <th className="px-6 py-4">Hub Name</th>
+                <th className="px-6 py-4">Hub Code</th>
+                <th className="px-6 py-4">Manager</th>
+                <th className="px-6 py-4">Contact</th>
+                <th className="px-6 py-4 text-center">Serviceable Pincodes</th>
+                <th className="px-6 py-4 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12 text-slate-500">Loading network topology...</td>
+                </tr>
+              ) : hubs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12 text-slate-500">No hubs registered yet.</td>
+                </tr>
+              ) : (
+                hubs.map((hub) => (
+                  <tr key={hub._id} className="hover:bg-[#1A1F29] transition-colors group">
+                    <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:bg-indigo-500/20">
+                        <Building2 className="w-4 h-4 text-indigo-400" />
+                      </div>
+                      {hub.hubName}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-indigo-400">{hub.hubCode}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-slate-500" />
+                        {hub.managerName}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-slate-500" />
+                        {hub.contactNumber}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-bold border border-indigo-500/20">
+                        {hub.serviceablePincodes?.length || 0} Pincodes
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {hub.isActive ? (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Active
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold">
+                          <XCircle className="w-3.5 h-3.5" /> Inactive
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Hub Name</label>
-                <input 
-                  type="text" 
-                  name="name"
-                  required
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="e.g. Metropolis Central"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Region</label>
-                  <input 
-                    type="text" 
-                    name="region"
-                    required
-                    value={formData.region}
-                    onChange={handleChange}
-                    placeholder="e.g. North"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Base Pin Code</label>
-                  <input 
-                    type="text" 
-                    name="basePinCode"
-                    required
-                    value={formData.basePinCode}
-                    onChange={handleChange}
-                    placeholder="e.g. 10001"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Latitude</label>
-                  <input 
-                    type="number" 
-                    step="any"
-                    name="latitude"
-                    value={formData.latitude}
-                    onChange={handleChange}
-                    placeholder="40.7128"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Longitude</label>
-                  <input 
-                    type="number" 
-                    step="any"
-                    name="longitude"
-                    value={formData.longitude}
-                    onChange={handleChange}
-                    placeholder="-74.0060"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Volume Capacity (m³)</label>
-                <input 
-                  type="number" 
-                  name="volumeCapacity"
-                  value={formData.volumeCapacity}
-                  onChange={handleChange}
-                  placeholder="e.g. 5000"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
-                />
-              </div>
-
-              <button 
-                type="submit" 
-                disabled={submitting}
-                className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 shadow-lg shadow-indigo-500/20"
-              >
-                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
-                {submitting ? 'Registering...' : 'Register Hub'}
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#151921] border border-slate-700 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-8 py-6 border-b border-slate-800 flex justify-between items-center bg-[#1A1F29]">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-indigo-400" /> Register New Hub
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                <XCircle className="w-6 h-6" />
               </button>
+            </div>
+            
+            <form onSubmit={handleRegisterHub} className="p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hub Name</label>
+                  <input required value={formData.hubName} onChange={(e) => setFormData({...formData, hubName: e.target.value})} type="text" className="w-full bg-[#0A0D14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="e.g. Delhi Central" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hub Code</label>
+                  <input required value={formData.hubCode} onChange={(e) => setFormData({...formData, hubCode: e.target.value})} type="text" className="w-full bg-[#0A0D14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors uppercase" placeholder="e.g. DEL-01" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Manager Name</label>
+                  <input required value={formData.managerName} onChange={(e) => setFormData({...formData, managerName: e.target.value})} type="text" className="w-full bg-[#0A0D14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="John Doe" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contact Number</label>
+                  <input required value={formData.contactNumber} onChange={(e) => setFormData({...formData, contactNumber: e.target.value})} type="tel" className="w-full bg-[#0A0D14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="+91 9876543210" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Serviceable Pincodes (Comma Separated)</label>
+                <textarea 
+                  required
+                  value={formData.pincodesInput}
+                  onChange={(e) => setFormData({...formData, pincodesInput: e.target.value})}
+                  rows={3} 
+                  className="w-full bg-[#0A0D14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors resize-none font-mono text-sm" 
+                  placeholder="110001, 110002, 201301"
+                ></textarea>
+                <p className="text-xs text-slate-500">These pincodes determine if an order can be picked up or delivered by this hub.</p>
+              </div>
+
+              <div className="flex items-center gap-3 bg-[#0A0D14] p-4 rounded-xl border border-slate-700">
+                <input 
+                  type="checkbox" 
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
+                  id="isActive" 
+                  className="w-5 h-5 rounded border-slate-700 text-indigo-600 focus:ring-indigo-500 bg-[#1A1F29]" 
+                />
+                <label htmlFor="isActive" className="text-sm font-medium text-white cursor-pointer">Hub is Active and Operational</label>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 rounded-xl font-medium text-slate-300 hover:bg-slate-800 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)]">
+                  Save Hub
+                </button>
+              </div>
             </form>
           </div>
         </div>
-
-        {/* Right Column: Existing Hubs */}
-        <div className="lg:col-span-7">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl min-h-[500px]">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <Building className="w-5 h-5 text-indigo-400" />
-              Existing Hubs
-            </h2>
-
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
-                <p>Loading hubs from topology service...</p>
-              </div>
-            ) : hubs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-500 bg-slate-950/50 rounded-2xl border border-dashed border-slate-800">
-                <Navigation className="w-12 h-12 mb-4 opacity-50" />
-                <p>No hubs registered yet.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {hubs.map(hub => (
-                  <div key={hub._id} className="bg-slate-950 border border-slate-800 rounded-3xl p-6 hover:border-indigo-500/50 transition-all group shadow-lg relative overflow-hidden flex flex-col">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-bl-full -z-10 transition-all group-hover:scale-110"></div>
-                    
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center group-hover:bg-indigo-500/20 group-hover:border-indigo-500/30 transition-all shadow-inner">
-                          <Building className="w-6 h-6 text-indigo-400" />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-white mb-0.5 group-hover:text-indigo-300 transition-colors">{hub.name}</h3>
-                          <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-0.5 bg-slate-800 rounded text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                              {hub.region}
-                            </span>
-                            <span className="text-xs text-slate-500 font-mono flex items-center gap-1">
-                              <Map className="w-3 h-3" /> {hub.basePinCode}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-xl transition-colors" title="Edit"><Edit2 className="w-4 h-4" /></button>
-                        <button className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 space-y-5">
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/50 border border-slate-800">
-                        <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center shrink-0">
-                          <User className="w-4 h-4 text-slate-400" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Hub Manager</p>
-                          <p className="text-sm font-semibold text-slate-300">Vikram Singh</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-end">
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-emerald-500" /> Capacity Utilization</p>
-                          <p className="text-xs font-bold text-slate-300">68%</p>
-                        </div>
-                        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: '68%' }}></div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3 border-t border-slate-800/50 pt-5">
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Package className="w-3 h-3" /> Today</p>
-                          <p className="text-lg font-bold text-white">412</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Truck className="w-3 h-3" /> Fleet</p>
-                          <p className="text-lg font-bold text-white">24</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><User className="w-3 h-3" /> Staff</p>
-                          <p className="text-lg font-bold text-white">35</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button className="w-full mt-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-sm font-bold flex items-center justify-center gap-2 transition-colors active:scale-95 shadow-sm">
-                      <Eye className="w-4 h-4" /> View Details
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-      </div>
+      )}
     </div>
   );
 }

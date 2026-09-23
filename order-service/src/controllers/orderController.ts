@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { createClient } from "redis";
 import Order from "../models/Order";
+import Hub from "../models/Hub";
 import { producer, publishOrderEvent } from "../config/kafka";
 import { ApiResponse, IOrderCreatedEvent, OrderStatus } from "../@types";
 import { geocodeAddress } from "../utils/geocoder";
@@ -61,6 +62,24 @@ export const createOrder = async (
       } as ApiResponse);
       return;
     }
+
+    // --- BOOKING VALIDATION INTERCEPTOR ---
+    const pickupPincode = pickupAddress.pinCode || req.body.pickupDetails?.pincode;
+    const deliveryPincode = deliveryAddress.pinCode || req.body.deliveryDetails?.pincode;
+
+    const [isPickupServiceable, isDeliveryServiceable] = await Promise.all([
+      Hub.exists({ isActive: true, serviceablePincodes: pickupPincode }),
+      Hub.exists({ isActive: true, serviceablePincodes: deliveryPincode })
+    ]);
+
+    if (!isPickupServiceable || !isDeliveryServiceable) {
+      res.status(400).json({
+        success: false,
+        message: "Service is currently not available for one or both of the provided pincodes."
+      });
+      return;
+    }
+    // --------------------------------------
 
     // Geocode addresses
     const [pLat, pLng] = await geocodeAddress(pickupAddress.fullAddress || "");
