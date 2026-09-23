@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, ShieldCheck, Loader2, AlertTriangle } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
+import axios from 'axios';
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
@@ -12,7 +13,9 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await apiClient.get('/auth/me'); // identity-service usually exposes /auth/me or similar
+        const res = await axios.get('http://localhost:8080/api/auth/me', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
         setProfile(res.data.data || res.data);
       } catch (err: any) {
         console.error(err);
