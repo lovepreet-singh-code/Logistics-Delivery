@@ -47,7 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
           <Link href="/admin/orders" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <Package className="w-5 h-5 group-hover:text-indigo-400" />
-            <span className="font-medium text-sm">Orders</span>
+            <span className="font-medium text-sm">All Orders</span>
           </Link>
           <Link href="/admin/tracking" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <MapPin className="w-5 h-5 group-hover:text-indigo-400" />
@@ -59,6 +59,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
 
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-4">Operations</div>
+          <Link href="/admin/operations" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <Warehouse className="w-5 h-5 group-hover:text-amber-400" />
+            <span className="font-medium text-sm">Hub Inwarding</span>
+          </Link>
+          <Link href="/admin/finance" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <PieChart className="w-5 h-5 group-hover:text-emerald-400" />
+            <span className="font-medium text-sm">Finance & COD</span>
+          </Link>
           <Link href="/admin/planning" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <Navigation className="w-5 h-5 group-hover:text-indigo-400" />
             <span className="font-medium text-sm">Route Planning</span>

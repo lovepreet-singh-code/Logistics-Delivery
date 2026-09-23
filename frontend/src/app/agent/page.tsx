@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -27,7 +28,7 @@ export default function AgentDashboard() {
           return;
         }
 
-        const response = await axios.get("http://localhost:8080/api/orders", {
+        const response = await apiClient.get("/orders", {
           headers: { Authorization: `Bearer ${token}` }
         });
         

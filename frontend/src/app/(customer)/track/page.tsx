@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import { useState } from 'react';
 
@@ -27,7 +28,7 @@ export default function CustomerDashboard() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8080/api/orders/${orderId}/track`, {
+      const response = await fetch(`http://localhost:4004/api/orders/${orderId}/track`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

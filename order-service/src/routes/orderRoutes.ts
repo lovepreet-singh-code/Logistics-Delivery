@@ -20,7 +20,8 @@ import {
   uploadPodImage,
   initPayment,
   verifyPayment,
-  reportException
+  reportException,
+  settleAgentCOD
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
@@ -60,6 +61,7 @@ router.put("/:orderId/assign", manualAssignOrder);
 
 // ──── Payments ────
 router.post("/verify-payment", verifyPayment);
+router.post("/settle-agent-cod", adminAuth, settleAgentCOD);
 router.post("/:id/pay", initPayment);
 
 export default router;

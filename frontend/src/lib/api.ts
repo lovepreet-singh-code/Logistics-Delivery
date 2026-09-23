@@ -1,21 +1,22 @@
+import apiClient from '@/lib/apiClient';
 import axios from "axios";
 
 // ──── Create Base Axios Instances ────
 
 export const apiIdentity = axios.create({
-  baseURL: "http://localhost:8080/api/auth",
+  baseURL: "http://localhost:4004/api/auth",
 });
 
 export const apiFleet = axios.create({
-  baseURL: "http://localhost:8080/api/fleet",
+  baseURL: "http://localhost:4004/api/fleet",
 });
 
 export const apiOrder = axios.create({
-  baseURL: "http://localhost:8080/api/orders",
+  baseURL: "http://localhost:4004/api/orders",
 });
 
 export const apiDispatch = axios.create({
-  baseURL: "http://localhost:8080/api/dispatch",
+  baseURL: "http://localhost:4004/api/dispatch",
 });
 
 // ──── JWT Interceptor ────

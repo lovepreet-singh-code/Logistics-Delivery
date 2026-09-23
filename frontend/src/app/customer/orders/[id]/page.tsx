@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -31,7 +32,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
         const token = localStorage.getItem("token");
         if (!token) return router.push("/");
         
-        const res = await axios.get(`http://localhost:8080/api/orders/${params.id}`, {
+        const res = await apiClient.get(`/orders/${params.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         

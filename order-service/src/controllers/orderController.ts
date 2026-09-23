@@ -123,7 +123,7 @@ export const createOrder = async (
     }
 
     // Publish custom event to logistics.orders as requested
-    await publishOrderEvent('logistics.orders', { event: 'ORDER_CREATED', data: order });
+    publishOrderEvent('logistics.orders', { event: 'ORDER_CREATED', data: order }).catch(e => console.error("Event Publish Error:", e.message));
 
     res.status(201).json({
       success: true,
@@ -153,13 +153,32 @@ export const getAllOrders = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { status, customerId } = req.query;
+    const { status, customerId, startDate, endDate } = req.query;
 
     const filter: Record<string, any> = {};
-    if (status) filter.status = status;
+    console.log("Query Status:", req.query.status);
+    if (status) {
+      if (Array.isArray(status)) {
+        filter.status = { $in: status };
+      } else if (typeof status === 'string') {
+        if (status.includes(',')) {
+          filter.status = { $in: status.split(',').map(s => s.trim()) };
+        } else {
+          filter.status = status.trim();
+        }
+      }
+    }
     if (customerId) filter.customerId = customerId;
+    
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate as string);
+      if (endDate) filter.createdAt.$lte = new Date(endDate as string);
+    }
 
+    console.log("DB Query:", filter);
     const orders = await Order.find(filter).sort({ createdAt: -1 });
+    console.log("Orders Found:", orders.length);
 
     res.status(200).json({
       success: true,
@@ -1064,6 +1083,47 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
   } catch (error: any) {
     console.error("Payment verification error:", error);
     res.status(500).json({ success: false, message: error.message || "Failed to verify payment." } as ApiResponse);
+  }
+};
+
+// POST /api/orders/settle-agent-cod
+export const settleAgentCOD = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { agentId } = req.body;
+    if (!agentId) {
+      res.status(400).json({ success: false, message: "Agent ID required" } as ApiResponse);
+      return;
+    }
+
+    // Find all DELIVERED COD orders for this agent that are PENDING_PAYMENT
+    const orders = await Order.find({
+      status: "DELIVERED",
+      paymentMethod: "COD",
+      paymentStatus: { $ne: "PAID" },
+      "routing.agentId": new mongoose.Types.ObjectId(agentId)
+    });
+
+    if (orders.length === 0) {
+      res.status(404).json({ success: false, message: "No pending COD orders found for this agent" } as ApiResponse);
+      return;
+    }
+
+    const orderIds = orders.map(o => o._id);
+    
+    // Update them all to PAID
+    await Order.updateMany(
+      { _id: { $in: orderIds } },
+      { $set: { paymentStatus: "PAID" as any } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully settled COD cash for ${orders.length} orders.`,
+      settledAmount: orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
+    } as ApiResponse);
+  } catch (error: any) {
+    console.error("COD Settlement error:", error);
+    res.status(500).json({ success: false, message: "Server error during settlement." } as ApiResponse);
   }
 };
 

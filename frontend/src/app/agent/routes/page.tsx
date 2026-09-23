@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -38,7 +39,7 @@ export default function RoutesPage() {
         return;
       }
 
-      const response = await axios.get("http://localhost:8080/api/orders", {
+      const response = await apiClient.get("/orders", {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -91,7 +92,7 @@ export default function RoutesPage() {
       
       try {
         const token = localStorage.getItem("token");
-        await axios.patch(`http://localhost:8080/api/orders/${matchedOrder._id}/status`, {
+        await apiClient.patch(`/orders/${matchedOrder._id}/status`, {
           status: 'OUT_FOR_DELIVERY'
         }, {
           headers: { Authorization: `Bearer ${token}` }

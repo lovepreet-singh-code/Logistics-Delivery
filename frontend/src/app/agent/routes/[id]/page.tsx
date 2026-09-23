@@ -43,7 +43,7 @@ export default function DeliveryExecutionPage() {
   useOfflineSync();
 
   useEffect(() => {
-    const newSocket = io("http://localhost:8080");
+    const newSocket = io("http://localhost:4004");
     setSocket(newSocket);
     return () => { newSocket.disconnect(); };
   }, []);
@@ -104,7 +104,7 @@ export default function DeliveryExecutionPage() {
          return;
       }
 
-      const response = await axios.get(`http://localhost:8080/api/orders/${id}`, {
+      const response = await apiClient.get(`/orders/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success && response.data.data) {
@@ -144,14 +144,14 @@ export default function DeliveryExecutionPage() {
       const queue = await localforage.getItem<any[]>('offline_sync_queue') || [];
       queue.push({
         id: `pod_${id}_${Date.now()}`,
-        url: `http://localhost:8080/api/orders/${id}/pod`,
+        url: `http://localhost:4004/api/orders/${id}/pod`,
         method: 'POST',
         payload: { signatureBase64 },
         timestamp: Date.now()
       });
       queue.push({
         id: `deliver_${id}_${Date.now()}`,
-        url: `http://localhost:8080/api/orders/${id}/status`,
+        url: `http://localhost:4004/api/orders/${id}/status`,
         method: 'PATCH',
         payload: { status: 'DELIVERED', otp, signatureBase64 },
         timestamp: Date.now()
@@ -169,7 +169,7 @@ export default function DeliveryExecutionPage() {
     try {
       const token = localStorage.getItem("token");
       
-      const podResponse = await axios.post(`http://localhost:8080/api/orders/${id}/pod`, {
+      const podResponse = await apiClient.post(`/orders/${id}/pod`, {
         signatureBase64
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -181,7 +181,7 @@ export default function DeliveryExecutionPage() {
         return;
       }
 
-      const response = await axios.patch(`http://localhost:8080/api/orders/${id}/status`, { 
+      const response = await apiClient.patch(`/orders/${id}/status`, { 
         status: 'DELIVERED',
         otp,
         signatureBase64
@@ -217,7 +217,7 @@ export default function DeliveryExecutionPage() {
       const queue = await localforage.getItem<any[]>('offline_sync_queue') || [];
       queue.push({
         id: `exception_${id}_${Date.now()}`,
-        url: `http://localhost:8080/api/orders/${id}/exception`,
+        url: `http://localhost:4004/api/orders/${id}/exception`,
         method: 'PATCH',
         payload: {
           status: exceptionReason === "Parcel Damaged" ? "RTO" : "ATTEMPT_FAILED",
@@ -236,7 +236,7 @@ export default function DeliveryExecutionPage() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.patch(`http://localhost:8080/api/orders/${id}/exception`, {
+      await apiClient.patch(`/orders/${id}/exception`, {
         status: exceptionReason === "Parcel Damaged" ? "RTO" : "ATTEMPT_FAILED",
         exceptionReason,
         base64Image: damagedImageBase64

@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -25,7 +26,7 @@ export default function CustomerDashboard() {
           return;
         }
 
-        const res = await axios.get(`http://localhost:8080/api/orders/my-orders?t=${Date.now()}`, {
+        const res = await apiClient.get(`/orders/my-orders?t=${Date.now()}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         

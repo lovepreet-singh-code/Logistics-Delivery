@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 
@@ -23,8 +24,8 @@ export default function AdminDashboard() {
         // Fetching data from API Gateway
         // Ensure backend microservices are running on 8080
         const [fleetRes, orderRes] = await Promise.all([
-          fetch('http://localhost:8080/api/fleet/stats', { headers }).catch(() => ({ json: () => ({ count: 0 }) })),
-          fetch('http://localhost:8080/api/orders/stats', { headers }).catch(() => ({ json: () => ({ pending: 0, delivered: 0 }) }))
+          fetch('http://localhost:4004/api/fleet/stats', { headers }).catch(() => ({ json: () => ({ count: 0 }) })),
+          fetch('http://localhost:4004/api/orders/stats', { headers }).catch(() => ({ json: () => ({ pending: 0, delivered: 0 }) }))
         ]);
 
         const fleetData = await fleetRes.json();

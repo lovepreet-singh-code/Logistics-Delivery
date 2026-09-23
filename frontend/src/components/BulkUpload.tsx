@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import React, { useState, useRef } from "react";
 import { UploadCloud, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
@@ -42,7 +43,7 @@ export default function BulkUpload() {
           customerId: defaultCustomerId
         }));
 
-        await axios.post("http://localhost:8080/api/orders/bulk", payload);
+        await apiClient.post("/orders/bulk", payload);
         
         setSuccess(`Successfully uploaded ${parsedOrders.length} orders!`);
       } catch (err: any) {

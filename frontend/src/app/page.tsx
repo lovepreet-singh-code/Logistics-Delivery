@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -46,8 +47,8 @@ export default function AuthPortal() {
       setError("");
       
       const endpoint = isLogin 
-        ? "http://localhost:8080/api/auth/login" 
-        : "http://localhost:8080/api/auth/register";
+        ? "http://localhost:4001/api/auth/login" 
+        : "http://localhost:4001/api/auth/register";
         
       const payload = isLogin 
         ? { email, password } 

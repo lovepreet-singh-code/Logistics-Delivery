@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -31,7 +32,7 @@ export default function AgentPickupsPage() {
         return;
       }
 
-      const response = await axios.get("http://localhost:8080/api/orders", {
+      const response = await apiClient.get("/orders", {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -70,7 +71,7 @@ export default function AgentPickupsPage() {
     setProcessing(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.patch(`http://localhost:8080/api/orders/${activePickup._id}/pickup-confirm`, {
+      const res = await apiClient.patch(`/orders/${activePickup._id}/pickup-confirm`, {
         pickupOtp,
         actualWeight: actualWeight ? Number(actualWeight) : undefined,
         pickupImageBase64: pickupImageBase64 || undefined

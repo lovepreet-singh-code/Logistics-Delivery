@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
@@ -33,7 +34,7 @@ export default function CustomerDashboard() {
   useEffect(() => {
     if (!orderData || !orderData._id) return;
     
-    const socket = io("http://localhost:8080");
+    const socket = io("http://localhost:4004");
     
     socket.emit("joinTrackingRoom", orderData._id);
     
@@ -76,7 +77,7 @@ export default function CustomerDashboard() {
       setError('');
       setOrderData(null);
       
-      const res = await axios.get(`http://localhost:8080/api/orders/${trackingId}`, {
+      const res = await apiClient.get(`/orders/${trackingId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -93,7 +94,7 @@ export default function CustomerDashboard() {
 
   const handleDownloadInvoice = () => {
     if (!orderData) return;
-    const url = `http://localhost:8080/api/orders/${orderData._id || orderData.id}/invoice`;
+    const url = `http://localhost:4004/api/orders/${orderData._id || orderData.id}/invoice`;
     window.open(url, '_blank');
   };
 

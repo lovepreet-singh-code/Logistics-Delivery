@@ -23,16 +23,19 @@ export default function PlanningPage() {
         const headers = { Authorization: `Bearer ${token}` };
         
         const [ordersRes, agentsRes] = await Promise.all([
-          apiClient.get('/orders', { headers }),
+          apiClient.get('/orders?status=ORDER_PLACED,PENDING,PENDING_PICKUP,AT_HUB', { headers }),
           apiClient.get('/management/agents', { headers })
         ]);
         
-        console.log("Fetched Orders Response:", ordersRes.data);
+        console.log("Raw API Response:", ordersRes.data);
         console.log("Fetched Agents Response:", agentsRes.data);
         
         const ordersArray = ordersRes.data.data || ordersRes.data || [];
         const agentsArray = agentsRes.data.data || agentsRes.data || [];
         
+        const pendingPickups = ordersArray.filter((o: any) => ['ORDER_PLACED', 'PENDING', 'PENDING_PICKUP'].includes(o.status));
+        console.log("Filtered Pickups:", pendingPickups.length);
+
         const pending = ordersArray.filter((o: any) => ['ORDER_PLACED', 'PENDING', 'PENDING_PICKUP', 'AT_HUB'].includes(o.status));
         setUnassignedOrders(pending);
         setAvailableFleet(agentsArray);

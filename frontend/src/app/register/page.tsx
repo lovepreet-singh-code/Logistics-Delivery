@@ -1,4 +1,5 @@
 "use client";
+import apiClient from '@/lib/apiClient';
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -23,7 +24,7 @@ export default function RegisterPage() {
       setError("");
       setSuccess("");
       
-      await axios.post("http://localhost:8080/api/auth/register", { 
+      await apiClient.post("/auth/register", { 
         name, 
         email, 
         password, 
