@@ -115,6 +115,8 @@ services:
     build: ./order-service
     container_name: logistics-order-service
     restart: unless-stopped
+    ports:
+      - "4004:4004"
     env_file:
       - ./order-service/.env
     environment:

@@ -4,13 +4,37 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Package, MapPin, CheckCircle, Loader2, Send, AlertTriangle, IndianRupee, Calendar, Wallet, CreditCard } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
+import axios from 'axios';
 import { Toaster, toast } from 'react-hot-toast';
+
+interface Hub {
+  _id: string;
+  hubName: string;
+  serviceablePincodes: string[];
+}
 
 export default function BookParcelPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
+  // Hubs Data
+  const [hubs, setHubs] = useState<Hub[]>([]);
+  const [selectedPickupHubId, setSelectedPickupHubId] = useState('');
+  const [selectedDeliveryHubId, setSelectedDeliveryHubId] = useState('');
+
+  useEffect(() => {
+    const fetchHubs = async () => {
+      try {
+        const res = await axios.get('http://localhost:4004/api/hubs');
+        setHubs(res.data.data || []);
+      } catch (err) {
+        console.error("Failed to fetch hubs", err);
+      }
+    };
+    fetchHubs();
+  }, []);
+
   // Section 1: Pickup & Delivery Details
   const [senderName, setSenderName] = useState('');
   const [senderPhone, setSenderPhone] = useState('');
@@ -246,7 +270,16 @@ export default function BookParcelPage() {
                   <input type="tel" required maxLength={10} value={senderPhone} onChange={e => setSenderPhone(e.target.value.replace(/\D/g, ''))} placeholder="10-digit Phone" className="bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
                 </div>
                 <input type="text" required value={pickupAddress} onChange={e => setPickupAddress(e.target.value)} placeholder="Full Pickup Address" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
-                <input type="text" required maxLength={6} value={pickupPincode} onChange={e => setPickupPincode(e.target.value.replace(/\D/g, ''))} placeholder="6-digit Pincode" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  <select required value={selectedPickupHubId} onChange={e => { setSelectedPickupHubId(e.target.value); setPickupPincode(''); }} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500 appearance-none">
+                    <option value="" disabled>Select Pickup City</option>
+                    {hubs.map(hub => <option key={hub._id} value={hub._id}>{hub.hubName}</option>)}
+                  </select>
+                  <select required value={pickupPincode} onChange={e => setPickupPincode(e.target.value)} disabled={!selectedPickupHubId} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed">
+                    <option value="" disabled>Select Pincode</option>
+                    {selectedPickupHubId && hubs.find(h => h._id === selectedPickupHubId)?.serviceablePincodes.map(pin => <option key={pin} value={pin}>{pin}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -261,7 +294,16 @@ export default function BookParcelPage() {
                   <input type="tel" required maxLength={10} value={receiverPhone} onChange={e => setReceiverPhone(e.target.value.replace(/\D/g, ''))} placeholder="10-digit Phone" className="bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
                 </div>
                 <input type="text" required value={dropAddress} onChange={e => setDropAddress(e.target.value)} placeholder="Full Drop Address" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
-                <input type="text" required maxLength={6} value={dropPincode} onChange={e => setDropPincode(e.target.value.replace(/\D/g, ''))} placeholder="6-digit Pincode" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  <select required value={selectedDeliveryHubId} onChange={e => { setSelectedDeliveryHubId(e.target.value); setDropPincode(''); }} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500 appearance-none">
+                    <option value="" disabled>Select Delivery City</option>
+                    {hubs.map(hub => <option key={hub._id} value={hub._id}>{hub.hubName}</option>)}
+                  </select>
+                  <select required value={dropPincode} onChange={e => setDropPincode(e.target.value)} disabled={!selectedDeliveryHubId} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed">
+                    <option value="" disabled>Select Pincode</option>
+                    {selectedDeliveryHubId && hubs.find(h => h._id === selectedDeliveryHubId)?.serviceablePincodes.map(pin => <option key={pin} value={pin}>{pin}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
 

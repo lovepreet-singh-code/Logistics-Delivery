@@ -33,7 +33,7 @@ export default function HubsManagementPage() {
   const fetchHubs = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:8080/api/hubs');
+      const res = await axios.get('http://localhost:4004/api/hubs');
       setHubs(res.data.data || []);
     } catch (error) {
       console.error("Error fetching hubs", error);
@@ -54,7 +54,7 @@ export default function HubsManagementPage() {
         .map(code => code.trim())
         .filter(code => code.length > 0);
 
-      await axios.post('http://localhost:8080/api/hubs', {
+      await axios.post('http://localhost:4004/api/hubs', {
         hubName: formData.hubName,
         hubCode: formData.hubCode,
         managerName: formData.managerName,
