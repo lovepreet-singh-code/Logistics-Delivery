@@ -63,6 +63,20 @@ export const createOrder = async (
       return;
     }
 
+    const isRestrictedConfirmed = req.body.restrictedItemsConfirmed ?? parcelDetails?.restrictedItemsConfirmed;
+    if (isRestrictedConfirmed !== true) {
+      res.status(400).json({
+        success: false,
+        message: "You must confirm that the parcel contains no restricted or hazardous items."
+      } as ApiResponse);
+      return;
+    }
+
+    // Ensure parcelDetails contains the properties if they were passed at the root
+    if (req.body.dimensions && !parcelDetails.dimensions) parcelDetails.dimensions = req.body.dimensions;
+    if (req.body.declaredValue && !parcelDetails.declaredValue) parcelDetails.declaredValue = req.body.declaredValue;
+    parcelDetails.restrictedItemsConfirmed = true;
+
     // --- BOOKING VALIDATION INTERCEPTOR ---
     const pickupPincode = pickupAddress.pinCode || req.body.pickupDetails?.pincode;
     const deliveryPincode = deliveryAddress.pinCode || req.body.deliveryDetails?.pincode;
@@ -114,6 +128,30 @@ export const createOrder = async (
       totalAmount: totalAmount || req.body.price,
       paymentStatus: req.body.paymentStatus,
     });
+
+    // --- AUTO-DISPATCH ENGINE ---
+    try {
+      const usersCollection = mongoose.connection.db!.collection("users");
+      const availableAgent = await usersCollection.findOne({
+        role: "AGENT",
+        $or: [{ agentType: "PICKUP" }, { agentType: "BOTH" }, { agentType: { $exists: false } }]
+      });
+
+      if (availableAgent) {
+        order.status = OrderStatus.PICKUP_ASSIGNED;
+        order.routing = order.routing || {};
+        order.routing.agentId = availableAgent._id;
+        await order.save();
+        console.log(`[Auto-Dispatch] Assigned order ${order._id} to agent ${availableAgent._id}`);
+      } else {
+        order.status = OrderStatus.PENDING_PICKUP;
+        await order.save();
+        console.log(`[Auto-Dispatch] No agent found for order ${order._id}. Set to PENDING_PICKUP.`);
+      }
+    } catch (dispatchErr) {
+      console.error("Auto-dispatch error:", dispatchErr);
+    }
+    // ----------------------------
 
     // Publish event to Kafka
     const event: IOrderCreatedEvent = {
@@ -294,10 +332,27 @@ export const getOrderById = async (
       return;
     }
 
+    let orderData: any = order.toObject();
+    if (order.routing && order.routing.agentId) {
+      try {
+        const usersCollection = mongoose.connection.db!.collection("users");
+        const agentIdStr = order.routing.agentId.toString();
+        const agent = await usersCollection.findOne({ _id: new mongoose.Types.ObjectId(agentIdStr) });
+        if (agent) {
+          orderData.agentProfile = {
+            name: agent.name,
+            phone: agent.phone || "+91 98765 43210", // Fallback if no phone
+          };
+        }
+      } catch (err) {
+        console.error("Failed to fetch agent profile for tracking:", err);
+      }
+    }
+
     // 3. Save the result to Redis with 60s TTL
     try {
       if (redisClient.isOpen) {
-        await redisClient.setEx(cacheKey, 60, JSON.stringify(order));
+        await redisClient.setEx(cacheKey, 60, JSON.stringify(orderData));
       }
     } catch (redisError) {
       console.error("Redis set error:", redisError);
@@ -306,7 +361,7 @@ export const getOrderById = async (
     res.status(200).json({
       success: true,
       message: "Order retrieved successfully. (Cache Miss)",
-      data: order,
+      data: orderData,
     } as ApiResponse);
   } catch (error) {
     console.error("Get order error:", error);

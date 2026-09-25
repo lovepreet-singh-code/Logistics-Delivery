@@ -207,16 +207,24 @@ export default function CustomerDashboard() {
               </div>
               
               <div className="flex flex-wrap gap-4 md:text-right">
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                    <User className="w-5 h-5 text-indigo-600" />
+                {orderData.agentProfile && (
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center gap-4 shadow-xl text-left">
+                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border-2 border-indigo-500/30">
+                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=1e293b" alt="Agent Avatar" className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Assigned Agent</p>
+                      <p className="text-sm font-bold text-white">{orderData.agentProfile.name}</p>
+                      <button className="text-xs text-slate-400 flex items-center gap-1 mt-1 hover:text-indigo-300 transition-colors bg-slate-800 px-2 py-0.5 rounded">
+                        <Phone className="w-3 h-3" /> +91 XXXXX X{orderData.agentProfile.phone?.slice(-4) || "1234"}
+                      </button>
+                    </div>
+                    <div className="ml-4 pl-4 border-l border-slate-800 flex flex-col justify-center">
+                       <p className="text-[10px] font-bold text-slate-500 uppercase">Estimated Pickup</p>
+                       <p className="text-xs font-bold text-emerald-400 mt-1">Today, 2 PM - 6 PM</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Driver Assigned</p>
-                    <p className="text-sm font-bold text-slate-900">{orderData.agentId?.name || "Rajesh Kumar"}</p>
-                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> {orderData.agentId?.phone || "+91 98765 43210"}</p>
-                  </div>
-                </div>
+                )}
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">

@@ -48,6 +48,11 @@ export default function BookParcelPage() {
 
   // Section 2: Parcel Details
   const [weight, setWeight] = useState('');
+  const [length, setLength] = useState('');
+  const [width, setWidth] = useState('');
+  const [height, setHeight] = useState('');
+  const [declaredValue, setDeclaredValue] = useState('');
+  const [restrictedItemsConfirmed, setRestrictedItemsConfirmed] = useState(false);
   const [category, setCategory] = useState('DOCUMENT');
 
   const CATEGORIES = ['DOCUMENT', 'ELECTRONICS', 'CLOTHING', 'FRAGILE', 'LIQUID', 'OTHER'];
@@ -159,6 +164,18 @@ export default function BookParcelPage() {
       setError("Parcel category is required");
       return false;
     }
+    if (!length || !width || !height || parseFloat(length) <= 0 || parseFloat(width) <= 0 || parseFloat(height) <= 0) {
+      setError("Please provide valid dimensions (L, W, H).");
+      return false;
+    }
+    if (!declaredValue || parseFloat(declaredValue) < 0) {
+      setError("Please provide a valid declared value.");
+      return false;
+    }
+    if (!restrictedItemsConfirmed) {
+      setError("You must confirm that the parcel contains no restricted items.");
+      return false;
+    }
     return true;
   };
 
@@ -202,6 +219,13 @@ export default function BookParcelPage() {
         parcelDetails: {
           weightKg: parseFloat(weight),
           category: category,
+          dimensions: {
+            lengthCm: parseFloat(length),
+            widthCm: parseFloat(width),
+            heightCm: parseFloat(height),
+          },
+          declaredValue: parseFloat(declaredValue),
+          restrictedItemsConfirmed: restrictedItemsConfirmed
         },
         pickupDate,
         paymentMethod
@@ -327,6 +351,22 @@ export default function BookParcelPage() {
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
+                
+                {/* Dimensions */}
+                <div className="grid grid-cols-3 gap-4">
+                  <input type="number" step="0.1" required value={length} onChange={e => setLength(e.target.value)} placeholder="L (cm)" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-center" />
+                  <input type="number" step="0.1" required value={width} onChange={e => setWidth(e.target.value)} placeholder="W (cm)" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-center" />
+                  <input type="number" step="0.1" required value={height} onChange={e => setHeight(e.target.value)} placeholder="H (cm)" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-center" />
+                </div>
+
+                {/* Declared Value */}
+                <div>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                    <input type="number" required value={declaredValue} onChange={e => setDeclaredValue(e.target.value)} placeholder="Declared Value (₹)" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500" />
+                  </div>
+                  <p className="text-[10px] font-medium text-slate-500 mt-1.5 ml-2">Used for transit insurance</p>
+                </div>
               </div>
             </div>
 
@@ -360,11 +400,24 @@ export default function BookParcelPage() {
             
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 space-y-4">
+            <label className="flex items-start gap-3 cursor-pointer bg-slate-900/50 p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors">
+              <input 
+                type="checkbox" 
+                required
+                checked={restrictedItemsConfirmed} 
+                onChange={e => setRestrictedItemsConfirmed(e.target.checked)} 
+                className="mt-1 w-5 h-5 rounded border-slate-700 text-indigo-500 focus:ring-indigo-500 bg-slate-950" 
+              />
+              <span className="text-sm text-slate-300">
+                I confirm that this parcel does not contain any restricted, illegal, or hazardous items (flammables, explosives, contraband) as per logistics safety standards.
+              </span>
+            </label>
+
             <button 
               type="submit" 
-              disabled={loading}
-              className="w-full h-16 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-2xl font-bold text-lg transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(79,70,229,0.3)] hover:shadow-[0_0_60px_rgba(79,70,229,0.5)]"
+              disabled={loading || !restrictedItemsConfirmed}
+              className="w-full h-16 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-2xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(79,70,229,0.3)] hover:shadow-[0_0_60px_rgba(79,70,229,0.5)]"
             >
               {loading ? (
                 <><Loader2 className="w-6 h-6 animate-spin" /> Processing...</>

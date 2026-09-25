@@ -48,7 +48,8 @@ export interface IParcelDetails {
   dimensions: IDimensions;
   totalVolumeCm3: number;
   category?: string; // Enum: DOCUMENT, ELECTRONICS, CLOTHING, FRAGILE, LIQUID, OTHER
-  declaredValue?: number;
+  declaredValue: number;
+  restrictedItemsConfirmed: boolean;
 }
 
 // ──── Routing Info ────

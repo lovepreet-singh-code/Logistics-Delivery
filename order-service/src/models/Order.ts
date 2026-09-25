@@ -36,17 +36,17 @@ const dimensionsSchema = new Schema(
     lengthCm: {
       type: Number,
       min: [0, "Length cannot be negative"],
-      default: null,
+      required: [true, "Length is required"],
     },
     widthCm: {
       type: Number,
       min: [0, "Width cannot be negative"],
-      default: null,
+      required: [true, "Width is required"],
     },
     heightCm: {
       type: Number,
       min: [0, "Height cannot be negative"],
-      default: null,
+      required: [true, "Height is required"],
     },
   },
   { _id: false }
@@ -60,9 +60,24 @@ const parcelDetailsSchema = new Schema(
       required: [true, "Weight is required"],
       min: [0, "Weight cannot be negative"],
     },
+    declaredValue: {
+      type: Number,
+      required: [true, "Declared value is required"],
+      min: [0, "Declared value cannot be negative"]
+    },
+    restrictedItemsConfirmed: {
+      type: Boolean,
+      required: [true, "You must confirm restricted items compliance"],
+      validate: {
+        validator: function(v: boolean) {
+          return v === true;
+        },
+        message: "You must confirm that the parcel contains no restricted or hazardous items."
+      }
+    },
     dimensions: {
       type: dimensionsSchema,
-      default: () => ({}),
+      required: [true, "Dimensions are required"]
     },
     totalVolumeCm3: {
       type: Number,
@@ -72,10 +87,6 @@ const parcelDetailsSchema = new Schema(
       type: String,
       enum: ['DOCUMENT', 'ELECTRONICS', 'CLOTHING', 'FRAGILE', 'LIQUID', 'OTHER'],
       required: [true, "Category is required"],
-    },
-    declaredValue: {
-      type: Number,
-      default: 0,
     },
   },
   { _id: false }
