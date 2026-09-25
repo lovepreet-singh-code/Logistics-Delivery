@@ -19,42 +19,41 @@ export default function AgentDashboard() {
   });
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const checkRoleAndRedirect = async () => {
       try {
-        setLoading(true);
         const token = localStorage.getItem("token");
         if (!token) {
           router.push("/");
           return;
         }
-
-        const response = await apiClient.get("/orders", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
         
-        if (response.data.success && Array.isArray(response.data.data)) {
-          const allOrders = response.data.data;
-          
-          const total = allOrders.length;
-          const completed = allOrders.filter((o: any) => o.status === 'DELIVERED').length;
-          const pending = total - completed;
-          const earnings = completed * 50;
-          
-          setStats({
-            stops: total,
-            done: completed,
-            pending: pending,
-            earnings: earnings
+        let agentType = localStorage.getItem("agentType");
+        
+        // If not in localStorage, fetch from API
+        if (!agentType) {
+          const profileRes = await apiClient.get("/auth/me", {
+            headers: { Authorization: `Bearer ${token}` }
           });
+          if (profileRes.data.success && profileRes.data.data.user) {
+            agentType = profileRes.data.data.user.agentType || "BOTH";
+            localStorage.setItem("agentType", agentType as string);
+          }
         }
+        
+        if (agentType === "PICKUP") {
+          router.push("/agent/pickup-dashboard");
+        } else if (agentType === "DELIVERY") {
+          router.push("/agent/delivery-dashboard");
+        }
+        
+        setLoading(false);
       } catch (error) {
-        console.error("Failed to fetch agent orders", error);
-      } finally {
+        console.error("Failed to fetch agent profile", error);
         setLoading(false);
       }
     };
 
-    fetchOrders();
+    checkRoleAndRedirect();
   }, [router]);
 
   const handleLogout = () => {
@@ -145,17 +144,12 @@ export default function AgentDashboard() {
                 )}
                 
                 <div className="flex flex-col gap-3 mt-6">
-                  {stats.pending === 0 ? (
-                    <button disabled className="w-full block py-4 bg-slate-700 text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest transition-all cursor-not-allowed">
-                       📦 View Load Plan (LIFO)
-                    </button>
-                  ) : (
-                    <Link href="/agent/manifest" className="w-full block py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all">
-                       📦 View Load Plan (LIFO)
-                    </Link>
-                  )}
-                  <Link href="/agent/routes" className="w-full block py-4 bg-slate-900 border border-indigo-500/30 hover:bg-slate-800 text-indigo-400 rounded-2xl font-bold text-sm shadow-lg transition-all">
-                     View Active Routes
+                  <p className="text-sm text-slate-400 mb-2">You have a 'BOTH' agent role. Select a dashboard for testing:</p>
+                  <Link href="/agent/pickup-dashboard" className="w-full block py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all text-center">
+                     📦 Pickup Dashboard
+                  </Link>
+                  <Link href="/agent/delivery-dashboard" className="w-full block py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all text-center">
+                     🚚 Delivery Dashboard
                   </Link>
                 </div>
              </div>

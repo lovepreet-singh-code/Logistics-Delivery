@@ -172,7 +172,7 @@ export const getAllOrders = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { status, customerId, startDate, endDate } = req.query;
+    const { status, customerId, agentId, startDate, endDate } = req.query;
 
     const filter: Record<string, any> = {};
     console.log("Query Status:", req.query.status);
@@ -188,6 +188,7 @@ export const getAllOrders = async (
       }
     }
     if (customerId) filter.customerId = customerId;
+    if (agentId) filter["routing.agentId"] = new mongoose.Types.ObjectId(agentId as string);
     
     if (startDate || endDate) {
       filter.createdAt = {};
@@ -570,6 +571,68 @@ export const getOrderStatus = async (
 // PUT /api/orders/:id/status
 // PATCH /api/orders/:id/status
 // PATCH /api/orders/:id/pickup-confirm
+
+export const markAsPickedUp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { actualWeight, scannedQR } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Order not found' });
+      return;
+    }
+
+    if (actualWeight) {
+      order.actualWeight = Number(actualWeight);
+      const pLat = order.pickupAddress.lat;
+      const pLng = order.pickupAddress.lng;
+      const dLat = order.deliveryAddress.lat;
+      const dLng = order.deliveryAddress.lng;
+      order.totalAmount = calculateTotalAmount(pLat, pLng, dLat, dLng, order.actualWeight);
+    }
+
+    // You can validate scannedQR against order.awb here if needed
+    // if (scannedQR && scannedQR !== order.awb) { ... }
+
+    order.status = OrderStatus.PICKED_UP;
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status: OrderStatus.PICKED_UP,
+      timestamp: new Date(),
+      note: `Picked up with actual weight: ${actualWeight}kg`
+    });
+
+    await order.save();
+
+    try {
+      await producer.send({
+        topic: "order.status.updated",
+        messages: [{
+          value: JSON.stringify({
+            orderId: order._id.toString(),
+            status: order.status,
+            customerId: order.customerId.toString(),
+            timestamp: new Date().toISOString()
+          })
+        }]
+      });
+    } catch (kafkaError) {
+      console.error("Kafka Publish Failed (order.status.updated):", kafkaError);
+    }
+
+    if (redisClient.isOpen) {
+      await redisClient.del(`track_order:${id}`);
+    }
+
+    res.status(200).json({ success: true, message: 'Parcel Picked Up Successfully!', data: order });
+  } catch (error: any) {
+    console.error("markAsPickedUp error:", error);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+// PATCH /api/orders/:id/pickup-confirm
 export const confirmPickup = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -809,7 +872,13 @@ export const manualAssignOrder = async (
     }
 
     // 3. Update Order
-    order.status = status || OrderStatus.OUT_FOR_DELIVERY;
+    if (order.status === "ORDER_PLACED" || order.status === "PENDING_PICKUP") {
+      order.status = "PICKUP_ASSIGNED" as any;
+    } else if (order.status === "INWARDED_AT_HUB") {
+      order.status = "OUT_FOR_DELIVERY" as any;
+    } else {
+      order.status = status || "OUT_FOR_DELIVERY" as any;
+    }
     
     // Make sure routing object exists
     if (!order.routing) {

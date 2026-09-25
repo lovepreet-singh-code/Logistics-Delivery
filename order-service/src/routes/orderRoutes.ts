@@ -7,6 +7,7 @@ import {
   getOrderStatus,
   updateOrderStatus,
   confirmPickup,
+  markAsPickedUp,
   getRoutedOrdersByFranchise,
   manualAssignOrder,
   getOrderStats,
@@ -55,6 +56,7 @@ router.post("/:id/pod", uploadPodImage);
 router.put("/:id/status", updateOrderStatus);
 router.patch("/:id/status", updateOrderStatus);
 router.patch("/:id/pickup-confirm", confirmPickup);
+router.post("/:id/pickup", markAsPickedUp);
 router.patch("/:id/inward", adminAuth, inwardOrder);
 router.patch("/:id/exception", reportException);
 router.put("/:orderId/assign", manualAssignOrder);

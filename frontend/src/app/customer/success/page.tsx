@@ -4,9 +4,9 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, ArrowRight, Package, MapPin, CalendarDays, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import Confetti from "react-confetti";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 
-export default function BookingSuccessPage() {
+function BookingSuccessPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const trackingId = searchParams.get("id");
@@ -88,5 +88,13 @@ export default function BookingSuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BookingSuccessPage() {
+  return (
+    <Suspense fallback={<div className="flex flex-col items-center justify-center min-h-screen">Loading...</div>}>
+      <BookingSuccessPageContent />
+    </Suspense>
   );
 }

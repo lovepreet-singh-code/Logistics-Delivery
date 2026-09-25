@@ -8,7 +8,7 @@ import { Truck, Warehouse, Package } from "lucide-react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 // Custom Icon generator using Lucide Icons
-const createCustomIcon = (iconElement: JSX.Element, colorClass: string) => {
+const createCustomIcon = (iconElement: React.ReactNode, colorClass: string) => {
   const iconMarkup = renderToStaticMarkup(
     <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-lg ${colorClass}`}>
       {iconElement}

@@ -1,12 +1,12 @@
 "use client";
 import apiClient from '@/lib/apiClient';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { Truck, Lock, Mail, ArrowRight, User as UserIcon, Shield } from "lucide-react";
 
-export default function AuthPortal() {
+function AuthPortalContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLogin, setIsLogin] = useState(true);
@@ -62,6 +62,10 @@ export default function AuthPortal() {
       // Save to localStorage
       localStorage.setItem("token", token);
       localStorage.setItem("role", user.role);
+      localStorage.setItem("agentId", user.id || user._id);
+      if (user.agentType) {
+        localStorage.setItem("agentType", user.agentType);
+      }
 
       // Save name to localStorage so Profile page can read it
       if (data.user && data.user.name) {
@@ -217,5 +221,12 @@ export default function AuthPortal() {
 
       </div>
     </div>
+  );
+}
+export default function AuthPortal() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Loading...</div>}>
+      <AuthPortalContent />
+    </Suspense>
   );
 }

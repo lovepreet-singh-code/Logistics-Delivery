@@ -40,6 +40,11 @@ const userSchema = new Schema<IUserDocument>(
       },
       default: UserRole.CUSTOMER,
     },
+    agentType: {
+      type: String,
+      enum: ["PICKUP", "DELIVERY", "BOTH"],
+      default: "BOTH",
+    },
     isActive: {
       type: Boolean,
       default: true,

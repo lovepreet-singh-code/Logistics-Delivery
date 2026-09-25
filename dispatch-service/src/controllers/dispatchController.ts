@@ -270,16 +270,25 @@ export const assignDriver = async (
 
     // Update orders collection
     const ordersCollection = mongoose.connection.db!.collection("orders");
-    const order = await ordersCollection.findOneAndUpdate(
-      { _id: new mongoose.Types.ObjectId(orderId) },
-      { $set: { "routing.agentId": new mongoose.Types.ObjectId(driverId), status: "ASSIGNED", updatedAt: new Date() } },
-      { returnDocument: 'after' }
-    );
-
-    if (!order) {
+    const existingOrder = await ordersCollection.findOne({ _id: new mongoose.Types.ObjectId(orderId) });
+    
+    if (!existingOrder) {
       res.status(404).json({ success: false, message: "Order not found" } as ApiResponse);
       return;
     }
+
+    let newStatus = "ASSIGNED";
+    if (existingOrder.status === "ORDER_PLACED" || existingOrder.status === "PENDING_PICKUP") {
+      newStatus = "PICKUP_ASSIGNED";
+    } else if (existingOrder.status === "INWARDED_AT_HUB") {
+      newStatus = "OUT_FOR_DELIVERY";
+    }
+
+    const order = await ordersCollection.findOneAndUpdate(
+      { _id: new mongoose.Types.ObjectId(orderId) },
+      { $set: { "routing.agentId": new mongoose.Types.ObjectId(driverId), status: newStatus, updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
 
     // Create or Update Manifest and Delivery
     let manifest = await Manifest.findOne({ agentId: new mongoose.Types.ObjectId(driverId), status: "ACTIVE" });

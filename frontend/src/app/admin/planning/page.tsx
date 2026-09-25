@@ -58,29 +58,19 @@ export default function PlanningPage() {
     if (selectedOrders.length === 0 || !selectedDriver) return;
     setDispatching(true);
     try {
-      let fallbackDriverId = "60b5f1f9a2b5b3a3d8f8a1a1"; // valid fallback ObjectId
-      try {
-        const token = localStorage.getItem("token");
-        if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          fallbackDriverId = payload.id || payload.userId || fallbackDriverId;
-        }
-      } catch (e) {
-        console.error("Could not parse token for driverId fallback", e);
-      }
-
-      // Use the debug endpoint to bypass planning logic and assign directly to Agent
+      const agentObj = availableFleet.find(a => (a.userId || a._id) === selectedDriver);
+      
       const dispatchPromises = selectedOrders.map(orderId => 
-        apiClient.post('/dispatch/debug/create-mock-manifest', {
-          agentId: fallbackDriverId,
-          orderId: orderId
+        apiClient.post('/dispatch/assign-driver', {
+          driverId: selectedDriver,
+          orderId: orderId,
+          franchiseId: agentObj?.assignedHubId || agentObj?.franchiseId || "60b5f1f9a2b5b3a3d8f8a1a1"
         })
       );
       
       await Promise.all(dispatchPromises);
       alert(`Successfully dispatched ${selectedOrders.length} orders!`);
       
-      const agentObj = availableFleet.find(a => (a.userId || a._id) === selectedDriver);
       const dispatchedOrdersObjects = unassignedOrders.filter(o => selectedOrders.includes(o._id));
       setLastDispatch({
         agentName: agentObj ? agentObj.name : "Unknown Agent",

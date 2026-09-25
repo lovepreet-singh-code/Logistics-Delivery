@@ -16,6 +16,7 @@ export interface IUser {
   email: string;
   password: string;
   role: UserRole;
+  agentType?: "PICKUP" | "DELIVERY" | "BOTH";
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

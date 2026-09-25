@@ -8,9 +8,14 @@ import 'leaflet/dist/leaflet.css';
 import dynamic from 'next/dynamic';
 import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin, ShieldAlert, Printer } from 'lucide-react';
 import { io } from "socket.io-client";
-import L from "leaflet";
 import { useReactToPrint } from 'react-to-print';
 import ShippingLabel from '@/components/ShippingLabel';
+
+// Leaflet requires window
+let L: any;
+if (typeof window !== "undefined") {
+  L = require("leaflet");
+}
 
 const Map = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
