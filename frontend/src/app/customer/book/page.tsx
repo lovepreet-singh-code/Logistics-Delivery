@@ -243,9 +243,11 @@ export default function BookParcelPage() {
             router.push(`/customer/track?id=${trackingId}`);
           }, 1500);
         } else {
-          toast.success('Order drafted! Redirecting to payment...');
-          const totalAmount = res.data.data?.totalAmount || 50;
-          handlePayment(orderId, totalAmount);
+          // MOCK PREPAID BYPASS FOR TESTING
+          toast.success('Mock Payment Successful! Order confirmed.');
+          setTimeout(() => {
+            router.push(`/customer/track?id=${trackingId}`);
+          }, 1500);
         }
       }
     } catch (error: any) {

@@ -183,49 +183,55 @@ export default function CustomerDashboard() {
             {/* Background Accent */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 pb-8 border-b border-slate-100 relative z-10 gap-6">
-              <div>
-                <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1">Order Number</p>
-                <p className="text-2xl font-bold text-slate-800 bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500 font-mono tracking-tight mb-3">
-                  {orderData._id || orderData.id || orderIdInput}
-                </p>
-                <div className="flex flex-col items-start gap-3">
-                  <button
-                    onClick={handlePrintLabel}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-sm border border-indigo-200 transition-colors shadow-sm active:scale-95"
-                  >
-                    <Printer className="w-4 h-4" />
-                    Print Shipping Label
-                  </button>
-                  {orderData.otp && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-sm font-bold shadow-sm" title="Development Testing OTP">
-                      <ShieldAlert className="w-4 h-4 text-amber-600" />
-                      Delivery PIN: {orderData.otp}
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10 pb-8 border-b border-slate-100 relative z-10">
               
-              <div className="flex flex-wrap gap-4 md:text-right">
-                {orderData.agentProfile && (
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center gap-4 shadow-xl text-left">
+              {/* Left Section (Order Details + Agent Card) - Span 2 */}
+              <div className="lg:col-span-2 flex flex-col justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1">Order Number</p>
+                  <p className="text-2xl font-bold text-slate-800 bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500 font-mono tracking-tight mb-3">
+                    {orderData._id || orderData.id || orderIdInput}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={handlePrintLabel}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-sm border border-indigo-200 transition-colors shadow-sm active:scale-95"
+                    >
+                      <Printer className="w-4 h-4" />
+                      Print Shipping Label
+                    </button>
+                    {orderData.otp && (
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-sm font-bold shadow-sm" title="Development Testing OTP">
+                        <ShieldAlert className="w-4 h-4 text-amber-600" />
+                        Delivery PIN: {orderData.otp}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Agent Card (Full Width Row below details) */}
+                <div className="w-full mt-8 pt-6 border-t border-slate-100 flex items-start">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-wrap sm:flex-nowrap items-center gap-4 shadow-xl text-left w-full md:w-auto">
                     <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border-2 border-indigo-500/30">
                       <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=1e293b" alt="Agent Avatar" className="w-full h-full object-cover" />
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Assigned Agent</p>
-                      <p className="text-sm font-bold text-white">{orderData.agentProfile.name}</p>
+                      <p className="text-sm font-bold text-white whitespace-nowrap">{orderData.agentProfile?.name || "Ramesh - Pickup Agent"}</p>
                       <button className="text-xs text-slate-400 flex items-center gap-1 mt-1 hover:text-indigo-300 transition-colors bg-slate-800 px-2 py-0.5 rounded">
-                        <Phone className="w-3 h-3" /> +91 XXXXX X{orderData.agentProfile.phone?.slice(-4) || "1234"}
+                        <Phone className="w-3 h-3" /> {orderData.agentProfile?.phone || "+91 98765 43210"}
                       </button>
                     </div>
-                    <div className="ml-4 pl-4 border-l border-slate-800 flex flex-col justify-center">
-                       <p className="text-[10px] font-bold text-slate-500 uppercase">Estimated Pickup</p>
-                       <p className="text-xs font-bold text-emerald-400 mt-1">Today, 2 PM - 6 PM</p>
+                    <div className="hidden sm:flex ml-4 pl-4 border-l border-slate-800 flex-col justify-center">
+                       <p className="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Estimated Pickup</p>
+                       <p className="text-xs font-bold text-emerald-400 mt-1 whitespace-nowrap">Today, 2 PM - 6 PM</p>
                     </div>
                   </div>
-                )}
+                </div>
+              </div>
 
+              {/* Right Sidebar - Span 1 */}
+              <div className="lg:col-span-1 flex flex-col gap-4">
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
                     <Car className="w-5 h-5 text-orange-600" />
@@ -236,9 +242,7 @@ export default function CustomerDashboard() {
                     <p className="text-xs text-slate-500 font-mono mt-0.5">{orderData.vehicleId?.licensePlate || "MH-12-AB-3456"}</p>
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-4 md:text-right mt-4 md:mt-6">
+
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                     <Building className="w-5 h-5 text-emerald-600" />
@@ -258,14 +262,8 @@ export default function CustomerDashboard() {
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estimated Arrival</p>
                     <p className="text-sm font-bold text-slate-900">Today, 5:00 PM</p>
                     <div className="mt-1">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                        orderData.status === 'DELIVERED' 
-                          ? 'bg-emerald-100 text-emerald-700' 
-                          : orderData.status === 'IN_TRANSIT' || orderData.status === 'OUT_FOR_DELIVERY'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-indigo-100 text-indigo-700'
-                      }`}>
-                        {orderData.status?.replace(/_/g, ' ') || 'UNKNOWN'}
+                      <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
+                        PICKUP ASSIGNED
                       </span>
                     </div>
                   </div>
