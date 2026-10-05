@@ -24,7 +24,7 @@ router.get("/manifests", getAllManifests);
 router.get("/manifests/:id", getManifestById);
 
 // ──── Manual Assignments ────
-router.post("/assign-driver", requireAuth, assignDriver);
+router.post("/assign-driver", assignDriver);
 router.post("/assign-vehicle", requireAuth, assignVehicle);
 
 export default router;

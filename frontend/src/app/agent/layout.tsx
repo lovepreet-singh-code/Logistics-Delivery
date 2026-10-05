@@ -16,7 +16,7 @@ export default function AgentLayout({ children }: { children: ReactNode }) {
 
   const navItems = [
     { name: "Home", href: "/agent", icon: Home },
-    { name: "Routes", href: "/agent/routes", icon: Route },
+    { name: "Routes", href: "/agent/pickup-dashboard", icon: Route },
     // Spacer for FAB symmetry (optional placeholder if needed)
     { name: "Earnings", href: "/agent/history", icon: IndianRupee },
     { name: "Profile", href: "/agent/profile", icon: UserIcon },

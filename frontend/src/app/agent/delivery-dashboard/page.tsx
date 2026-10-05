@@ -48,7 +48,7 @@ export default function DeliveryDashboard() {
 
       console.log("Fetching deliveries for agent:", finalAgentId);
 
-      const response = await apiClient.get(`/orders?status=OUT_FOR_DELIVERY&agentId=${finalAgentId}`, {
+      const response = await apiClient.get(`/orders?status=OUT_FOR_DELIVERY`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

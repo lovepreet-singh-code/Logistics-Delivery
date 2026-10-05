@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigation, Package, Truck, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
+import toast from 'react-hot-toast';
 
 export default function PlanningPage() {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -60,16 +61,13 @@ export default function PlanningPage() {
     try {
       const agentObj = availableFleet.find(a => (a.userId || a._id) === selectedDriver);
       
-      const dispatchPromises = selectedOrders.map(orderId => 
-        apiClient.post('/dispatch/assign-driver', {
-          driverId: selectedDriver,
-          orderId: orderId,
-          franchiseId: agentObj?.assignedHubId || agentObj?.franchiseId || "60b5f1f9a2b5b3a3d8f8a1a1"
-        })
-      );
+      await apiClient.post('/dispatch/assign-driver', {
+        driverId: selectedDriver,
+        orderIds: selectedOrders,
+        franchiseId: agentObj?.assignedHubId || agentObj?.franchiseId || "60b5f1f9a2b5b3a3d8f8a1a1"
+      });
       
-      await Promise.all(dispatchPromises);
-      alert(`Successfully dispatched ${selectedOrders.length} orders!`);
+      toast.success(`Successfully dispatched ${selectedOrders.length} orders!`);
       
       const dispatchedOrdersObjects = unassignedOrders.filter(o => selectedOrders.includes(o._id));
       setLastDispatch({
@@ -81,9 +79,9 @@ export default function PlanningPage() {
       setUnassignedOrders(prev => prev.filter(o => !selectedOrders.includes(o._id)));
       setSelectedOrders([]);
       setSelectedDriver(null);
-    } catch (error) {
-      console.error("Dispatch failed", error);
-      alert("Failed to dispatch orders.");
+    } catch (error: any) {
+      console.error("DISPATCH ERROR TRACE:", error.response || error);
+      alert("Error: " + (error.response?.data?.message || error.message || "Network/Route Issue"));
     } finally {
       setDispatching(false);
     }

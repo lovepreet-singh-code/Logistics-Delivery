@@ -3,6 +3,7 @@ import { getAdminAnalytics } from "../controllers/analyticsController";
 import {
   createOrder,
   getAllOrders,
+  updateOrder,
   getOrderById,
   getOrderStatus,
   updateOrderStatus,
@@ -15,6 +16,7 @@ import {
   bulkCreateOrders,
   bulkUploadOrders,
   inwardOrder,
+  inwardParcel,
   getMyOrders,
   getRecentOrders,
   getUnassignedOrders,
@@ -34,6 +36,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.get("/stats", getOrderStats);
 router.get("/admin/analytics", getAdminAnalytics);
 
+// ──── Hub Inwarding ────
+router.post("/inward", adminAuth, inwardParcel);
+
 // ──── Order Endpoints ────
 router.route("/")
   .post(createOrder)
@@ -50,6 +55,7 @@ router.get("/my-orders", getMyOrders);
 router.get("/recent", adminAuth, getRecentOrders);
 router.get("/unassigned", adminAuth, getUnassignedOrders);
 router.get("/:id", getOrderById);
+router.put("/:id", updateOrder);
 router.get("/:id/invoice", generateInvoice);
 router.get("/:id/status", getOrderStatus);
 router.post("/:id/pod", uploadPodImage);
