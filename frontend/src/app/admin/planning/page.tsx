@@ -15,39 +15,58 @@ export default function PlanningPage() {
   const [loading, setLoading] = useState(true);
   const [dispatching, setDispatching] = useState(false);
   const [lastDispatch, setLastDispatch] = useState<{ agentName: string, orders: any[] } | null>(null);
+  const [seeding, setSeeding] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token') || '';
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      const [ordersRes, agentsRes] = await Promise.all([
+        apiClient.get('/orders?status=ORDER_PLACED,PENDING,PENDING_PICKUP,AT_HUB', { headers }),
+        apiClient.get('/management/agents', { headers })
+      ]);
+      
+      console.log("Raw API Response:", ordersRes.data);
+      console.log("Fetched Agents Response:", agentsRes.data);
+      
+      const ordersArray = ordersRes.data.data || ordersRes.data || [];
+      const agentsArray = agentsRes.data.data || agentsRes.data || [];
+      
+      const pendingPickups = ordersArray.filter((o: any) => ['ORDER_PLACED', 'PENDING', 'PENDING_PICKUP'].includes(o.status));
+      console.log("Filtered Pickups:", pendingPickups.length);
+
+      const pending = ordersArray.filter((o: any) => ['ORDER_PLACED', 'PENDING', 'PENDING_PICKUP', 'AT_HUB'].includes(o.status));
+      setUnassignedOrders(pending);
+      setAvailableFleet(agentsArray);
+    } catch (error) {
+      console.error("Failed to load planning data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('token') || '';
-        const headers = { Authorization: `Bearer ${token}` };
-        
-        const [ordersRes, agentsRes] = await Promise.all([
-          apiClient.get('/orders?status=ORDER_PLACED,PENDING,PENDING_PICKUP,AT_HUB', { headers }),
-          apiClient.get('/management/agents', { headers })
-        ]);
-        
-        console.log("Raw API Response:", ordersRes.data);
-        console.log("Fetched Agents Response:", agentsRes.data);
-        
-        const ordersArray = ordersRes.data.data || ordersRes.data || [];
-        const agentsArray = agentsRes.data.data || agentsRes.data || [];
-        
-        const pendingPickups = ordersArray.filter((o: any) => ['ORDER_PLACED', 'PENDING', 'PENDING_PICKUP'].includes(o.status));
-        console.log("Filtered Pickups:", pendingPickups.length);
-
-        const pending = ordersArray.filter((o: any) => ['ORDER_PLACED', 'PENDING', 'PENDING_PICKUP', 'AT_HUB'].includes(o.status));
-        setUnassignedOrders(pending);
-        setAvailableFleet(agentsArray);
-      } catch (error) {
-        console.error("Failed to load planning data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
+
+  // 🧪 Auto-seed an inwarded order for Last-Mile testing
+  const handleAutoSeed = async () => {
+    try {
+      setSeeding(true);
+      const res = await apiClient.post('/orders/auto-seed-inwarded');
+      const awb = res.data?.data?.awb || res.data?.trackingId || 'N/A';
+      toast.success(`✅ Order INWARDED! AWB: ${awb}`);
+      setFilterTab('DELIVERIES');
+      await fetchData();
+    } catch (error: any) {
+      console.error("Auto-seed failed:", error);
+      toast.error("Failed to auto-seed order: " + (error.response?.data?.message || error.message));
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const handleOrderToggle = (id: string) => {
     setSelectedOrders(prev => 
@@ -104,14 +123,27 @@ export default function PlanningPage() {
           </h1>
           <p className="text-slate-400 mt-1">Select pending orders and assign them to available fleet.</p>
         </div>
-        {lastDispatch && (
-          <button 
-            onClick={() => window.print()}
-            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg"
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleAutoSeed}
+            disabled={seeding}
+            className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
           >
-            Print Run Sheet
+            {seeding ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Seeding...</>
+            ) : (
+              <>🧪 Auto-Generate Inwarded Parcel</>
+            )}
           </button>
-        )}
+          {lastDispatch && (
+            <button 
+              onClick={() => window.print()}
+              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg"
+            >
+              Print Run Sheet
+            </button>
+          )}
+        </div>
       </header>
 
       {/* PRINT ONLY SECTION */}

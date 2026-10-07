@@ -1403,3 +1403,71 @@ export const reportException = async (req: Request, res: Response): Promise<void
   }
 };
 
+// ═══════════════════════════════════════════════
+//  🧪 AUTO-SEED: Skip Booking→Dispatch→Pickup→Inwarding
+//     for fast Last-Mile delivery testing. See MEMORY.md
+// ═══════════════════════════════════════════════
+
+// POST /api/orders/auto-seed-inwarded
+export const autoGenerateInwardedOrder = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const now = new Date();
+    const awb = `AWB-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const dummyCustomerId = new mongoose.Types.ObjectId("64f1b2c3e4d5a6b7c8d9e0f1");
+    const dummyAgentId = new mongoose.Types.ObjectId("64f1b2c3e4d5a6b7c8d9e0f2");
+
+    const order = new Order({
+      customerId: dummyCustomerId,
+      awb,
+      pickupAddress: {
+        pinCode: "110001",
+        lat: 28.6139,
+        lng: 77.2090,
+        fullAddress: "123 Test Street, Connaught Place, New Delhi",
+        senderName: "Auto Sender",
+        senderPhone: "9999999999",
+      },
+      deliveryAddress: {
+        pinCode: "400001",
+        lat: 19.0760,
+        lng: 72.8777,
+        fullAddress: "456 Demo Avenue, Colaba, Mumbai",
+        receiverName: "Auto Receiver",
+        receiverPhone: "8888888888",
+      },
+      parcelDetails: {
+        weightKg: 2.5,
+        declaredValue: 500,
+        restrictedItemsConfirmed: true,
+        dimensions: { lengthCm: 30, widthCm: 20, heightCm: 15 },
+        category: "DOCUMENT",
+      },
+      routing: {
+        agentId: dummyAgentId,
+        assignmentType: "AUTO_SEED",
+      },
+      status: OrderStatus.AT_HUB,
+      paymentMethod: "PREPAID",
+      totalAmount: 150,
+      statusHistory: [
+        { status: OrderStatus.ORDER_PLACED, timestamp: new Date(now.getTime() - 3 * 60 * 60 * 1000), note: "Auto-seeded" },
+        { status: OrderStatus.PICKUP_ASSIGNED, timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000), note: "Auto-seeded" },
+        { status: OrderStatus.PICKED_UP, timestamp: new Date(now.getTime() - 1 * 60 * 60 * 1000), note: "Auto-seeded" },
+        { status: OrderStatus.AT_HUB, timestamp: now, note: "Auto-seeded — Inwarded at Hub" },
+      ],
+    });
+
+    await order.save();
+
+    console.log(`🧪 Auto-seeded AT_HUB order: ${awb}`);
+    res.status(201).json({
+      success: true,
+      message: `Order auto-seeded at AT_HUB. AWB: ${awb}`,
+      data: order,
+    } as ApiResponse);
+  } catch (error: any) {
+    console.error("❌ Auto-seed error:", error);
+    res.status(500).json({ success: false, message: error.message } as ApiResponse);
+  }
+};
+

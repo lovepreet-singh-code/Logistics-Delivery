@@ -24,7 +24,8 @@ import {
   initPayment,
   verifyPayment,
   reportException,
-  settleAgentCOD
+  settleAgentCOD,
+  autoGenerateInwardedOrder,
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
@@ -46,6 +47,9 @@ router.route("/")
 
 router.post("/bulk", bulkCreateOrders);
 router.post("/bulk-upload", adminAuth, upload.single("file"), bulkUploadOrders);
+
+// 🧪 Auto-seed route — MUST be above /:id to avoid param capture
+router.post("/auto-seed-inwarded", autoGenerateInwardedOrder);
 
 // ──── Internal API (used by Dispatch Service) ────
 router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);
