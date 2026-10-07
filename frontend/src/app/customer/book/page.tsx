@@ -236,19 +236,31 @@ export default function BookParcelPage() {
       if (res.data && res.data.success) {
         const orderId = res.data.data?._id || res.data.data?.id;
         const trackingId = res.data.data?.awb || res.data.data?.trackingId || orderId;
-        
-        if (paymentMethod === 'COD') {
-          toast.success('Order booked successfully via COD!');
-          setTimeout(() => {
-            router.push(`/customer/track?id=${trackingId}`);
-          }, 1500);
+
+        // Extract assigned agent info & ETA from auto-dispatch response
+        const assignedAgent = res.data.assignedAgent;
+        const estimatedPickupTime = assignedAgent?.estimatedPickupTime;
+
+        let richMessage = '';
+        if (assignedAgent && estimatedPickupTime) {
+          const formattedETA = new Date(estimatedPickupTime).toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          });
+          const agentName = assignedAgent.name || 'Agent';
+          const agentPhone = assignedAgent.phone || 'N/A';
+          richMessage = `Order Confirmed! 🚀 Agent ${agentName} has been assigned and will reach your location by ${formattedETA} for pickup. Agent Contact: ${agentPhone}`;
         } else {
-          // MOCK PREPAID BYPASS FOR TESTING
-          toast.success('Mock Payment Successful! Order confirmed.');
-          setTimeout(() => {
-            router.push(`/customer/track?id=${trackingId}`);
-          }, 1500);
+          richMessage = paymentMethod === 'COD'
+            ? 'Order booked successfully via COD!'
+            : 'Mock Payment Successful! Order confirmed.';
         }
+
+        toast.success(richMessage, { duration: 6000 });
+        setTimeout(() => {
+          router.push(`/customer/track?id=${trackingId}`);
+        }, 2500);
       }
     } catch (error: any) {
       console.error("Booking Error:", error.response?.data);

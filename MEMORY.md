@@ -23,6 +23,7 @@
 ## 🚧 Next Immediate Steps
 - ~~Finalize Hub Inwarding status updates.~~ ✅ (Auto-seed bypass implemented)
 - ~~Implement Smart Auto-Dispatch Engine.~~ ✅ (Real agent lookup at order creation)
+- ~~Real-Time ETA & Customer Notification.~~ ✅ (45-min ETA + simulated SMS at dispatch)
 - Develop the Last-Mile Delivery Flow (Assign to delivery boy -> Out for Delivery -> Delivered).
 
 ## 🚀 Smart Auto-Dispatch Engine (Implemented)
@@ -35,6 +36,12 @@
 - Marks the assigned agent as `BUSY` to prevent double-dispatch
 - Returns `assignedAgent { name, phone, vehicleNumber }` in the 201 response
 - `getOrderById` also fetches real agent profile from DB (removed hardcoded "Ramesh" dummy)
+
+## 📱 Real-Time ETA & Customer Notification (Implemented)
+- **Backend** (`orderController.ts` → `createOrder`): After auto-dispatch finds an agent, calculates `estimatedPickupTime` = `now + 45 minutes`.
+- **Simulated SMS**: Logs `[SMS SENT TO <senderPhone>]: Order Confirmed! Agent <name> will arrive by <ETA>...` to the server console.
+- **API Response**: `assignedAgent` object now includes `estimatedPickupTime` (ISO string) alongside `name`, `phone`, `vehicleNumber`.
+- **Frontend** (`customer/book/page.tsx`): Extracts `assignedAgent` + `estimatedPickupTime` from the 201 response. Formats ETA as readable time (e.g., "11:22 pm") and displays a rich toast: `"Order Confirmed! 🚀 Agent <name> has been assigned and will reach your location by <ETA> for pickup. Agent Contact: <phone>"`.
 
 ---
 *Note to AI Agent: Always read this file before suggesting structural changes or authentication fixes.*

@@ -193,6 +193,21 @@ export const createOrder = async (
         console.log(
           `🚀 [Smart-Dispatch] Order ${order._id} → Agent "${assignedAgentProfile.name}" (${realAgent._id}) | Vehicle: ${assignedAgentProfile.vehicleNumber || "N/A"}`
         );
+
+        // ═══════════════════════════════════════════════════════════════
+        //  📱 REAL-TIME ETA & CUSTOMER NOTIFICATION
+        //  Calculates a 45-minute pickup ETA and simulates an SMS
+        //  notification to the sender's phone number.
+        // ═══════════════════════════════════════════════════════════════
+        const pickupETA = new Date(Date.now() + 45 * 60 * 1000); // 45 minutes from now
+        (assignedAgentProfile as any).estimatedPickupTime = pickupETA.toISOString();
+
+        const senderPhoneNum = pickupAddress.senderPhone || sender?.phone || "N/A";
+        console.log(
+          `[SMS SENT TO ${senderPhoneNum}]: Order Confirmed! Agent ${assignedAgentProfile.name} will arrive by ${pickupETA.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })} to pick up your parcel.`
+        );
+        // ═══════════════════════════════════════════════════════════════
+
       } else {
         console.log(`⚠️ [Smart-Dispatch] No agent found in DB. Order ${order._id} stays at PENDING_PICKUP.`);
       }
