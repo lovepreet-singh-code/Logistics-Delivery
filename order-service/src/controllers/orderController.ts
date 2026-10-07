@@ -129,21 +129,75 @@ export const createOrder = async (
       paymentStatus: req.body.paymentStatus,
     });
 
-    // --- AUTO-DISPATCH ENGINE (REAL AGENT) ---
+    // ═══════════════════════════════════════════════════════════════
+    //  🚀 SMART AUTO-DISPATCH ENGINE — "Digital Admin"
+    //  Finds a REAL available agent/driver and locks them to the
+    //  order at creation time. No hardcoded IDs, no dummy data.
+    // ═══════════════════════════════════════════════════════════════
+    let assignedAgentProfile: { name: string; phone: string; vehicleNumber?: string } | null = null;
+
     if (mongoose.connection.db) {
       const usersCollection = mongoose.connection.db.collection("users");
-      const realAgent = await usersCollection.findOne({ email: "driver@example.com" }) || await usersCollection.findOne({ role: { $regex: /^agent$/i } });
-      
+
+      // Priority 1 — Agent explicitly marked AVAILABLE
+      let realAgent = await usersCollection.findOne({
+        role: { $regex: /^(agent|driver)$/i },
+        status: "AVAILABLE",
+      });
+
+      // Priority 2 — Any active agent (status field may not be maintained yet)
+      if (!realAgent) {
+        realAgent = await usersCollection.findOne({
+          role: { $regex: /^(agent|driver)$/i },
+          status: { $nin: ["BUSY", "INACTIVE", "OFFLINE"] },
+        });
+      }
+
+      // Priority 3 — Absolute fallback: grab any agent regardless of status
+      if (!realAgent) {
+        realAgent = await usersCollection.findOne({
+          role: { $regex: /^(agent|driver)$/i },
+        });
+      }
+
       if (realAgent) {
+        // Lock agent to order
         order.routing = order.routing || {};
         order.routing.agentId = realAgent._id as mongoose.Types.ObjectId;
+        if (realAgent.vehicleNumber) {
+          order.routing.vehicleNumber = realAgent.vehicleNumber;
+        }
         order.status = OrderStatus.PICKUP_ASSIGNED;
-        console.log(`[Auto-Dispatch] Assigned order ${order._id} to real agent ${order.routing.agentId}`);
+
+        // Record in timeline
+        order.statusHistory = order.statusHistory || [];
+        order.statusHistory.push({
+          status: OrderStatus.PICKUP_ASSIGNED,
+          timestamp: new Date(),
+          note: `Auto-dispatched to agent ${realAgent.name || realAgent.email} (${realAgent._id})`,
+        });
+
+        // Build profile to return in response
+        assignedAgentProfile = {
+          name: realAgent.name || realAgent.email || "Agent",
+          phone: realAgent.phone || realAgent.mobile || "N/A",
+          ...(realAgent.vehicleNumber ? { vehicleNumber: realAgent.vehicleNumber } : {}),
+        };
+
+        // Mark agent as BUSY so they don't get double-dispatched
+        await usersCollection.updateOne(
+          { _id: realAgent._id },
+          { $set: { status: "BUSY" } }
+        );
+
+        console.log(
+          `🚀 [Smart-Dispatch] Order ${order._id} → Agent "${assignedAgentProfile.name}" (${realAgent._id}) | Vehicle: ${assignedAgentProfile.vehicleNumber || "N/A"}`
+        );
       } else {
-        console.log(`[Auto-Dispatch] No agent found, remaining in PENDING_PICKUP`);
+        console.log(`⚠️ [Smart-Dispatch] No agent found in DB. Order ${order._id} stays at PENDING_PICKUP.`);
       }
     }
-    // ----------------------------
+    // ═══════════════════════════════════════════════════════════════
 
     await order.save();
 
@@ -178,8 +232,11 @@ export const createOrder = async (
 
     res.status(201).json({
       success: true,
-      message: "Order created successfully. Routing in progress.",
+      message: assignedAgentProfile
+        ? `Order created & auto-dispatched to ${assignedAgentProfile.name}.`
+        : "Order created successfully. Awaiting agent assignment.",
       data: order,
+      ...(assignedAgentProfile ? { assignedAgent: assignedAgentProfile } : {}),
     } as ApiResponse);
   } catch (error: any) {
     console.error("❌ Mongoose Error:", error);
@@ -342,12 +399,23 @@ export const getOrderById = async (
 
     let orderData: any = order.toObject();
     
-    // God-Mode Dummy Profile Override
-    if (orderData.status === 'PICKUP_ASSIGNED' || orderData.status === 'IN_TRANSIT') {
-      orderData.agentProfile = {
-        name: "Ramesh (Auto-Assigned)",
-        phone: "+91 98765 43210"
-      };
+    // Fetch REAL agent profile from DB if an agent is assigned
+    if (orderData.routing?.agentId && mongoose.connection.db) {
+      try {
+        const usersCollection = mongoose.connection.db.collection("users");
+        const agent = await usersCollection.findOne({
+          _id: new mongoose.Types.ObjectId(orderData.routing.agentId),
+        });
+        if (agent) {
+          orderData.agentProfile = {
+            name: agent.name || agent.email || "Agent",
+            phone: agent.phone || agent.mobile || "N/A",
+            ...(agent.vehicleNumber ? { vehicleNumber: agent.vehicleNumber } : {}),
+          };
+        }
+      } catch (agentErr) {
+        console.error("Failed to fetch agent profile for tracking:", agentErr);
+      }
     }
 
     // 3. Save the result to Redis with 60s TTL

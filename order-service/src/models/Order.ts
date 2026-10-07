@@ -123,6 +123,10 @@ const routingSchema = new Schema(
       type: String,
       default: null,
     },
+    vehicleNumber: {
+      type: String,
+      default: null,
+    },
   },
   { _id: false }
 );

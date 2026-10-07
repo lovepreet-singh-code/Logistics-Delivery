@@ -22,7 +22,19 @@
 
 ## 🚧 Next Immediate Steps
 - ~~Finalize Hub Inwarding status updates.~~ ✅ (Auto-seed bypass implemented)
+- ~~Implement Smart Auto-Dispatch Engine.~~ ✅ (Real agent lookup at order creation)
 - Develop the Last-Mile Delivery Flow (Assign to delivery boy -> Out for Delivery -> Delivered).
+
+## 🚀 Smart Auto-Dispatch Engine (Implemented)
+- **Location:** `orderController.ts` → `createOrder` function
+- **How it works:** At order creation, queries `users` collection with 3-tier priority:
+  1. Agent with `status: "AVAILABLE"`
+  2. Any agent NOT `BUSY/INACTIVE/OFFLINE`
+  3. Absolute fallback: any agent/driver role
+- Sets `routing.agentId`, `routing.vehicleNumber`, status → `PICKUP_ASSIGNED`, pushes to `statusHistory`
+- Marks the assigned agent as `BUSY` to prevent double-dispatch
+- Returns `assignedAgent { name, phone, vehicleNumber }` in the 201 response
+- `getOrderById` also fetches real agent profile from DB (removed hardcoded "Ramesh" dummy)
 
 ---
 *Note to AI Agent: Always read this file before suggesting structural changes or authentication fixes.*
