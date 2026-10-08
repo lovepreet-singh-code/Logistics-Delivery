@@ -68,6 +68,23 @@ export default function PlanningPage() {
     }
   };
 
+  const handleAutoDispatch = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token') || '';
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await apiClient.post('/orders/auto-dispatch', {}, { headers });
+      
+      toast.success(`Auto-Dispatch Complete: ${res.data.count || 0} orders assigned`);
+      await fetchData();
+    } catch (error: any) {
+      console.error("Auto dispatch failed:", error);
+      toast.error("Failed to auto dispatch: " + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOrderToggle = (id: string) => {
     setSelectedOrders(prev => 
       prev.includes(id) ? prev.filter(o => o !== id) : [...prev, id]
@@ -124,6 +141,13 @@ export default function PlanningPage() {
           <p className="text-slate-400 mt-1">Select pending orders and assign them to available fleet.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleAutoDispatch}
+            disabled={loading}
+            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+          >
+            ⚡ Smart Auto-Dispatch
+          </button>
           <button
             onClick={handleAutoSeed}
             disabled={seeding}

@@ -1480,6 +1480,7 @@ export const autoGenerateInwardedOrder = async (req: Request, res: Response): Pr
 
 // PUT /api/orders/:trackingId/accept-pickup
 export const acceptPickupAssignment = async (req: Request, res: Response): Promise<void> => {
+  console.log("==> REACHED acceptPickupAssignment with params:", req.params);
   try {
     const id = req.params.id || req.params.trackingId;
     const isValidId = mongoose.Types.ObjectId.isValid(id);
@@ -1524,4 +1525,88 @@ export const acceptPickupAssignment = async (req: Request, res: Response): Promi
     res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
+
+
+// ═══════════════════════════════════════════════
+//  SMART AUTO-DISPATCH ENGINE
+// ═══════════════════════════════════════════════
+
+// POST /api/orders/auto-dispatch
+export const autoDispatchPickups = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const assignedCount = await runAutoDispatchLogic();
+    res.status(200).json({
+      success: true,
+      message: `Auto-Dispatch Complete: ${assignedCount} orders assigned`,
+      count: assignedCount
+    });
+  } catch (error: any) {
+    console.error("Auto Dispatch Route Error:", error);
+    res.status(500).json({ success: false, message: "Server error during auto dispatch" });
+  }
+};
+
+export async function runAutoDispatchLogic(): Promise<number> {
+  try {
+    const orders = await Order.find({ status: OrderStatus.ORDER_PLACED });
+    if (orders.length === 0) {
+      return 0;
+    }
+
+    const usersCollection = mongoose.connection.db!.collection("users");
+    const vehiclesCollection = mongoose.connection.db!.collection("vehicles");
+
+    const availableAgents = await usersCollection.find({ 
+      role: "AGENT", 
+      $or: [{ availabilityStatus: "AVAILABLE" }, { availabilityStatus: null }] 
+    }).toArray();
+
+    const availableVehicles = await vehiclesCollection.find({ status: "AVAILABLE" }).toArray();
+
+    let assignedCount = 0;
+
+    for (const order of orders) {
+      if (availableAgents.length > 0 && availableVehicles.length > 0) {
+        const agent = availableAgents.pop();
+        const vehicle = availableVehicles.pop();
+
+        order.status = OrderStatus.PICKUP_ASSIGNED;
+        if (!order.routing) order.routing = {} as any;
+        order.routing.agentId = agent!._id as mongoose.Types.ObjectId;
+        order.routing.vehicleId = vehicle!._id as mongoose.Types.ObjectId;
+        order.routing.vehicleNumber = vehicle!.registrationNumber || vehicle!.licensePlate || "UNKNOWN";
+        order.routing.assignmentType = "AUTO_DISPATCH";
+
+        order.statusHistory = order.statusHistory || [];
+        order.statusHistory.push({
+          status: OrderStatus.PICKUP_ASSIGNED,
+          timestamp: new Date(),
+          note: `Smart Auto-Dispatch: Assigned to agent ${agent!.name}`
+        });
+
+        await order.save();
+
+        await usersCollection.updateOne(
+          { _id: agent!._id },
+          { $set: { availabilityStatus: "ON_DUTY" } }
+        );
+
+        await vehiclesCollection.updateOne(
+          { _id: vehicle!._id },
+          { $set: { status: "IN_USE" } }
+        );
+
+        assignedCount++;
+      } else {
+        break; // No more agents or vehicles available
+      }
+    }
+
+    return assignedCount;
+  } catch (error: any) {
+    console.error("runAutoDispatchLogic Error:", error);
+    throw error;
+  }
+}
+
 

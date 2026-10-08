@@ -53,3 +53,56 @@ Pickup\ button calling the new \PUT /:trackingId/accept-pickup\ route.
 - **Route Wiring Fix**: Mounted \cceptPickupAssignment\ at \/:trackingId/accept-pickup\ *above* the generic \/:id\ GET route to prevent Express from swallowing the route and throwing 404s. The controller gracefully queries DB across \_id\, \wb\, and \	rackingId\.
 - **Data Leak Patched**: Customer tracking strictly hides agent and vehicle cards unless the status is \PICKUP_ACCEPTED\ or higher. The backend \getOrderById\ forcibly deletes \.routing\ and \.agentProfile\ to ensure a foolproof data scrub before transmission.
 
+
+## 🚀 Universal Boot & Troubleshooting
+### How to start the entire microservices stack
+To simultaneously boot up ALL required services (Gateway, Order Service, Dispatch Service, Identity, Fleet, Topology, Analytics, along with MongoDB, Redis, Kafka, and Zookeeper) without port conflicts, run the following command in the root directory:
+```bash
+docker-compose up -d --build
+```
+*(Note: Ensure your Docker Desktop or Docker daemon is running before executing this command).*
+
+To start the frontend UI, open a new terminal in the `frontend` folder and run:
+```bash
+npm run dev
+```
+
+### Incident: Global Disconnect via Stale Port Killing
+**Symptoms Observed:** Agent login failed (Authentication failed), Admin dashboard showed 0 data, and Customer 'My Orders' failed to load.
+**Root Cause:** Killing stale ports manually forcefully terminated the running microservice processes or docker containers, breaking the entire microservices mesh. The frontend uses `http://localhost:8080/api` (via `apiClient.ts`) to hit the API Gateway, while some components directly fetch `http://localhost:4004` (Order Service). When these backend services were killed, the gateway and microservices became unreachable.
+**Resolution:** Always use Docker Compose to manage process lifecycles. Instead of manually killing ports, use `docker-compose down` followed by `docker-compose up -d`. This ensures all containers are cleanly restarted and the internal Docker networking (`logistics-network`) is correctly established.
+
+## 🚀 Universal Boot Command
+To quickly start the entire stack and prevent Network Errors, you no longer need to open separate terminals manually.
+Simply double-click `start-all.bat` or run `.\start-all.bat` from the root terminal. This single script will boot the API Gateway, Order Service, Dispatch Service, and the Frontend simultaneously.
+
+## 🔐 Authentication & Seeding
+- **Authentication Route:** The API Gateway proxies `/api/auth` requests to the `identity-service` (port 4001).
+- **Seeding Users:** Because the local MongoDB database was empty on fresh startup, logins failed for test accounts. We added a seeding script in `identity-service/src/server.ts` to automatically create the 3 required mock users on startup:
+  1. `admin@example.com` (Role: ADMIN, Password: password)
+  2. `driver@example.com` (Role: AGENT, Password: password)
+  3. `custmore@example.com` (Role: CUSTOMER, Password: password)
+- **JWT & Bcrypt:** The `identity-service` uses a secure fallback `JWT_SECRET` in `config/index.ts` and successfully hashes passwords using `bcryptjs` in the Mongoose pre-save hook.
+
+## 🐳 Docker Container Sync & Route 404 Troubleshooting
+- **Issue:** The `PUT /accept-pickup` route kept returning a 404 in the Dockerized environment even after the code was fixed locally in `orderRoutes.ts`.
+- **Root Cause:**
+  1. The `docker-compose.yml` does **not** use volume mounts (`volumes: - ./:/app`) for `order-service`. It purely relies on building an image from the source code via `build: ./order-service`.
+  2. Because the image layers were cached, the container was running stale code, completely ignoring the local file edits.
+  3. The API Gateway (`api-gateway/nginx.conf`) correctly supports and proxies `PUT` requests globally, so the network drop was purely due to the stale container code.
+- **Resolution:** To forcefully inject local code changes into the containers, we must rebuild them without cache and force a restart.
+
+## 🧠 Smart Auto-Dispatch Engine
+- **Location:** `order-service/src/controllers/orderController.ts` → `autoDispatchPickups` (mapped to `POST /api/orders/auto-dispatch`).
+- **How it works:**
+  1. Finds all unassigned orders (`status: ORDER_PLACED`).
+  2. Queries the `users` collection for `AVAILABLE` agents (`role: AGENT`).
+  3. Queries the `vehicles` collection for `AVAILABLE` vehicles.
+  4. Loops through the unassigned orders, pairs an agent and vehicle to each order, updates the order `routing` and sets status to `PICKUP_ASSIGNED`.
+  5. Updates agent and vehicle statuses to `ON_DUTY` and `IN_USE` respectively.
+- **Frontend Integration:** In `frontend/src/app/admin/planning/page.tsx`, a "⚡ Smart Auto-Dispatch" button was added next to the Auto-Seed button. Clicking it triggers the engine and automatically refreshes the admin panel data, seamlessly automating manual dispatcher tasks.
+
+## ⏰ Fully Automated Background Dispatcher (Zero-Touch)
+- **Evolution:** The previously manual "Smart Auto-Dispatch" UI button logic has been refactored and extracted into a standalone core function `runAutoDispatchLogic()`.
+- **Automation:** Utilizing `node-cron` inside `order-service/src/server.ts`, the backend now automatically runs this matching algorithm every 1 minute.
+- **Impact:** This completely removes the need for Admin intervention. Pending pickups are systematically paired with available agents and vehicles without a single click, achieving true "Zero-Touch" background operations while logging the output directly to the server terminal (`[CRON] ⚡ Auto-Dispatch executed`).

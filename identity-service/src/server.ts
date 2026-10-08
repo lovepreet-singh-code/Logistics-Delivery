@@ -43,9 +43,35 @@ app.use((_req: Request, res: Response) => {
   });
 });
 
+import User from "./models/User";
+import { UserRole } from "./@types";
+
+const seedUsers = async () => {
+  try {
+    const adminExists = await User.findOne({ email: "admin@example.com" });
+    if (!adminExists) {
+      await User.create({ name: "Admin User", email: "admin@example.com", password: "password", role: UserRole.ADMIN });
+      console.log("🌱 Seeded Admin User");
+    }
+    const driverExists = await User.findOne({ email: "driver@example.com" });
+    if (!driverExists) {
+      await User.create({ name: "Driver User", email: "driver@example.com", password: "password", role: UserRole.AGENT });
+      console.log("🌱 Seeded Driver User");
+    }
+    const customerExists = await User.findOne({ email: "custmore@example.com" });
+    if (!customerExists) {
+      await User.create({ name: "Customer User", email: "custmore@example.com", password: "password", role: UserRole.CUSTOMER });
+      console.log("🌱 Seeded Customer User");
+    }
+  } catch (error) {
+    console.error("Error seeding users:", error);
+  }
+};
+
 // ──── Start Server ────
 const startServer = async (): Promise<void> => {
   await connectDB();
+  await seedUsers();
 
   app.listen(config.port, '0.0.0.0', () => {
     console.log(`

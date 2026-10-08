@@ -27,6 +27,7 @@ import {
   settleAgentCOD,
   autoGenerateInwardedOrder,
   acceptPickupAssignment,
+  autoDispatchPickups,
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
@@ -35,6 +36,7 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // ──── Dashboard Stats ────
+router.post("/auto-dispatch", autoDispatchPickups);
 router.get("/stats", getOrderStats);
 router.get("/admin/analytics", getAdminAnalytics);
 
@@ -56,11 +58,12 @@ router.post("/auto-seed-inwarded", autoGenerateInwardedOrder);
 router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);
 
 // ──── Order Detail Endpoints ────
+router.put("/:id/accept-pickup", acceptPickupAssignment);
+router.put("/:trackingId/accept-pickup", acceptPickupAssignment);
+
 router.get("/my-orders", getMyOrders);
 router.get("/recent", adminAuth, getRecentOrders);
 router.get("/unassigned", adminAuth, getUnassignedOrders);
-router.put("/:trackingId/accept-pickup", acceptPickupAssignment);
-router.put("/:id/accept-pickup", acceptPickupAssignment);
 router.get("/:id", getOrderById);
 router.put("/:id", updateOrder);
 router.get("/:id/invoice", generateInvoice);

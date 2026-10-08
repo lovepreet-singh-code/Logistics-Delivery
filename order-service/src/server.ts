@@ -12,6 +12,8 @@ import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
 import { startDispatchManifestedWorker } from "./workers/dispatchManifestedWorker";
 import { startDeliveryCompletedWorker } from "./workers/deliveryCompletedWorker";
 import { startOrderStatusWorker } from "./workers/orderStatusWorker";
+import cron from "node-cron";
+import { runAutoDispatchLogic } from "./controllers/orderController";
 
 // ──── Initialize Express App ────
 const app = express();
@@ -42,7 +44,8 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/hubs", hubRoutes);
 
 // ──── 404 Handler ────
-app.use((_req: Request, res: Response) => {
+app.use((req: Request, res: Response) => {
+  console.log(`[404] Unhandled route: ${req.method} ${req.originalUrl} | Path: ${req.path}`);
   res.status(404).json({
     success: false,
     message: "Route not found.",
@@ -105,6 +108,19 @@ const startServer = async (): Promise<void> => {
   startDispatchManifestedWorker().catch(e => console.error("Worker failed", e));
   startDeliveryCompletedWorker().catch(e => console.error("Worker failed", e));
   startOrderStatusWorker().catch(e => console.error("Worker failed", e));
+
+  // ──── Zero-Touch Auto-Dispatch Cron Job ────
+  cron.schedule('*/1 * * * *', async () => {
+    try {
+      const assigned = await runAutoDispatchLogic();
+      if (assigned > 0) {
+        console.log(`[CRON] ⚡ Auto-Dispatch executed: ${assigned} orders assigned.`);
+      }
+    } catch (error) {
+      console.error("[CRON] Auto-Dispatch failed:", error);
+    }
+  });
+  console.log("[CRON] Scheduled Zero-Touch Auto-Dispatch Engine (Runs every 1 min).");
 
   const shutdown = async () => {
     console.log("Shutting down server gracefully...");
