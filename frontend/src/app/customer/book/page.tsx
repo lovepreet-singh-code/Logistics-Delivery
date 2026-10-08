@@ -241,21 +241,7 @@ export default function BookParcelPage() {
         const assignedAgent = res.data.assignedAgent;
         const estimatedPickupTime = assignedAgent?.estimatedPickupTime;
 
-        let richMessage = '';
-        if (assignedAgent && estimatedPickupTime) {
-          const formattedETA = new Date(estimatedPickupTime).toLocaleTimeString('en-IN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-          });
-          const agentName = assignedAgent.name || 'Agent';
-          const agentPhone = assignedAgent.phone || 'N/A';
-          richMessage = `Order Confirmed! 🚀 Agent ${agentName} has been assigned and will reach your location by ${formattedETA} for pickup. Agent Contact: ${agentPhone}`;
-        } else {
-          richMessage = paymentMethod === 'COD'
-            ? 'Order booked successfully via COD!'
-            : 'Mock Payment Successful! Order confirmed.';
-        }
+        let richMessage = 'Order Placed Successfully! We will notify you once an agent confirms the pickup.';
 
         toast.success(richMessage, { duration: 6000 });
         setTimeout(() => {

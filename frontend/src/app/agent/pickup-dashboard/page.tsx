@@ -48,7 +48,7 @@ export default function PickupDashboard() {
 
       console.log("Fetching orders for agent:", finalAgentId);
 
-      const response = await apiClient.get(`/orders?status=PICKUP_ASSIGNED&t=${Date.now()}`, {
+      const response = await apiClient.get(`/orders?status=PICKUP_ASSIGNED,PICKUP_ACCEPTED&t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -101,6 +101,22 @@ export default function PickupDashboard() {
       toast.error(err.response?.data?.message || "Failed to confirm pickup.");
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const acceptPickup = async (orderId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await apiClient.put(`/orders/${orderId}/accept-pickup`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        toast.success("✅ Pickup Accepted!");
+        fetchPickups();
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Failed to accept pickup.");
     }
   };
 
@@ -174,12 +190,21 @@ export default function PickupDashboard() {
                   </div>
 
                   <div className="flex flex-wrap gap-3 relative z-10">
-                     <button 
-                        onClick={() => setActivePickup(order)}
-                        className="w-full py-3.5 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-amber-500/25 mt-1"
-                     >
-                        Execute Pickup
-                     </button>
+                     {order.status === 'PICKUP_ASSIGNED' ? (
+                       <button 
+                          onClick={() => acceptPickup(order.trackingId || order._id)}
+                          className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-blue-500/25 mt-1"
+                       >
+                          Accept Pickup
+                       </button>
+                     ) : (
+                       <button 
+                          onClick={() => setActivePickup(order)}
+                          className="w-full py-3.5 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-amber-500/25 mt-1"
+                       >
+                          Execute Pickup
+                       </button>
+                     )}
                   </div>
                 </div>
               );

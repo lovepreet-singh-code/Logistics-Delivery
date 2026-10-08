@@ -26,6 +26,7 @@ import {
   reportException,
   settleAgentCOD,
   autoGenerateInwardedOrder,
+  acceptPickupAssignment,
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
@@ -58,6 +59,8 @@ router.get("/routed/:franchiseId", getRoutedOrdersByFranchise);
 router.get("/my-orders", getMyOrders);
 router.get("/recent", adminAuth, getRecentOrders);
 router.get("/unassigned", adminAuth, getUnassignedOrders);
+router.put("/:trackingId/accept-pickup", acceptPickupAssignment);
+router.put("/:id/accept-pickup", acceptPickupAssignment);
 router.get("/:id", getOrderById);
 router.put("/:id", updateOrder);
 router.get("/:id/invoice", generateInvoice);

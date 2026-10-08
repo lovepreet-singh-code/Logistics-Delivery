@@ -115,7 +115,7 @@ export const createOrder = async (
     req.body.paymentStatus = req.body.paymentMethod === 'COD' ? "PENDING_PAYMENT" : "PENDING_PAYMENT";
     req.body.trackingId = req.body.trackingId || `TRK${Date.now()}`;
 
-    // Create order instance (status defaults to PENDING_PICKUP if auto-assign fails)
+    // Create order instance (status defaults to ORDER_PLACED)
     const order = new Order({
       customerId: customerId || req.body.customerId,
       awb,
@@ -123,96 +123,11 @@ export const createOrder = async (
       deliveryAddress,
       parcelDetails,
       pickupDate,
-      status: req.body.status || OrderStatus.PENDING_PICKUP, // Default fallback
+      status: OrderStatus.ORDER_PLACED,
       paymentMethod: paymentMethod || "PREPAID",
       totalAmount: totalAmount || req.body.price,
       paymentStatus: req.body.paymentStatus,
     });
-
-    // ═══════════════════════════════════════════════════════════════
-    //  🚀 SMART AUTO-DISPATCH ENGINE — "Digital Admin"
-    //  Finds a REAL available agent/driver and locks them to the
-    //  order at creation time. No hardcoded IDs, no dummy data.
-    // ═══════════════════════════════════════════════════════════════
-    let assignedAgentProfile: { name: string; phone: string; vehicleNumber?: string } | null = null;
-
-    if (mongoose.connection.db) {
-      const usersCollection = mongoose.connection.db.collection("users");
-
-      // Priority 1 — Agent explicitly marked AVAILABLE
-      let realAgent = await usersCollection.findOne({
-        role: { $regex: /^(agent|driver)$/i },
-        status: "AVAILABLE",
-      });
-
-      // Priority 2 — Any active agent (status field may not be maintained yet)
-      if (!realAgent) {
-        realAgent = await usersCollection.findOne({
-          role: { $regex: /^(agent|driver)$/i },
-          status: { $nin: ["BUSY", "INACTIVE", "OFFLINE"] },
-        });
-      }
-
-      // Priority 3 — Absolute fallback: grab any agent regardless of status
-      if (!realAgent) {
-        realAgent = await usersCollection.findOne({
-          role: { $regex: /^(agent|driver)$/i },
-        });
-      }
-
-      if (realAgent) {
-        // Lock agent to order
-        order.routing = order.routing || {};
-        order.routing.agentId = realAgent._id as mongoose.Types.ObjectId;
-        if (realAgent.vehicleNumber) {
-          order.routing.vehicleNumber = realAgent.vehicleNumber;
-        }
-        order.status = OrderStatus.PICKUP_ASSIGNED;
-
-        // Record in timeline
-        order.statusHistory = order.statusHistory || [];
-        order.statusHistory.push({
-          status: OrderStatus.PICKUP_ASSIGNED,
-          timestamp: new Date(),
-          note: `Auto-dispatched to agent ${realAgent.name || realAgent.email} (${realAgent._id})`,
-        });
-
-        // Build profile to return in response
-        assignedAgentProfile = {
-          name: realAgent.name || realAgent.email || "Agent",
-          phone: realAgent.phone || realAgent.mobile || "N/A",
-          ...(realAgent.vehicleNumber ? { vehicleNumber: realAgent.vehicleNumber } : {}),
-        };
-
-        // Mark agent as BUSY so they don't get double-dispatched
-        await usersCollection.updateOne(
-          { _id: realAgent._id },
-          { $set: { status: "BUSY" } }
-        );
-
-        console.log(
-          `🚀 [Smart-Dispatch] Order ${order._id} → Agent "${assignedAgentProfile.name}" (${realAgent._id}) | Vehicle: ${assignedAgentProfile.vehicleNumber || "N/A"}`
-        );
-
-        // ═══════════════════════════════════════════════════════════════
-        //  📱 REAL-TIME ETA & CUSTOMER NOTIFICATION
-        //  Calculates a 45-minute pickup ETA and simulates an SMS
-        //  notification to the sender's phone number.
-        // ═══════════════════════════════════════════════════════════════
-        const pickupETA = new Date(Date.now() + 45 * 60 * 1000); // 45 minutes from now
-        (assignedAgentProfile as any).estimatedPickupTime = pickupETA.toISOString();
-
-        const senderPhoneNum = pickupAddress.senderPhone || sender?.phone || "N/A";
-        console.log(
-          `[SMS SENT TO ${senderPhoneNum}]: Order Confirmed! Agent ${assignedAgentProfile.name} will arrive by ${pickupETA.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })} to pick up your parcel.`
-        );
-        // ═══════════════════════════════════════════════════════════════
-
-      } else {
-        console.log(`⚠️ [Smart-Dispatch] No agent found in DB. Order ${order._id} stays at PENDING_PICKUP.`);
-      }
-    }
-    // ═══════════════════════════════════════════════════════════════
 
     await order.save();
 
@@ -247,11 +162,8 @@ export const createOrder = async (
 
     res.status(201).json({
       success: true,
-      message: assignedAgentProfile
-        ? `Order created & auto-dispatched to ${assignedAgentProfile.name}.`
-        : "Order created successfully. Awaiting agent assignment.",
+      message: "Order placed successfully. Awaiting agent assignment.",
       data: order,
-      ...(assignedAgentProfile ? { assignedAgent: assignedAgentProfile } : {}),
     } as ApiResponse);
   } catch (error: any) {
     console.error("❌ Mongoose Error:", error);
@@ -414,8 +326,10 @@ export const getOrderById = async (
 
     let orderData: any = order.toObject();
     
-    // Fetch REAL agent profile from DB if an agent is assigned
-    if (orderData.routing?.agentId && mongoose.connection.db) {
+    // Fetch REAL agent profile from DB if an agent is assigned (and accepted)
+    const hideAgentDetails = orderData.status === OrderStatus.ORDER_PLACED || orderData.status === OrderStatus.PICKUP_ASSIGNED || orderData.status === "PENDING_PICKUP";
+
+    if (!hideAgentDetails && orderData.routing?.agentId && mongoose.connection.db) {
       try {
         const usersCollection = mongoose.connection.db.collection("users");
         const agent = await usersCollection.findOne({
@@ -431,6 +345,15 @@ export const getOrderById = async (
       } catch (agentErr) {
         console.error("Failed to fetch agent profile for tracking:", agentErr);
       }
+    } else if (hideAgentDetails) {
+      // Forcefully delete agent details to prevent frontend leak
+      if (orderData.routing) {
+        delete orderData.routing.agentId;
+        delete orderData.routing.vehicleNumber;
+        delete orderData.routing.vehicleId;
+      }
+      delete orderData.agentProfile;
+      delete orderData.vehicleId;
     }
 
     // 3. Save the result to Redis with 60s TTL
@@ -1551,6 +1474,54 @@ export const autoGenerateInwardedOrder = async (req: Request, res: Response): Pr
   } catch (error: any) {
     console.error("❌ Auto-seed error:", error);
     res.status(500).json({ success: false, message: error.message } as ApiResponse);
+  }
+};
+
+
+// PUT /api/orders/:trackingId/accept-pickup
+export const acceptPickupAssignment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id || req.params.trackingId;
+    const isValidId = mongoose.Types.ObjectId.isValid(id);
+    const order = await Order.findOne({
+      $or: [
+        { _id: isValidId ? new mongoose.Types.ObjectId(id) : null },
+        { awb: id },
+        { trackingId: id }
+      ]
+    });
+    
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    if (order.status !== OrderStatus.PICKUP_ASSIGNED) {
+      res.status(400).json({ success: false, message: "Order must be in PICKUP_ASSIGNED state to accept" });
+      return;
+    }
+
+    order.status = OrderStatus.PICKUP_ACCEPTED;
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status: OrderStatus.PICKUP_ACCEPTED,
+      timestamp: new Date(),
+      note: "Agent accepted the pickup assignment."
+    });
+
+    await order.save();
+
+    if (redisClient.isOpen) {
+      // Clear cache for all possible identifiers
+      await redisClient.del(`track_order:${order._id}`);
+      if (order.awb) await redisClient.del(`track_order:${order.awb}`);
+      if (id) await redisClient.del(`track_order:${id}`);
+    }
+
+    res.status(200).json({ success: true, message: "Pickup accepted successfully", data: order });
+  } catch (error: any) {
+    console.error("acceptPickupAssignment error:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
 

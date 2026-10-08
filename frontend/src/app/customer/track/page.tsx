@@ -211,37 +211,51 @@ export default function CustomerDashboard() {
 
                 {/* Agent Card (Full Width Row below details) */}
                 <div className="w-full mt-8 pt-6 border-t border-slate-100 flex items-start">
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-wrap sm:flex-nowrap items-center gap-4 shadow-xl text-left w-full md:w-auto">
-                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border-2 border-indigo-500/30">
-                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=1e293b" alt="Agent Avatar" className="w-full h-full object-cover" />
+                  {['PICKUP_ACCEPTED', 'PICKED_UP', 'IN_TRANSIT', 'INWARDED_AT_HUB', 'AT_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(orderData.status) ? (
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-wrap sm:flex-nowrap items-center gap-4 shadow-xl text-left w-full md:w-auto">
+                      <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border-2 border-indigo-500/30">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=1e293b" alt="Agent Avatar" className="w-full h-full object-cover" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Assigned Agent</p>
+                        <p className="text-sm font-bold text-white whitespace-nowrap">{orderData.agentProfile?.name || "Ramesh - Pickup Agent"}</p>
+                        <button className="text-xs text-slate-400 flex items-center gap-1 mt-1 hover:text-indigo-300 transition-colors bg-slate-800 px-2 py-0.5 rounded">
+                          <Phone className="w-3 h-3" /> {orderData.agentProfile?.phone || "+91 98765 43210"}
+                        </button>
+                      </div>
+                      <div className="hidden sm:flex ml-4 pl-4 border-l border-slate-800 flex-col justify-center">
+                         <p className="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Estimated Pickup</p>
+                         <p className="text-xs font-bold text-emerald-400 mt-1 whitespace-nowrap">Today, 2 PM - 6 PM</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Assigned Agent</p>
-                      <p className="text-sm font-bold text-white whitespace-nowrap">{orderData.agentProfile?.name || "Ramesh - Pickup Agent"}</p>
-                      <button className="text-xs text-slate-400 flex items-center gap-1 mt-1 hover:text-indigo-300 transition-colors bg-slate-800 px-2 py-0.5 rounded">
-                        <Phone className="w-3 h-3" /> {orderData.agentProfile?.phone || "+91 98765 43210"}
-                      </button>
+                  ) : (
+                    <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 flex items-center gap-4 shadow-sm text-left w-full md:w-auto animate-pulse">
+                      <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+                        <User className="w-5 h-5 text-slate-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-500">Assigning nearest agent...</p>
+                        <p className="text-xs text-slate-400 mt-1">We will notify you once confirmed.</p>
+                      </div>
                     </div>
-                    <div className="hidden sm:flex ml-4 pl-4 border-l border-slate-800 flex-col justify-center">
-                       <p className="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Estimated Pickup</p>
-                       <p className="text-xs font-bold text-emerald-400 mt-1 whitespace-nowrap">Today, 2 PM - 6 PM</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
               {/* Right Sidebar - Span 1 */}
               <div className="lg:col-span-1 flex flex-col gap-4">
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                    <Car className="w-5 h-5 text-orange-600" />
+                {['PICKUP_ACCEPTED', 'PICKED_UP', 'IN_TRANSIT', 'INWARDED_AT_HUB', 'AT_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(orderData.status) && (
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                      <Car className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vehicle Details</p>
+                      <p className="text-sm font-bold text-slate-900">{orderData.vehicleId?.model || "Tata Ace"}</p>
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">{orderData.vehicleId?.licensePlate || "MH-12-AB-3456"}</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vehicle Details</p>
-                    <p className="text-sm font-bold text-slate-900">{orderData.vehicleId?.model || "Tata Ace"}</p>
-                    <p className="text-xs text-slate-500 font-mono mt-0.5">{orderData.vehicleId?.licensePlate || "MH-12-AB-3456"}</p>
-                  </div>
-                </div>
+                )}
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">

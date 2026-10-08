@@ -45,3 +45,11 @@
 
 ---
 *Note to AI Agent: Always read this file before suggesting structural changes or authentication fixes.*
+## >�� Two-Step Request & Accept Flow (Implemented)
+- **Booking Revert**: \createOrder\ no longer auto-assigns an agent. Orders are saved purely as \ORDER_PLACED\ and return a standard tracking ID.
+- **Agent Dashboard**: Fetches orders in \PICKUP_ASSIGNED\ and \PICKUP_ACCEPTED\. Shows a blue \
+Accept
+Pickup\ button calling the new \PUT /:trackingId/accept-pickup\ route.
+- **Route Wiring Fix**: Mounted \cceptPickupAssignment\ at \/:trackingId/accept-pickup\ *above* the generic \/:id\ GET route to prevent Express from swallowing the route and throwing 404s. The controller gracefully queries DB across \_id\, \wb\, and \	rackingId\.
+- **Data Leak Patched**: Customer tracking strictly hides agent and vehicle cards unless the status is \PICKUP_ACCEPTED\ or higher. The backend \getOrderById\ forcibly deletes \.routing\ and \.agentProfile\ to ensure a foolproof data scrub before transmission.
+
