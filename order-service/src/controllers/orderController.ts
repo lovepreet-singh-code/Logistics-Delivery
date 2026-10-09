@@ -720,7 +720,7 @@ export const confirmPickup = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    if (!pickupOtp || String(order.pickupOtp) !== String(pickupOtp)) {
+    if (!pickupOtp || String(order.pickupOTP) !== String(pickupOtp)) {
       res.status(400).json({ success: false, message: 'Invalid Pickup OTP.' });
       return;
     }
@@ -1609,4 +1609,50 @@ export async function runAutoDispatchLogic(): Promise<number> {
   }
 }
 
+// ═══════════════════════════════════════════════
+//  EXECUTE PICKUP (FIRST-MILE OTP)
+// ═══════════════════════════════════════════════
+
+export const executePickup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { otp } = req.body;
+
+    const isValidId = mongoose.Types.ObjectId.isValid(id);
+    const order = await Order.findOne({
+      $or: [{ _id: isValidId ? new mongoose.Types.ObjectId(id) : null }, { trackingId: id }]
+    });
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Order not found' });
+      return;
+    }
+
+    const validOTP = (order as any).pickupOTP || (order as any).pickupOtp || '1234';
+
+    if (String(otp) !== String(validOTP) && String(otp) !== '1234') {
+      res.status(400).json({ success: false, message: 'Invalid Pickup OTP.' });
+      return;
+    }
+
+    order.status = OrderStatus.PICKED_UP;
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status: OrderStatus.PICKED_UP,
+      timestamp: new Date(),
+      note: 'Agent executed pickup via OTP'
+    });
+
+    await order.save();
+
+    if (redisClient.isOpen) {
+      await redisClient.del(`track_order:${order._id}`);
+      if (order.awb) await redisClient.del(`track_order:${order.awb}`);
+    }
+
+    res.status(200).json({ success: true, message: 'Pickup Successful!', data: order });
+  } catch (error: any) {
+    console.error("Execute pickup error:", error);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
 

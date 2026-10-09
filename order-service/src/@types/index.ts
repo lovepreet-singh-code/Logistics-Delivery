@@ -79,7 +79,7 @@ export interface IOrder {
   paymentMethod?: "PREPAID" | "COD";
   totalAmount?: number;
   otp?: string;
-  pickupOtp?: string;
+  pickupOTP?: string;
   pickupImageUrl?: string;
   actualWeight?: number;
   exceptionReason?: string;

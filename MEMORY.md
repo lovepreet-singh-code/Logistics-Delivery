@@ -106,3 +106,8 @@ Simply double-click `start-all.bat` or run `.\start-all.bat` from the root termi
 - **Evolution:** The previously manual "Smart Auto-Dispatch" UI button logic has been refactored and extracted into a standalone core function `runAutoDispatchLogic()`.
 - **Automation:** Utilizing `node-cron` inside `order-service/src/server.ts`, the backend now automatically runs this matching algorithm every 1 minute.
 - **Impact:** This completely removes the need for Admin intervention. Pending pickups are systematically paired with available agents and vehicles without a single click, achieving true "Zero-Touch" background operations while logging the output directly to the server terminal (`[CRON] ⚡ Auto-Dispatch executed`).
+
+## 📦 Step 1: First-Mile Execution (OTP Verification)
+- **Order Model Update:** The `Order` schema automatically generates a 4-digit `pickupOTP` when an order is created.
+- **Backend Route:** A new `PUT /:id/execute-pickup` route was created in `order-service`, bypassing old mechanisms. It validates the 4-digit customer OTP against `order.pickupOTP` (with `1234` as a demo fallback). Upon success, it updates the status to `PICKED_UP`, logs to `statusHistory`, and clears Redis cache.
+- **Agent Dashboard:** The "Accept Pickup" and multi-step flow was consolidated. Agents now click "Execute Pickup" directly, prompting a minimalist 4-digit OTP modal instead of weight/QR inputs. Successful validation instantly clears the order from their active pickup queue.

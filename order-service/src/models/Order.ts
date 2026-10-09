@@ -195,11 +195,11 @@ const orderSchema = new Schema<IOrderDocument>(
     },
     otp: {
       type: String,
-      default: () => Math.floor(100000 + Math.random() * 900000).toString(),
+      default: () => Math.floor(1000 + Math.random() * 9000).toString(),
     },
-    pickupOtp: {
+    pickupOTP: {
       type: String,
-      default: () => Math.floor(100000 + Math.random() * 900000).toString(),
+      default: () => Math.floor(1000 + Math.random() * 9000).toString(),
     },
     pickupImageUrl: {
       type: String,

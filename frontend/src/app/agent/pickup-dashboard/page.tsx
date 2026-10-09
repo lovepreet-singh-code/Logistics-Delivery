@@ -13,8 +13,7 @@ export default function PickupDashboard() {
 
   // Modal State
   const [activePickup, setActivePickup] = useState<any | null>(null);
-  const [actualWeight, setActualWeight] = useState<string>("");
-  const [scannedQR, setScannedQR] = useState<string>("");
+  const [otp, setOtp] = useState<string>("");
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
@@ -83,16 +82,14 @@ export default function PickupDashboard() {
     setProcessing(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await apiClient.patch(`/orders/${activePickup._id}/status`, {
-        status: "PICKED_UP",
-        actualWeight: actualWeight ? Number(actualWeight) : undefined,
-        scannedQR: scannedQR || undefined
+      const res = await apiClient.put(`/orders/${activePickup._id}/execute-pickup`, {
+        otp
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (res.data.success) {
-        toast.success("✅ Parcel Picked Up Successfully!");
+        toast.success("✅ Pickup Successful!");
         setPickups(prev => prev.filter(p => p._id !== activePickup._id));
         closeModal();
       }
@@ -122,8 +119,7 @@ export default function PickupDashboard() {
 
   const closeModal = () => {
     setActivePickup(null);
-    setActualWeight("");
-    setScannedQR("");
+    setOtp("");
   };
 
   return (
@@ -190,21 +186,12 @@ export default function PickupDashboard() {
                   </div>
 
                   <div className="flex flex-wrap gap-3 relative z-10">
-                     {order.status === 'PICKUP_ASSIGNED' ? (
-                       <button 
-                          onClick={() => acceptPickup(order.trackingId || order._id)}
-                          className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-blue-500/25 mt-1"
-                       >
-                          Accept Pickup
-                       </button>
-                     ) : (
                        <button 
                           onClick={() => setActivePickup(order)}
                           className="w-full py-3.5 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-amber-500/25 mt-1"
                        >
                           Execute Pickup
                        </button>
-                     )}
                   </div>
                 </div>
               );
@@ -228,33 +215,20 @@ export default function PickupDashboard() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Actual Parcel Weight (kg)</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Customer OTP (4-Digit)</label>
                 <input 
-                  type="number" 
-                  step="0.1"
-                  value={actualWeight}
-                  onChange={(e) => setActualWeight(e.target.value)}
-                  placeholder={`Est: ${activePickup.parcelDetails?.weightKg || 1} kg`}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
-                  <QrCode className="w-4 h-4" /> Scan Parcel QR
-                </label>
-                <input 
-                  type="text"
-                  value={scannedQR}
-                  onChange={(e) => setScannedQR(e.target.value)}
-                  placeholder="Enter or Scan QR code"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono tracking-widest text-sm focus:outline-none focus:border-amber-500"
+                  type="text" 
+                  maxLength={4}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="e.g. 1234"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 font-mono text-center tracking-[1em]"
                 />
               </div>
 
               <button 
                 onClick={executePickup}
-                disabled={processing || !actualWeight}
+                disabled={processing || otp.length < 4}
                 className="w-full py-4 mt-4 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg"
               >
                 {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Pickup"}
