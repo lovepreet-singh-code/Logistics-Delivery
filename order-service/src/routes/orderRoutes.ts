@@ -17,6 +17,8 @@ import {
   bulkUploadOrders,
   inwardOrder,
   inwardParcel,
+  dispatchToTransit,
+  receiveAtDestinationHub,
   getMyOrders,
   getRecentOrders,
   getUnassignedOrders,
@@ -43,8 +45,11 @@ router.put("/:trackingId/execute-pickup", executePickup);
 router.get("/stats", getOrderStats);
 router.get("/admin/analytics", getAdminAnalytics);
 
-// ──── Hub Inwarding ────
-router.post("/inward", adminAuth, inwardParcel);
+// ──── Hub Operations ────
+router.put("/:trackingId/inward", adminAuth, inwardParcel);
+router.post("/inward", adminAuth, inwardParcel); // Keeping legacy just in case
+router.put("/:trackingId/transit", adminAuth, dispatchToTransit);
+router.put("/:trackingId/destination-inward", adminAuth, receiveAtDestinationHub);
 
 // ──── Order Endpoints ────
 router.route("/")

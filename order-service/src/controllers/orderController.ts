@@ -918,7 +918,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 // POST /api/orders/inward
 export const inwardParcel = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { trackingId } = req.body;
+    const trackingId = req.params.trackingId || req.body.trackingId || req.body.awb;
     if (!trackingId) {
       res.status(400).json({ success: false, message: "trackingId is required" });
       return;
@@ -940,7 +940,7 @@ export const inwardParcel = async (req: Request, res: Response): Promise<void> =
     if (order.status !== OrderStatus.PICKED_UP) {
       res.status(400).json({ 
         success: false, 
-        message: `Parcel is not ready for inwarding or already inwarded. Current status: ${order.status}` 
+        message: `Order must be picked up first. Current status: ${order.status}` 
       });
       return;
     }
@@ -952,10 +952,24 @@ export const inwardParcel = async (req: Request, res: Response): Promise<void> =
     order.statusHistory.push({
       status: OrderStatus.INWARDED_AT_HUB,
       timestamp: new Date(),
-      note: "Parcel inwarded at hub",
+      note: "Received at Origin Sorting Facility",
     });
 
     await order.save();
+
+    // Release the agent: Set the assigned agent's status back to AVAILABLE
+    if (order.routing && order.routing.agentId && mongoose.connection.db) {
+      try {
+        const usersCollection = mongoose.connection.db.collection("users");
+        await usersCollection.updateOne(
+          { _id: new mongoose.Types.ObjectId(order.routing.agentId) },
+          { $set: { status: "AVAILABLE" } }
+        );
+        console.log(`[INWARDING] Agent ${order.routing.agentId} released and set to AVAILABLE`);
+      } catch (agentErr) {
+        console.error("Failed to release agent during inwarding:", agentErr);
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -968,6 +982,131 @@ export const inwardParcel = async (req: Request, res: Response): Promise<void> =
   }
 };
 
+// PUT /api/orders/:trackingId/transit
+export const dispatchToTransit = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const trackingId = req.params.trackingId || req.body.trackingId || req.body.awb;
+    const { vehicleId } = req.body;
+
+    if (!trackingId) {
+      res.status(400).json({ success: false, message: "trackingId is required" });
+      return;
+    }
+
+    const order = await Order.findOne({
+      $or: [
+        { _id: mongoose.Types.ObjectId.isValid(trackingId) ? new mongoose.Types.ObjectId(trackingId) : null },
+        { awb: trackingId },
+        { trackingId: trackingId }
+      ]
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    if (order.status !== OrderStatus.INWARDED_AT_HUB && (order.status as unknown as string) !== "INWARDED") {
+      res.status(400).json({ 
+        success: false, 
+        message: `Order must be inwarded at hub first. Current status: ${order.status}` 
+      });
+      return;
+    }
+
+    order.status = OrderStatus.IN_TRANSIT;
+    if (!order.routing) {
+      order.routing = {} as any;
+    }
+    
+    if (vehicleId) {
+      order.routing.vehicleId = mongoose.Types.ObjectId.isValid(vehicleId) 
+        ? new mongoose.Types.ObjectId(vehicleId) 
+        : vehicleId;
+    }
+
+    if (!order.statusHistory) {
+      order.statusHistory = [];
+    }
+    order.statusHistory.push({
+      status: OrderStatus.IN_TRANSIT,
+      timestamp: new Date(),
+      note: "Dispatched to Destination Facility",
+    });
+
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Parcel Dispatched for Transit!",
+      data: order,
+    });
+  } catch (error: any) {
+    console.error("Dispatch to Transit Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PUT /api/orders/:trackingId/destination-inward
+export const receiveAtDestinationHub = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const trackingId = req.params.trackingId || req.body.trackingId || req.body.awb;
+
+    if (!trackingId) {
+      res.status(400).json({ success: false, message: "trackingId is required" });
+      return;
+    }
+
+    const order = await Order.findOne({
+      $or: [
+        { _id: mongoose.Types.ObjectId.isValid(trackingId) ? new mongoose.Types.ObjectId(trackingId) : null },
+        { awb: trackingId },
+        { trackingId: trackingId }
+      ]
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    if (order.status !== OrderStatus.IN_TRANSIT) {
+      res.status(400).json({ 
+        success: false, 
+        message: `Order must be in transit before it can be received at destination hub. Current status: ${order.status}` 
+      });
+      return;
+    }
+
+    order.status = OrderStatus.DESTINATION_HUB;
+
+    if (!order.statusHistory) {
+      order.statusHistory = [];
+    }
+    
+    order.statusHistory.push({
+      status: OrderStatus.DESTINATION_HUB,
+      timestamp: new Date(),
+      note: "Arrived at Destination Hub - Pending Last Mile Assignment",
+    });
+
+    // We can remove line-haul vehicle association since it has arrived
+    if (order.routing && order.routing.vehicleId) {
+      delete order.routing.vehicleId;
+    }
+
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Parcel Received at Destination Hub!",
+      data: order,
+    });
+  } catch (error: any) {
+    console.error("Destination Hub Receiving Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 // ═══════════════════════════════════════════════
 //  MANUAL ASSIGNMENT (TESTING BYPASS)
 // ═══════════════════════════════════════════════
@@ -1554,27 +1693,29 @@ export async function runAutoDispatchLogic(): Promise<number> {
     }
 
     const usersCollection = mongoose.connection.db!.collection("users");
-    const vehiclesCollection = mongoose.connection.db!.collection("vehicles");
 
     const availableAgents = await usersCollection.find({ 
-      role: "AGENT", 
-      $or: [{ availabilityStatus: "AVAILABLE" }, { availabilityStatus: null }] 
+      role: { $regex: /^(agent|driver)$/i }, 
+      $or: [
+        { status: { $regex: /^available$/i } },
+        { availabilityStatus: { $regex: /^available$/i } },
+        { status: null },
+        { availabilityStatus: null }
+      ] 
     }).toArray();
 
-    const availableVehicles = await vehiclesCollection.find({ status: "AVAILABLE" }).toArray();
+    console.log(`[CRON] DEBUG: Found ${orders.length} ORDER_PLACED orders and ${availableAgents.length} AVAILABLE agents.`);
 
     let assignedCount = 0;
 
     for (const order of orders) {
-      if (availableAgents.length > 0 && availableVehicles.length > 0) {
+      if (availableAgents.length > 0) {
         const agent = availableAgents.pop();
-        const vehicle = availableVehicles.pop();
 
         order.status = OrderStatus.PICKUP_ASSIGNED;
         if (!order.routing) order.routing = {} as any;
         order.routing.agentId = agent!._id as mongoose.Types.ObjectId;
-        order.routing.vehicleId = vehicle!._id as mongoose.Types.ObjectId;
-        order.routing.vehicleNumber = vehicle!.registrationNumber || vehicle!.licensePlate || "UNKNOWN";
+        order.routing.vehicleNumber = agent!.vehicleNumber || "UNKNOWN";
         order.routing.assignmentType = "AUTO_DISPATCH";
 
         order.statusHistory = order.statusHistory || [];
@@ -1588,17 +1729,12 @@ export async function runAutoDispatchLogic(): Promise<number> {
 
         await usersCollection.updateOne(
           { _id: agent!._id },
-          { $set: { availabilityStatus: "ON_DUTY" } }
-        );
-
-        await vehiclesCollection.updateOne(
-          { _id: vehicle!._id },
-          { $set: { status: "IN_USE" } }
+          { $set: { status: "BUSY", availabilityStatus: "BUSY" } }
         );
 
         assignedCount++;
       } else {
-        break; // No more agents or vehicles available
+        break; // No more agents available
       }
     }
 

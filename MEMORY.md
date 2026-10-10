@@ -1,5 +1,8 @@
 # 📦 Logistics Delivery Platform - Project Memory
 
+## 🧠 GRAPHIFY KNOWLEDGE GRAPH
+**AI Instruction:** Before making any cross-service changes or routing updates, ALWAYS read `CODE_GRAPH.md` first to understand dependencies and avoid breaking changes.
+
 ## 🏗️ Tech Stack & Architecture
 - **Frontend:** Next.js, Tailwind CSS, React Context/State.
 - **Backend:** Node.js, Express, Microservices Architecture (`order-service`, `dispatch-service`).
@@ -111,3 +114,16 @@ Simply double-click `start-all.bat` or run `.\start-all.bat` from the root termi
 - **Order Model Update:** The `Order` schema automatically generates a 4-digit `pickupOTP` when an order is created.
 - **Backend Route:** A new `PUT /:id/execute-pickup` route was created in `order-service`, bypassing old mechanisms. It validates the 4-digit customer OTP against `order.pickupOTP` (with `1234` as a demo fallback). Upon success, it updates the status to `PICKED_UP`, logs to `statusHistory`, and clears Redis cache.
 - **Agent Dashboard:** The "Accept Pickup" and multi-step flow was consolidated. Agents now click "Execute Pickup" directly, prompting a minimalist 4-digit OTP modal instead of weight/QR inputs. Successful validation instantly clears the order from their active pickup queue.
+
+## 🏢 Step 2: Origin Hub Inwarding
+- **Backend Route:** Updated the `inwardParcel` function in `orderController.ts` and mounted it at `PUT /:trackingId/inward` in `orderRoutes.ts`.
+- **Logic:** Validates that the parcel is in `PICKED_UP` state. Updates status to `INWARDED_AT_HUB`, pushes an entry to `statusHistory` ("Received at Origin Sorting Facility"), and crucially **releases the assigned agent** by resetting their status to `AVAILABLE` in the shared `users` collection.
+- **Admin UI:** Wired up `frontend/src/app/admin/inwarding/page.tsx` (Hub Inwarding Station) to use the new `PUT /orders/${trackingId}/inward` endpoint via the barcode scanner text input. Displays a success toast upon completion.
+
+## 🚚 Step 3: Mid-Mile Transit (Outwarding)
+- **Backend Route:** Created `dispatchToTransit` in `orderController.ts` and mounted at `PUT /:trackingId/transit`. Validates parcel is in `INWARDED_AT_HUB` state, updates to `IN_TRANSIT`, pushes to `statusHistory` ("Dispatched to Destination Facility"), and associates an optional `vehicleId` to `routing.vehicleId`.
+- **Admin UI:** Built a new Hub Outwarding Station at `frontend/src/app/admin/outwarding/page.tsx`. Features a barcode scanner simulator, optional Line-Haul Vehicle ID field, and session summary. Hits the new backend API endpoint.
+
+## 🏢 Step 4: Destination Hub Inwarding
+- **Backend Route:** Created `receiveAtDestinationHub` in `orderController.ts` and mounted at `PUT /:trackingId/destination-inward`. Validates parcel is in `IN_TRANSIT` state, updates to `DESTINATION_HUB`, removes the line-haul `vehicleId` from routing payload, and pushes `"Arrived at Destination Hub - Pending Last Mile Assignment"` to `statusHistory`.
+- **Admin UI:** Built a new Destination Hub Receiving Station at `frontend/src/app/admin/destination-hub/page.tsx`. Features a fast barcode scanner simulator that hits the new endpoint and displays a success toast to indicate the parcel has arrived at the delivery city's facility.

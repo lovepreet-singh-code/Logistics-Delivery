@@ -111,11 +111,13 @@ const startServer = async (): Promise<void> => {
 
   // ──── Zero-Touch Auto-Dispatch Cron Job ────
   cron.schedule('*/1 * * * *', async () => {
+    console.log(`[CRON] Starting Auto-Dispatch check at ${new Date().toISOString()}`);
     try {
       const assigned = await runAutoDispatchLogic();
       if (assigned > 0) {
         console.log(`[CRON] ⚡ Auto-Dispatch executed: ${assigned} orders assigned.`);
       }
+      console.log(`[CRON] Finished Auto-Dispatch check.`);
     } catch (error) {
       console.error("[CRON] Auto-Dispatch failed:", error);
     }

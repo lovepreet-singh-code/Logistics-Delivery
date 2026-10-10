@@ -16,11 +16,11 @@ export default function HubInwardingPage() {
 
     setLoading(true);
     try {
-      // POST /api/orders/inward using our standard backend service client wrapper
-      const res = await apiClient.post('/orders/inward', { trackingId });
+      // PUT /api/orders/:trackingId/inward using our standard backend service client wrapper
+      const res = await apiClient.put(`/orders/${trackingId}/inward`);
       
       if (res.data?.success) {
-        toast.success('Parcel successfully inwarded at Hub');
+        toast.success('Parcel Inwarded Successfully!');
         setRecentScans((prev) => [
           { id: trackingId, time: new Date().toLocaleTimeString(), success: true },
           ...prev,
