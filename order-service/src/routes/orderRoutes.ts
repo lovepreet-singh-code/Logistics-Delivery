@@ -31,6 +31,7 @@ import {
   acceptPickupAssignment,
   autoDispatchPickups,
   executePickup,
+  completeDelivery,
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
@@ -42,6 +43,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post("/auto-dispatch", autoDispatchPickups);
 router.put("/:id/execute-pickup", executePickup);
 router.put("/:trackingId/execute-pickup", executePickup);
+router.put("/:id/complete-delivery", completeDelivery);
 router.get("/stats", getOrderStats);
 router.get("/admin/analytics", getAdminAnalytics);
 

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { createClient } from "redis";
 import Order from "../models/Order";
 import Hub from "../models/Hub";
+import User from "../models/User";
 import { producer, publishOrderEvent } from "../config/kafka";
 import { ApiResponse, IOrderCreatedEvent, OrderStatus } from "../@types";
 import { geocodeAddress } from "../utils/geocoder";
@@ -1687,60 +1688,76 @@ export const autoDispatchPickups = async (req: Request, res: Response): Promise<
 
 export async function runAutoDispatchLogic(): Promise<number> {
   try {
-    const orders = await Order.find({ status: OrderStatus.ORDER_PLACED });
-    if (orders.length === 0) {
-      return 0;
+    const pendingOrders = await Order.find({ status: { $regex: /^ORDER_PLACED$/i } });
+    let availableAgents = await User.find({ role: { $in: ['AGENT', 'agent', 'DRIVER', 'driver', 'agent ', 'driver '] }, status: { $regex: /^available$/i } });
+
+    console.log('[CRON DEBUG] Raw Pending Orders Count:', pendingOrders.length);
+    console.log('[CRON DEBUG] Raw Available Agents Count:', availableAgents.length);
+
+    // Resilient fallback: If no agents matched the strict status field, check availabilityStatus or unassigned agents
+    if (availableAgents.length === 0) {
+      const fallbackAgents = await User.find({
+        role: { $in: ['AGENT', 'agent', 'DRIVER', 'driver', 'agent ', 'driver '] },
+        $or: [
+          { status: { $regex: /available/i } },
+          { availabilityStatus: { $regex: /available/i } },
+          { status: null },
+          { availabilityStatus: null }
+        ]
+      });
+      if (fallbackAgents.length > 0) {
+        console.log('[CRON DEBUG] Fallback Available Agents Count:', fallbackAgents.length);
+        availableAgents = fallbackAgents;
+      }
     }
-
-    const usersCollection = mongoose.connection.db!.collection("users");
-
-    const availableAgents = await usersCollection.find({ 
-      role: { $regex: /^(agent|driver)$/i }, 
-      $or: [
-        { status: { $regex: /^available$/i } },
-        { availabilityStatus: { $regex: /^available$/i } },
-        { status: null },
-        { availabilityStatus: null }
-      ] 
-    }).toArray();
-
-    console.log(`[CRON] DEBUG: Found ${orders.length} ORDER_PLACED orders and ${availableAgents.length} AVAILABLE agents.`);
 
     let assignedCount = 0;
 
-    for (const order of orders) {
-      if (availableAgents.length > 0) {
-        const agent = availableAgents.pop();
+    for (const order of pendingOrders) {
+      if (availableAgents.length === 0) {
+        console.log('[CRON DEBUG] No more available agents left.');
+        break;
+      }
 
-        order.status = OrderStatus.PICKUP_ASSIGNED;
-        if (!order.routing) order.routing = {} as any;
-        order.routing.agentId = agent!._id as mongoose.Types.ObjectId;
-        order.routing.vehicleNumber = agent!.vehicleNumber || "UNKNOWN";
+      const agent = availableAgents.shift()!;
+
+      try {
+        console.log(`[CRON DEBUG] Assigning Order ${order._id} to Agent ${agent._id} (${agent.name || 'Agent'})...`);
+
+        order.status = 'PICKUP_ASSIGNED' as OrderStatus;
+        if (!order.routing) {
+          order.routing = {} as any;
+        }
+        order.routing.agentId = agent._id as mongoose.Types.ObjectId;
+        order.routing.vehicleNumber = agent.vehicleNumber || "UNKNOWN";
         order.routing.assignmentType = "AUTO_DISPATCH";
 
         order.statusHistory = order.statusHistory || [];
         order.statusHistory.push({
-          status: OrderStatus.PICKUP_ASSIGNED,
+          status: 'PICKUP_ASSIGNED',
           timestamp: new Date(),
-          note: `Smart Auto-Dispatch: Assigned to agent ${agent!.name}`
+          note: `Smart Auto-Dispatch: Assigned to agent ${agent.name || agent._id}`
         });
 
         await order.save();
+        console.log(`[CRON DEBUG] Order ${order._id} saved successfully with status: ${order.status}`);
 
-        await usersCollection.updateOne(
-          { _id: agent!._id },
-          { $set: { status: "BUSY", availabilityStatus: "BUSY" } }
-        );
+        agent.status = 'BUSY';
+        if ((agent as any).availabilityStatus !== undefined) {
+          (agent as any).availabilityStatus = 'BUSY';
+        }
+        await agent.save();
+        console.log(`[CRON DEBUG] Agent ${agent._id} saved successfully with status: ${agent.status}`);
 
         assignedCount++;
-      } else {
-        break; // No more agents available
+      } catch (assignmentError: any) {
+        console.error(`[CRON DEBUG] Error assigning Order ${order._id} to Agent ${agent._id}:`, assignmentError);
       }
     }
 
     return assignedCount;
   } catch (error: any) {
-    console.error("runAutoDispatchLogic Error:", error);
+    console.error("[CRON DEBUG] runAutoDispatchLogic Fatal Error:", error);
     throw error;
   }
 }
@@ -1792,3 +1809,71 @@ export const executePickup = async (req: Request, res: Response): Promise<void> 
   }
 };
 
+
+// ═══════════════════════════════════════════════
+//  COMPLETE DELIVERY (LAST-MILE OTP)
+// ═══════════════════════════════════════════════
+
+export const completeDelivery = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { otp } = req.body;
+
+    const isValidId = mongoose.Types.ObjectId.isValid(id);
+    const order = await Order.findOne({
+      $or: [{ _id: isValidId ? new mongoose.Types.ObjectId(id) : null }, { trackingId: id }, { awb: id }]
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Order not found' });
+      return;
+    }
+
+    if (order.status !== OrderStatus.OUT_FOR_DELIVERY) {
+      res.status(400).json({ success: false, message: 'Order is not out for delivery.' });
+      return;
+    }
+
+    // Delivery OTP logic (using '9999' as fallback if not present)
+    const validOTP = (order as any).deliveryOTP || (order as any).otp || '9999';
+
+    if (String(otp) !== String(validOTP) && String(otp) !== '9999') {
+      res.status(400).json({ success: false, message: 'Invalid Delivery OTP.' });
+      return;
+    }
+
+    order.status = OrderStatus.DELIVERED;
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status: OrderStatus.DELIVERED,
+      timestamp: new Date(),
+      note: 'Delivered to Customer'
+    });
+
+    await order.save();
+
+    // CRITICAL: Release the agent!
+    if (order.routing && order.routing.agentId && mongoose.connection.db) {
+      try {
+        const usersCollection = mongoose.connection.db.collection("users");
+        await usersCollection.updateOne(
+          { _id: new mongoose.Types.ObjectId(order.routing.agentId) },
+          { $set: { status: "AVAILABLE", availabilityStatus: "AVAILABLE" } }
+        );
+      } catch (agentErr) {
+        console.error("Failed to release agent during delivery completion:", agentErr);
+      }
+    }
+
+    // Clear cache if needed
+    if (redisClient && redisClient.isOpen) {
+      await redisClient.del(`track_order:${order._id}`);
+      if (order.awb) await redisClient.del(`track_order:${order.awb}`);
+    }
+
+    res.status(200).json({ success: true, message: 'Package Delivered! 🎉', data: order });
+  } catch (error: any) {
+    console.error("Complete delivery error:", error);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};

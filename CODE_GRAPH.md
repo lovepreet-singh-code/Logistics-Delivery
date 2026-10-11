@@ -54,6 +54,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 - **/customer/book** -> POST `/api/orders` (Order Service)
 - **/customer/track/[orderId]** -> GET `/api/orders/:id` (Order Service Cache) & Socket.io for Real-time maps (`TrackingMap.tsx`).
 - **/agent/pickup-dashboard** -> GET `/api/orders` & PUT `/api/orders/:id/pickup-confirm` (Order Service)
+- **/agent/delivery-dashboard** -> GET `/api/orders?status=OUT_FOR_DELIVERY` & PUT `/api/orders/:id/complete-delivery` (Order Service)
 - **/admin/planning** -> Connects to `dispatch-service` for manifests and `order-service` for auto-seeding.
 - **/admin/inwarding** -> PUT `/api/orders/:trackingId/inward` (Order Service)
 - **/admin/outwarding** -> PUT `/api/orders/:trackingId/transit` (Order Service)

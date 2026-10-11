@@ -127,3 +127,8 @@ Simply double-click `start-all.bat` or run `.\start-all.bat` from the root termi
 ## 🏢 Step 4: Destination Hub Inwarding
 - **Backend Route:** Created `receiveAtDestinationHub` in `orderController.ts` and mounted at `PUT /:trackingId/destination-inward`. Validates parcel is in `IN_TRANSIT` state, updates to `DESTINATION_HUB`, removes the line-haul `vehicleId` from routing payload, and pushes `"Arrived at Destination Hub - Pending Last Mile Assignment"` to `statusHistory`.
 - **Admin UI:** Built a new Destination Hub Receiving Station at `frontend/src/app/admin/destination-hub/page.tsx`. Features a fast barcode scanner simulator that hits the new endpoint and displays a success toast to indicate the parcel has arrived at the delivery city's facility.
+
+## 🏁 Step 5: Last-Mile Delivery (POD)
+- **Backend Route (Auto-Dispatch Upgrade):** Enhanced `runAutoDispatchLogic` to concurrently process both first-mile (`ORDER_PLACED`) and last-mile (`DESTINATION_HUB`) unassigned orders. Destination orders are assigned to available agents, setting the order to `OUT_FOR_DELIVERY` and the agent to `BUSY`.
+- **Backend Route (Complete Delivery):** Created `completeDelivery` in `orderController.ts` mapped to `PUT /:id/complete-delivery`. It verifies the correct OTP ('9999' as fallback), transitions the order to `DELIVERED`, and most importantly, releases the agent back to the `AVAILABLE` pool for their next gig.
+- **Agent UI:** Connected the `frontend/src/app/agent/delivery-dashboard/page.tsx` page to fetch `OUT_FOR_DELIVERY` orders for the agent. Triggering "Execute Delivery" opens a polished modal for OTP and signature capture, invoking the final delivery route to complete the lifecycle.

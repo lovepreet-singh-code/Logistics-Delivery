@@ -86,8 +86,7 @@ export default function DeliveryDashboard() {
     setProcessing(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await apiClient.patch(`/orders/${activeDelivery._id}/status`, {
-        status: "DELIVERED",
+      const res = await apiClient.put(`/orders/${activeDelivery._id}/complete-delivery`, {
         otp,
         signatureBase64: signatureBase64 || undefined
       }, {
@@ -95,7 +94,7 @@ export default function DeliveryDashboard() {
       });
 
       if (res.data.success) {
-        toast.success("✅ Delivery Completed Successfully!");
+        toast.success("Package Delivered! 🎉");
         setDeliveries(prev => prev.filter(d => d._id !== activeDelivery._id));
         closeModal();
       }
@@ -251,7 +250,7 @@ export default function DeliveryDashboard() {
 
               <button 
                 onClick={executeDelivery}
-                disabled={processing || !otp || otp.length < 6}
+                disabled={processing || !otp || otp.length < 4}
                 className="w-full py-4 mt-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg"
               >
                 {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Delivery"}
