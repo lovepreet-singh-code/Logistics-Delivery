@@ -54,6 +54,8 @@ router.put("/:trackingId/transit", adminAuth, dispatchToTransit);
 router.put("/:trackingId/destination-inward", adminAuth, receiveAtDestinationHub);
 
 // ──── Order Endpoints ────
+router.post("/", createOrder);
+router.get("/", getAllOrders);
 router.route("/")
   .post(createOrder)
   .get(getAllOrders);

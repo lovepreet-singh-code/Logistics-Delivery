@@ -5,7 +5,7 @@ import morgan from "morgan";
 
 import config from "./config";
 import connectDB from "./config/database";
-import { connectProducer, startConsumer, disconnectKafka } from "./config/kafka";
+import { connectProducer, startConsumer, disconnectKafka, isKafkaAvailable } from "./config/kafka";
 import orderRoutes from "./routes/orderRoutes";
 import hubRoutes from "./routes/hubRoutes";
 import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
@@ -20,8 +20,38 @@ const app = express();
 
 
 // ──── Global Middleware ────
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080"
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. mobile apps, curl, server-to-server) or matched origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Dev-friendly fallback
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "Origin",
+    "X-Requested-With",
+    "Access-Control-Allow-Origin"
+  ],
+}));
+
+app.options("*", cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,13 +86,15 @@ app.use((req: Request, res: Response) => {
 const startServer = async (): Promise<void> => {
   await connectDB();
 
-  // ──── Connect Kafka ────
+  // ──── Connect Kafka (Graceful Degradation) ────
   try {
     await connectProducer();
-    await startConsumer();
-    console.log("Kafka connected successfully.");
+    if (isKafkaAvailable) {
+      await startConsumer();
+      console.log("Kafka connected successfully.");
+    }
   } catch (err) {
-    console.error("Kafka connection failed. Running without Kafka...", err);
+    console.warn("[KAFKA WARNING] Broker not ready, running in degraded mode");
   }
 
   const httpServer = require("http").createServer(app);
@@ -103,11 +135,15 @@ const startServer = async (): Promise<void> => {
     `);
   });
 
-  // ──── Start Background Workers (Non-blocking) ────
-  startOrderRoutedWorker().catch(e => console.error("Worker failed", e));
-  startDispatchManifestedWorker().catch(e => console.error("Worker failed", e));
-  startDeliveryCompletedWorker().catch(e => console.error("Worker failed", e));
-  startOrderStatusWorker().catch(e => console.error("Worker failed", e));
+  // ──── Start Background Workers (Non-blocking & Graceful) ────
+  if (isKafkaAvailable) {
+    startOrderRoutedWorker().catch(() => console.warn("[KAFKA WARNING] Order Routed worker running in degraded mode"));
+    startDispatchManifestedWorker().catch(() => console.warn("[KAFKA WARNING] Dispatch Manifested worker running in degraded mode"));
+    startDeliveryCompletedWorker().catch(() => console.warn("[KAFKA WARNING] Delivery Completed worker running in degraded mode"));
+    startOrderStatusWorker().catch(() => console.warn("[KAFKA WARNING] Order Status worker running in degraded mode"));
+  } else {
+    console.warn("[KAFKA WARNING] Skipping background Kafka workers, running in degraded mode");
+  }
 
   // ──── Zero-Touch Auto-Dispatch Cron Job ────
   cron.schedule('*/1 * * * *', async () => {

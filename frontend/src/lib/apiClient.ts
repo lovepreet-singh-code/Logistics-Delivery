@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Base API Client configured for the API Gateway
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api', // Pointing correctly to the API Gateway
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api', // Pointing to the API Gateway with env override support
 });
 
 // Request interceptor to attach Bearer token

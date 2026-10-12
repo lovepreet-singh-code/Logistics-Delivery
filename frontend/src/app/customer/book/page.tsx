@@ -26,10 +26,18 @@ export default function BookParcelPage() {
   useEffect(() => {
     const fetchHubs = async () => {
       try {
-        const res = await axios.get('http://localhost:4004/api/hubs');
+        // Attempt fetch through API Gateway first
+        const res = await apiClient.get('/hubs');
         setHubs(res.data.data || []);
-      } catch (err) {
-        console.error("Failed to fetch hubs", err);
+      } catch (err: any) {
+        console.warn("[Hubs] Gateway fetch failed, trying direct Order Service port 4004...", err?.message);
+        try {
+          const directHubsUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + '/api/hubs';
+          const res = await axios.get(directHubsUrl);
+          setHubs(res.data.data || []);
+        } catch (fallbackErr) {
+          console.error("Failed to fetch hubs from both gateway and direct service", fallbackErr);
+        }
       }
     };
     fetchHubs();
@@ -77,9 +85,21 @@ export default function BookParcelPage() {
   const handlePayment = async (orderId: string, amount: number) => {
     try {
       const token = localStorage.getItem('token');
-      const initRes = await apiClient.post(`/orders/${orderId}/pay`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      let initRes;
+      try {
+        initRes = await apiClient.post(`/orders/${orderId}/pay`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (payGatewayErr: any) {
+        if (!payGatewayErr.response && (payGatewayErr.code === 'ERR_NETWORK' || payGatewayErr.message?.includes('Network Error'))) {
+          const directPayUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + `/api/orders/${orderId}/pay`;
+          initRes = await axios.post(directPayUrl, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } else {
+          throw payGatewayErr;
+        }
+      }
 
       if (!initRes.data.success) {
         throw new Error("Failed to initialize payment");
@@ -96,14 +116,27 @@ export default function BookParcelPage() {
         order_id: razorpayOrder.id,
         handler: async function (response: any) {
           try {
-            const verifyRes = await apiClient.post(`/orders/verify-payment`, {
+            const verifyPayload = {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               orderId
-            }, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
+            };
+            let verifyRes;
+            try {
+              verifyRes = await apiClient.post(`/orders/verify-payment`, verifyPayload, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+            } catch (verifyGatewayErr: any) {
+              if (!verifyGatewayErr.response && (verifyGatewayErr.code === 'ERR_NETWORK' || verifyGatewayErr.message?.includes('Network Error'))) {
+                const directVerifyUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + `/api/orders/verify-payment`;
+                verifyRes = await axios.post(directVerifyUrl, verifyPayload, {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+              } else {
+                throw verifyGatewayErr;
+              }
+            }
 
             if (verifyRes.data.success) {
               toast.success("Payment successful! Order booked.");
@@ -231,9 +264,24 @@ export default function BookParcelPage() {
         paymentMethod
       };
 
-      const res = await apiClient.post('/orders', payloadData);
+      // Submit via API Gateway with seamless fallback to direct Order Service if Gateway is offline
+      let res;
+      try {
+        res = await apiClient.post('/orders', payloadData);
+      } catch (gatewayErr: any) {
+        const isNetworkErr = !gatewayErr.response && (gatewayErr.code === 'ERR_NETWORK' || gatewayErr.message?.includes('Network Error'));
+        if (isNetworkErr) {
+          console.warn("[Booking] API Gateway unreachable on port 8080. Attempting direct fallback to Order Service on port 4004...", gatewayErr);
+          const directOrdersUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + '/api/orders';
+          res = await axios.post(directOrdersUrl, payloadData, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          });
+        } else {
+          throw gatewayErr;
+        }
+      }
 
-      if (res.data && res.data.success) {
+      if (res && res.data && res.data.success) {
         const orderId = res.data.data?._id || res.data.data?.id;
         const trackingId = res.data.data?.awb || res.data.data?.trackingId || orderId;
 
@@ -249,8 +297,25 @@ export default function BookParcelPage() {
         }, 2500);
       }
     } catch (error: any) {
-      console.error("Booking Error:", error.response?.data);
-      setError(typeof error.response?.data?.message === 'string' ? error.response.data.message : JSON.stringify(error.response?.data || error.message));
+      console.error("[Booking Submission Error Details]:", {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers,
+        request: error.request,
+      });
+      console.error("Full Error Object:", error);
+
+      const errorMessage =
+        error.response?.data?.message ||
+        (typeof error.response?.data === 'string' ? error.response.data : null) ||
+        error.message ||
+        "Failed to place order due to a network or server issue.";
+
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
     }
   };

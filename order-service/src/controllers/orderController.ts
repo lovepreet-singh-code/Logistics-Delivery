@@ -124,7 +124,7 @@ export const createOrder = async (
       deliveryAddress,
       parcelDetails,
       pickupDate,
-      status: OrderStatus.ORDER_PLACED,
+      status: req.body.status || OrderStatus.ORDER_PLACED,
       paymentMethod: paymentMethod || "PREPAID",
       totalAmount: totalAmount || req.body.price,
       paymentStatus: req.body.paymentStatus,
@@ -1688,7 +1688,25 @@ export const autoDispatchPickups = async (req: Request, res: Response): Promise<
 
 export async function runAutoDispatchLogic(): Promise<number> {
   try {
-    const pendingOrders = await Order.find({ status: { $regex: /^ORDER_PLACED$/i } });
+    // ──── Catch-All Debug Query: Count ALL orders without an assigned agent ────
+    const unassignedOrders = await Order.find({
+      $or: [
+        { 'routing.agentId': null },
+        { 'routing.agentId': { $exists: false } },
+        { routing: null }
+      ]
+    });
+    console.log('[CRON DEBUG] Unassigned statuses in DB:', unassignedOrders.map(o => o.status));
+
+    // ──── Query Pending Orders with broader starting statuses ────
+    const pendingOrders = await Order.find({
+      status: { $regex: /^(ORDER_PLACED|PENDING|Booked)$/i },
+      $or: [
+        { 'routing.agentId': null },
+        { 'routing.agentId': { $exists: false } },
+        { routing: null }
+      ]
+    });
     let availableAgents = await User.find({ role: { $in: ['AGENT', 'agent', 'DRIVER', 'driver', 'agent ', 'driver '] }, status: { $regex: /^available$/i } });
 
     console.log('[CRON DEBUG] Raw Pending Orders Count:', pendingOrders.length);
@@ -1724,6 +1742,11 @@ export async function runAutoDispatchLogic(): Promise<number> {
       try {
         console.log(`[CRON DEBUG] Assigning Order ${order._id} to Agent ${agent._id} (${agent.name || 'Agent'})...`);
 
+        // Safeguard for legacy orders with missing required fields
+        if (order.parcelDetails && !order.parcelDetails.category) {
+          order.parcelDetails.category = 'DOCUMENT';
+        }
+
         order.status = 'PICKUP_ASSIGNED' as OrderStatus;
         if (!order.routing) {
           order.routing = {} as any;
@@ -1751,6 +1774,8 @@ export async function runAutoDispatchLogic(): Promise<number> {
 
         assignedCount++;
       } catch (assignmentError: any) {
+        // Return agent to pool if order assignment failed so next orders can be processed
+        availableAgents.unshift(agent);
         console.error(`[CRON DEBUG] Error assigning Order ${order._id} to Agent ${agent._id}:`, assignmentError);
       }
     }
