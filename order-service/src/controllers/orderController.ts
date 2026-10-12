@@ -905,6 +905,20 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
   
       await order.save();
   
+      // Release the agent: Set the assigned agent's status back to AVAILABLE
+      if (order.routing && order.routing.agentId && mongoose.connection.db) {
+        try {
+          const usersCollection = mongoose.connection.db.collection("users");
+          await usersCollection.updateOne(
+            { _id: new mongoose.Types.ObjectId(order.routing.agentId) },
+            { $set: { status: "AVAILABLE", availabilityStatus: "AVAILABLE" } }
+          );
+          console.log(`[INWARDING] Agent ${order.routing.agentId} released and set to AVAILABLE`);
+        } catch (agentErr) {
+          console.error("Failed to release agent during inwarding:", agentErr);
+        }
+      }
+  
       res.status(200).json({
         success: true,
         message: "Order inwarded successfully",
@@ -964,7 +978,7 @@ export const inwardParcel = async (req: Request, res: Response): Promise<void> =
         const usersCollection = mongoose.connection.db.collection("users");
         await usersCollection.updateOne(
           { _id: new mongoose.Types.ObjectId(order.routing.agentId) },
-          { $set: { status: "AVAILABLE" } }
+          { $set: { status: "AVAILABLE", availabilityStatus: "AVAILABLE" } }
         );
         console.log(`[INWARDING] Agent ${order.routing.agentId} released and set to AVAILABLE`);
       } catch (agentErr) {
@@ -1726,6 +1740,29 @@ export async function runAutoDispatchLogic(): Promise<number> {
       if (fallbackAgents.length > 0) {
         console.log('[CRON DEBUG] Fallback Available Agents Count:', fallbackAgents.length);
         availableAgents = fallbackAgents;
+      } else {
+        // Dynamic recovery: Recover agents who don't have active uncompleted pickup assignments
+        const allAgents = await User.find({
+          role: { $in: ['AGENT', 'agent', 'DRIVER', 'driver', 'agent ', 'driver '] }
+        });
+        const activeAssignedAgentIds = await Order.distinct('routing.agentId', {
+          status: { $in: ['PICKUP_ASSIGNED', 'PICKUP_ACCEPTED'] }
+        });
+        const activeSet = new Set(activeAssignedAgentIds.map(id => id ? id.toString() : ''));
+        const freeAgents = allAgents.filter(a => !activeSet.has(a._id.toString()));
+
+        if (freeAgents.length > 0) {
+          console.log(`[CRON DEBUG] Recovered ${freeAgents.length} agents with no active pickup assignments.`);
+          for (const freeAgent of freeAgents) {
+            freeAgent.status = 'AVAILABLE';
+            (freeAgent as any).availabilityStatus = 'AVAILABLE';
+            await freeAgent.save().catch(() => {});
+          }
+          availableAgents = freeAgents;
+        } else if (allAgents.length > 0) {
+          console.log(`[CRON DEBUG] High load fallback: Distributing among all ${allAgents.length} active agents.`);
+          availableAgents = allAgents;
+        }
       }
     }
 
