@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Map, Truck, Package, LogOut, Search, 
   Users, UserCog, UserCheck, Warehouse, Navigation, 
   MapPin, BarChart3, PieChart, Settings, SearchIcon,
-  Bell, FileText, Activity, Upload
+  Bell, FileText, Activity, Upload, Building2
 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -66,6 +66,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/inwarding" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <Warehouse className="w-5 h-5 group-hover:text-amber-400" />
             <span className="font-medium text-sm">Hub Inwarding</span>
+          </Link>
+          <Link href="/admin/outwarding" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <Truck className="w-5 h-5 group-hover:text-amber-400" />
+            <span className="font-medium text-sm">Hub Outwarding</span>
+          </Link>
+          <Link href="/admin/destination-hub" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
+            <Building2 className="w-5 h-5 group-hover:text-purple-400" />
+            <span className="font-medium text-sm">Destination Hub</span>
           </Link>
           <Link href="/admin/finance" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group">
             <PieChart className="w-5 h-5 group-hover:text-emerald-400" />

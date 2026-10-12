@@ -1714,7 +1714,7 @@ export async function runAutoDispatchLogic(): Promise<number> {
 
     // ──── Query Pending Orders with broader starting statuses ────
     const pendingOrders = await Order.find({
-      status: { $regex: /^(ORDER_PLACED|PENDING|Booked)$/i },
+      status: { $regex: /^(ORDER_PLACED|PENDING|Booked|DESTINATION_HUB)$/i },
       $or: [
         { 'routing.agentId': null },
         { 'routing.agentId': { $exists: false } },
@@ -1746,7 +1746,7 @@ export async function runAutoDispatchLogic(): Promise<number> {
           role: { $in: ['AGENT', 'agent', 'DRIVER', 'driver', 'agent ', 'driver '] }
         });
         const activeAssignedAgentIds = await Order.distinct('routing.agentId', {
-          status: { $in: ['PICKUP_ASSIGNED', 'PICKUP_ACCEPTED'] }
+          status: { $in: ['PICKUP_ASSIGNED', 'PICKUP_ACCEPTED', 'OUT_FOR_DELIVERY'] }
         });
         const activeSet = new Set(activeAssignedAgentIds.map(id => id ? id.toString() : ''));
         const freeAgents = allAgents.filter(a => !activeSet.has(a._id.toString()));
@@ -1784,7 +1784,10 @@ export async function runAutoDispatchLogic(): Promise<number> {
           order.parcelDetails.category = 'DOCUMENT';
         }
 
-        order.status = 'PICKUP_ASSIGNED' as OrderStatus;
+        const isDestinationHub = typeof order.status === 'string' && /^DESTINATION_HUB$/i.test(order.status);
+        const assignedStatus = isDestinationHub ? OrderStatus.OUT_FOR_DELIVERY : OrderStatus.PICKUP_ASSIGNED;
+
+        order.status = assignedStatus;
         if (!order.routing) {
           order.routing = {} as any;
         }
@@ -1794,9 +1797,11 @@ export async function runAutoDispatchLogic(): Promise<number> {
 
         order.statusHistory = order.statusHistory || [];
         order.statusHistory.push({
-          status: 'PICKUP_ASSIGNED',
+          status: assignedStatus,
           timestamp: new Date(),
-          note: `Smart Auto-Dispatch: Assigned to agent ${agent.name || agent._id}`
+          note: isDestinationHub
+            ? `Smart Auto-Dispatch: Out for delivery with agent ${agent.name || agent._id}`
+            : `Smart Auto-Dispatch: Assigned to agent ${agent.name || agent._id}`
         });
 
         await order.save();
