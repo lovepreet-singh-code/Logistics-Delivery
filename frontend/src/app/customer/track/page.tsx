@@ -103,20 +103,102 @@ export default function CustomerDashboard() {
     window.open(url, '_blank');
   };
 
+  // Status hierarchy map supporting all lifecycle states
+  const statusHierarchy: Record<string, number> = {
+    ORDER_PLACED: 0,
+    PENDING: 0,
+    BOOKED: 0,
+    PENDING_PICKUP: 0,
+    PICKUP_ASSIGNED: 0,
+    PICKUP_ACCEPTED: 0,
+    PICKED_UP: 1,
+    PICKUP_COMPLETED: 1,
+    AT_HUB: 1,
+    PENDING_INWARD: 1,
+    INWARDED_AT_HUB: 1,
+    IN_TRANSIT: 2,
+    OUTWARDED: 2,
+    DESTINATION_HUB: 3,
+    REACHED_DESTINATION_HUB: 3,
+    OUT_FOR_DELIVERY: 4,
+    OUT_FOR_DELIVERY_ASSIGNED: 4,
+    DELIVERED: 5,
+    COMPLETED: 5,
+  };
+
+  const stepOrder: Record<string, number> = {
+    ORDER_PLACED: 0,
+    PICKED_UP: 1,
+    IN_TRANSIT: 2,
+    DESTINATION_HUB: 3,
+    OUT_FOR_DELIVERY: 4,
+    DELIVERED: 5,
+  };
+
   // Helper to determine step states
-  const getStepStatus = (step: 'ORDER_PLACED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DESTINATION_HUB' | 'OUT_FOR_DELIVERY' | 'DELIVERED', currentStatus: string) => {
-    const statuses = ['ORDER_PLACED', 'PICKED_UP', 'IN_TRANSIT', 'DESTINATION_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED'];
-    // Map legacy PENDING to ORDER_PLACED safely
-    if (currentStatus === 'PENDING') currentStatus = 'ORDER_PLACED';
-    
-    const currentIndex = statuses.indexOf(currentStatus?.toUpperCase());
-    if (currentIndex === -1) return 'pending'; // Unknown status defaults to pending
-    
-    const targetIndex = statuses.indexOf(step);
-    
-    if (currentIndex > targetIndex) return 'completed';
-    if (currentIndex === targetIndex) return 'active';
+  const getStepStatus = (
+    step: 'ORDER_PLACED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DESTINATION_HUB' | 'OUT_FOR_DELIVERY' | 'DELIVERED',
+    currentStatus?: string
+  ) => {
+    if (!currentStatus) return 'pending';
+    const normalized = String(currentStatus).toUpperCase().trim();
+    const currentLevel = statusHierarchy[normalized];
+    const targetLevel = stepOrder[step];
+
+    if (currentLevel === undefined || targetLevel === undefined) return 'pending';
+    if (currentLevel > targetLevel) return 'completed';
+    if (currentLevel === targetLevel) return 'active';
     return 'pending';
+  };
+
+  // Helper to get formatted status badge styling and copy
+  const getStatusBadge = (rawStatus?: string) => {
+    const status = String(rawStatus || '').toUpperCase().trim();
+    switch (status) {
+      case 'DELIVERED':
+      case 'COMPLETED':
+        return {
+          label: 'DELIVERED',
+          badgeClass: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+          title: 'Package Delivered',
+        };
+      case 'OUT_FOR_DELIVERY':
+      case 'OUT_FOR_DELIVERY_ASSIGNED':
+        return {
+          label: 'OUT FOR DELIVERY',
+          badgeClass: 'bg-blue-100 text-blue-700 border border-blue-200',
+          title: 'Out For Delivery',
+        };
+      case 'DESTINATION_HUB':
+      case 'REACHED_DESTINATION_HUB':
+        return {
+          label: 'REACHED DESTINATION HUB',
+          badgeClass: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+          title: 'At Destination Hub',
+        };
+      case 'IN_TRANSIT':
+      case 'OUTWARDED':
+        return {
+          label: 'IN TRANSIT',
+          badgeClass: 'bg-purple-100 text-purple-700 border border-purple-200',
+          title: 'In Transit',
+        };
+      case 'PICKED_UP':
+      case 'INWARDED_AT_HUB':
+      case 'AT_HUB':
+      case 'PICKUP_COMPLETED':
+        return {
+          label: status.replace(/_/g, ' '),
+          badgeClass: 'bg-amber-100 text-amber-700 border border-amber-200',
+          title: 'Picked Up',
+        };
+      default:
+        return {
+          label: (status || 'ORDER PLACED').replace(/_/g, ' '),
+          badgeClass: 'bg-amber-100 text-amber-700 border border-amber-200',
+          title: 'Order Placed',
+        };
+    }
   };
 
   if (!isMounted) return null; // Server par kuch render mat karo
@@ -211,7 +293,7 @@ export default function CustomerDashboard() {
 
                 {/* Agent Card (Full Width Row below details) */}
                 <div className="w-full mt-8 pt-6 border-t border-slate-100 flex items-start">
-                  {['PICKUP_ACCEPTED', 'PICKED_UP', 'IN_TRANSIT', 'INWARDED_AT_HUB', 'AT_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(orderData.status) ? (
+                  {['PICKUP_ACCEPTED', 'PICKED_UP', 'IN_TRANSIT', 'INWARDED_AT_HUB', 'AT_HUB', 'DESTINATION_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(String(orderData.status).toUpperCase().trim()) ? (
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-wrap sm:flex-nowrap items-center gap-4 shadow-xl text-left w-full md:w-auto">
                       <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border-2 border-indigo-500/30">
                         <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=1e293b" alt="Agent Avatar" className="w-full h-full object-cover" />
@@ -244,7 +326,7 @@ export default function CustomerDashboard() {
 
               {/* Right Sidebar - Span 1 */}
               <div className="lg:col-span-1 flex flex-col gap-4">
-                {['PICKUP_ACCEPTED', 'PICKED_UP', 'IN_TRANSIT', 'INWARDED_AT_HUB', 'AT_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(orderData.status) && (
+                {['PICKUP_ACCEPTED', 'PICKED_UP', 'IN_TRANSIT', 'INWARDED_AT_HUB', 'AT_HUB', 'DESTINATION_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(String(orderData.status).toUpperCase().trim()) && (
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
                       <Car className="w-5 h-5 text-orange-600" />
@@ -263,21 +345,35 @@ export default function CustomerDashboard() {
                   </div>
                   <div className="text-left">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Hub</p>
-                    <p className="text-sm font-bold text-slate-900">Mumbai Central Sort Facility</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Processed 2 hours ago</p>
+                    <p className="text-sm font-bold text-slate-900">
+                      {String(orderData.status).toUpperCase().trim() === 'DELIVERED' ? 'Final Delivery Point' : 'Mumbai Central Sort Facility'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {String(orderData.status).toUpperCase().trim() === 'DELIVERED' ? 'Delivered to Customer' : 'Processed'}
+                    </p>
                   </div>
                 </div>
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                    <Clock className="w-5 h-5 text-blue-600" />
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    ['DELIVERED', 'COMPLETED'].includes(String(orderData.status).toUpperCase().trim())
+                      ? 'bg-emerald-100 text-emerald-600'
+                      : 'bg-blue-100 text-blue-600'
+                  }`}>
+                    {['DELIVERED', 'COMPLETED'].includes(String(orderData.status).toUpperCase().trim()) ? (
+                      <CheckCircle className="w-5 h-5" />
+                    ) : (
+                      <Clock className="w-5 h-5" />
+                    )}
                   </div>
                   <div className="text-left">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estimated Arrival</p>
-                    <p className="text-sm font-bold text-slate-900">Today, 5:00 PM</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Status</p>
+                    <p className="text-sm font-bold text-slate-900">{getStatusBadge(orderData.status).title}</p>
                     <div className="mt-1">
-                      <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
-                        PICKUP ASSIGNED
+                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        getStatusBadge(orderData.status).badgeClass
+                      }`}>
+                        {getStatusBadge(orderData.status).label}
                       </span>
                     </div>
                   </div>
@@ -403,7 +499,7 @@ export default function CustomerDashboard() {
                   <p className="text-sm text-slate-500 mt-1">Successfully delivered to the destination.</p>
                   
                   {/* Digital Signature Receipt */}
-                  {orderData.status === 'DELIVERED' && orderData.proofOfDeliverySignature && (
+                  {String(orderData.status).toUpperCase().trim() === 'DELIVERED' && orderData.proofOfDeliverySignature && (
                     <div className="mt-6 p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm inline-block max-w-sm w-full relative">
                       <div className="absolute -top-3 left-6 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-emerald-200">
                         Digital Receipt
@@ -442,7 +538,7 @@ export default function CustomerDashboard() {
               </div>
 
               {/* Secure OTP Display */}
-              {orderData.status === 'OUT_FOR_DELIVERY' && orderData.otp && (
+              {String(orderData.status).toUpperCase().trim() === 'OUT_FOR_DELIVERY' && orderData.otp && (
                 <div className="mt-8 p-6 bg-indigo-50 border-2 border-indigo-100 rounded-2xl relative overflow-hidden group shadow-inner ml-4 sm:ml-8 max-w-sm">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-200/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                   <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-widest mb-2 flex items-center gap-2">
