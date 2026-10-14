@@ -8,6 +8,7 @@ import connectDB from "./config/database";
 import { connectProducer, startConsumer, disconnectKafka, isKafkaAvailable } from "./config/kafka";
 import orderRoutes from "./routes/orderRoutes";
 import hubRoutes from "./routes/hubRoutes";
+import serviceabilityRoutes from "./routes/serviceabilityRoutes";
 import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
 import { startDispatchManifestedWorker } from "./workers/dispatchManifestedWorker";
 import { startDeliveryCompletedWorker } from "./workers/deliveryCompletedWorker";
@@ -72,6 +73,7 @@ app.get("/health", (_req: Request, res: Response) => {
 // ──── API Routes ────
 app.use("/api/orders", orderRoutes);
 app.use("/api/hubs", hubRoutes);
+app.use("/api/serviceability", serviceabilityRoutes);
 
 // ──── 404 Handler ────
 app.use((req: Request, res: Response) => {

@@ -17,6 +17,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 - `http://localhost:8080/api/warehouses` -> **Topology Service** (`topology-service:4002/api/warehouses`)
 - `http://localhost:8080/api/fleet` -> **Fleet Service** (`fleet-service:4003/api/fleet`)
 - `http://localhost:8080/api/analytics` -> **Analytics Service** (`analytics-service:4006/api/analytics`)
+- `http://localhost:8080/api/serviceability` -> **Order Service** (`order-service:4004/api/serviceability`) ⭐ *Phase 2 — CX Upgrade*
 
 ## 3. Microservice Deep Dives
 
@@ -33,6 +34,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 **Internal Controllers:**
 - `orderController.ts`: Handles CRUD, Zero-Touch Auto-Dispatch Cron Engine (`runAutoDispatchLogic`), and pricing calculation (`calculateTotalAmount`).
 - `hubController.ts`: Handles Hub lookups.
+- `serviceabilityRoutes.ts`: ⭐ *Phase 2* — `GET /api/serviceability/check?pincode=XXXXXX` — **Dynamically** queries `Hub.findOne({ serviceablePincodes: pincode, isActive: true })`. City name sourced from `hub.hubName`. Returns `{ serviceable: boolean, city, hubCode, message }`. Zero hardcoding — fully driven by Admin-managed Hub records in MongoDB.
 
 ### 🔐 Identity Service (`identity-service`)
 **Entry Point:** `src/server.ts`
@@ -51,7 +53,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 **Entry Point:** `src/app/layout.tsx` (Next.js 14 App Router)
 **API Client:** Uses `src/lib/apiClient.ts` connecting to `http://localhost:8080/api`
 
-- **/customer/book** -> POST `/api/orders` (Order Service)
+- **/customer/book** -> POST `/api/orders` (Order Service) + GET `/api/serviceability/check?pincode=XXXXXX` ⭐ *Phase 2: Live PIN validation on pincode select change*
 - **/customer/track/[orderId]** -> GET `/api/orders/:id` (Order Service Cache) & Socket.io for Real-time maps (`TrackingMap.tsx`).
 - **/agent/pickup-dashboard** -> GET `/api/orders` & PUT `/api/orders/:id/pickup-confirm` (Order Service)
 - **/agent/delivery-dashboard** -> GET `/api/orders?status=OUT_FOR_DELIVERY` & PUT `/api/orders/:id/complete-delivery` (Order Service)

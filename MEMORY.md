@@ -29,6 +29,22 @@
 - ~~Real-Time ETA & Customer Notification.~~ ✅ (45-min ETA + simulated SMS at dispatch)
 - Develop the Last-Mile Delivery Flow (Assign to delivery boy -> Out for Delivery -> Delivered).
 
+## 🎯 Phase 2: Customer Experience (CX) Upgrades (STARTED — 2026-10-14)
+
+### ✅ Feature 1: Live PIN-code Serviceability Validation (IMPLEMENTED & VERIFIED)
+- **Backend:** `GET /api/serviceability/check?pincode=XXXXXX` at `order-service/src/routes/serviceabilityRoutes.ts`. **Upgraded from hardcoded array → live `Hub.findOne({ serviceablePincodes: pincode, isActive: true })` MongoDB query.** City name = `hub.hubName`. Uses `.lean()` for fast read-only projection. Returns `{ success, serviceable, city, hubCode, message }`. Automatically reflects any pincodes the Admin adds/removes via the Hub management UI — zero redeploys needed for network changes.
+- **Gateway:** `api-gateway/nginx.conf` updated with a new `location /api/serviceability` proxy block routing to `order-service:4004`.
+- **Serviceable Network:** Fully dynamic — driven by `Hub` documents in MongoDB. Any pincode in any active Hub's `serviceablePincodes[]` array is automatically serviceable. No redeploy needed when Admin updates Hub pincodes.
+- **Response Shape:** `{ success, serviceable: boolean, city (=hubName), hubCode, message }`.
+- **Frontend (`customer/book/page.tsx`):**
+  - State: `isPickupServiceable`, `isDeliveryServiceable` (null | boolean), city strings, loading flags.
+  - Trigger: `checkServiceability()` called `onChange` on both pincode `<select>` dropdowns.
+  - UI: Inline badge below each pincode field — `✅ Serviceable in [City]` (emerald) or `❌ Out of delivery area` (red). Spinner shown while checking.
+  - Gate: Submit button disabled unless **both** pincodes are confirmed serviceable (`isPickupServiceable && isDeliveryServiceable`). Warning hint shown when blocking.
+  - Validation: `validateForm()` also hard-checks serviceability before allowing submission.
+  - All calls use gateway-first with direct order-service fallback (port 4004) matching the established pattern.
+- **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service api-gateway`
+
 ## 🚀 Smart Auto-Dispatch Engine (Implemented)
 - **Location:** `orderController.ts` → `createOrder` function
 - **How it works:** At order creation, queries `users` collection with 3-tier priority:

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -22,6 +22,14 @@ export default function BookParcelPage() {
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [selectedPickupHubId, setSelectedPickupHubId] = useState('');
   const [selectedDeliveryHubId, setSelectedDeliveryHubId] = useState('');
+
+  // ── Phase 2: PIN Serviceability State ──
+  const [isPickupServiceable, setIsPickupServiceable] = useState<boolean | null>(null);
+  const [pickupServiceCity, setPickupServiceCity] = useState('');
+  const [pickupServiceLoading, setPickupServiceLoading] = useState(false);
+  const [isDeliveryServiceable, setIsDeliveryServiceable] = useState<boolean | null>(null);
+  const [deliveryServiceCity, setDeliveryServiceCity] = useState('');
+  const [deliveryServiceLoading, setDeliveryServiceLoading] = useState(false);
 
   useEffect(() => {
     const fetchHubs = async () => {
@@ -81,6 +89,43 @@ export default function BookParcelPage() {
       document.body.removeChild(script);
     };
   }, []);
+
+  // ── Phase 2: Live PIN Serviceability Check ──
+  const checkServiceability = async (
+    pincode: string,
+    setServiceable: (v: boolean | null) => void,
+    setCity: (c: string) => void,
+    setCheckLoading: (l: boolean) => void
+  ) => {
+    if (!/^\d{6}$/.test(pincode)) {
+      setServiceable(null);
+      setCity('');
+      return;
+    }
+    setCheckLoading(true);
+    try {
+      let res;
+      try {
+        res = await apiClient.get(`/serviceability/check?pincode=${pincode}`);
+      } catch (gwErr: any) {
+        if (!gwErr.response && (gwErr.code === 'ERR_NETWORK' || gwErr.message?.includes('Network Error'))) {
+          const directUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + `/api/serviceability/check?pincode=${pincode}`;
+          res = await axios.get(directUrl);
+        } else {
+          throw gwErr;
+        }
+      }
+      const { serviceable, city } = res.data;
+      setServiceable(serviceable);
+      setCity(serviceable ? city : '');
+    } catch (err) {
+      console.error('[Serviceability] Check failed:', err);
+      setServiceable(null);
+      setCity('');
+    } finally {
+      setCheckLoading(false);
+    }
+  };
 
   const handlePayment = async (orderId: string, amount: number) => {
     try {
@@ -187,6 +232,14 @@ export default function BookParcelPage() {
     }
     if (!/^\d{6}$/.test(pickupPincode) || !/^\d{6}$/.test(dropPincode)) {
       setError("Pincodes must be exactly 6 digits.");
+      return false;
+    }
+    if (!isPickupServiceable) {
+      setError("Pickup pincode is not in our serviceable network. Please select a valid pincode.");
+      return false;
+    }
+    if (!isDeliveryServiceable) {
+      setError("Delivery pincode is not in our serviceable network. Please select a valid pincode.");
       return false;
     }
     if (!pickupDate) {
@@ -360,15 +413,43 @@ export default function BookParcelPage() {
                 </div>
                 <input type="text" required value={pickupAddress} onChange={e => setPickupAddress(e.target.value)} placeholder="Full Pickup Address" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
                 <div className="grid grid-cols-2 gap-4">
-                  <select required value={selectedPickupHubId} onChange={e => { setSelectedPickupHubId(e.target.value); setPickupPincode(''); }} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500 appearance-none">
+                  <select required value={selectedPickupHubId} onChange={e => { setSelectedPickupHubId(e.target.value); setPickupPincode(''); setIsPickupServiceable(null); setPickupServiceCity(''); }} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500 appearance-none">
                     <option value="" disabled>Select Pickup City</option>
                     {hubs.map(hub => <option key={hub._id} value={hub._id}>{hub.hubName}</option>)}
                   </select>
-                  <select required value={pickupPincode} onChange={e => setPickupPincode(e.target.value)} disabled={!selectedPickupHubId} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select
+                    required
+                    value={pickupPincode}
+                    onChange={e => {
+                      const pin = e.target.value;
+                      setPickupPincode(pin);
+                      setIsPickupServiceable(null);
+                      setPickupServiceCity('');
+                      checkServiceability(pin, setIsPickupServiceable, setPickupServiceCity, setPickupServiceLoading);
+                    }}
+                    disabled={!selectedPickupHubId}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <option value="" disabled>Select Pincode</option>
                     {selectedPickupHubId && hubs.find(h => h._id === selectedPickupHubId)?.serviceablePincodes.map(pin => <option key={pin} value={pin}>{pin}</option>)}
                   </select>
                 </div>
+                {/* Pickup Serviceability Badge */}
+                {pickupServiceLoading && (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mt-1 ml-1 animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Checking serviceability...
+                  </div>
+                )}
+                {!pickupServiceLoading && isPickupServiceable === true && (
+                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 mt-1 ml-1">
+                    <CheckCircle className="w-3.5 h-3.5" /> ✅ Serviceable in {pickupServiceCity}
+                  </div>
+                )}
+                {!pickupServiceLoading && isPickupServiceable === false && (
+                  <div className="flex items-center gap-2 text-xs font-semibold text-red-400 mt-1 ml-1">
+                    <AlertTriangle className="w-3.5 h-3.5" /> ❌ Out of delivery area
+                  </div>
+                )}
               </div>
             </div>
 
@@ -384,15 +465,43 @@ export default function BookParcelPage() {
                 </div>
                 <input type="text" required value={dropAddress} onChange={e => setDropAddress(e.target.value)} placeholder="Full Drop Address" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
                 <div className="grid grid-cols-2 gap-4">
-                  <select required value={selectedDeliveryHubId} onChange={e => { setSelectedDeliveryHubId(e.target.value); setDropPincode(''); }} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500 appearance-none">
+                  <select required value={selectedDeliveryHubId} onChange={e => { setSelectedDeliveryHubId(e.target.value); setDropPincode(''); setIsDeliveryServiceable(null); setDeliveryServiceCity(''); }} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500 appearance-none">
                     <option value="" disabled>Select Delivery City</option>
                     {hubs.map(hub => <option key={hub._id} value={hub._id}>{hub.hubName}</option>)}
                   </select>
-                  <select required value={dropPincode} onChange={e => setDropPincode(e.target.value)} disabled={!selectedDeliveryHubId} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select
+                    required
+                    value={dropPincode}
+                    onChange={e => {
+                      const pin = e.target.value;
+                      setDropPincode(pin);
+                      setIsDeliveryServiceable(null);
+                      setDeliveryServiceCity('');
+                      checkServiceability(pin, setIsDeliveryServiceable, setDeliveryServiceCity, setDeliveryServiceLoading);
+                    }}
+                    disabled={!selectedDeliveryHubId}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <option value="" disabled>Select Pincode</option>
                     {selectedDeliveryHubId && hubs.find(h => h._id === selectedDeliveryHubId)?.serviceablePincodes.map(pin => <option key={pin} value={pin}>{pin}</option>)}
                   </select>
                 </div>
+                {/* Delivery Serviceability Badge */}
+                {deliveryServiceLoading && (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mt-1 ml-1 animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Checking serviceability...
+                  </div>
+                )}
+                {!deliveryServiceLoading && isDeliveryServiceable === true && (
+                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 mt-1 ml-1">
+                    <CheckCircle className="w-3.5 h-3.5" /> ✅ Serviceable in {deliveryServiceCity}
+                  </div>
+                )}
+                {!deliveryServiceLoading && isDeliveryServiceable === false && (
+                  <div className="flex items-center gap-2 text-xs font-semibold text-red-400 mt-1 ml-1">
+                    <AlertTriangle className="w-3.5 h-3.5" /> ❌ Out of delivery area
+                  </div>
+                )}
               </div>
             </div>
 
@@ -481,7 +590,7 @@ export default function BookParcelPage() {
 
             <button 
               type="submit" 
-              disabled={loading || !restrictedItemsConfirmed}
+              disabled={loading || !restrictedItemsConfirmed || !isPickupServiceable || !isDeliveryServiceable}
               className="w-full h-16 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-2xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(79,70,229,0.3)] hover:shadow-[0_0_60px_rgba(79,70,229,0.5)]"
             >
               {loading ? (
@@ -492,6 +601,11 @@ export default function BookParcelPage() {
                 <><CheckCircle className="w-6 h-6" /> Confirm COD Booking</>
               )}
             </button>
+            {(!isPickupServiceable || !isDeliveryServiceable) && (pickupPincode || dropPincode) && (
+              <p className="text-center text-xs text-amber-500/80 font-medium mt-1">
+                ⚠️ Both pickup and delivery pincodes must be in our serviceable network to proceed.
+              </p>
+            )}
           </div>
 
         </form>
