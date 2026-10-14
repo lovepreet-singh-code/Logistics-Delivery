@@ -60,6 +60,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 - **/agent/pickup-dashboard** -> GET `/api/orders` & PUT `/api/orders/:id/pickup-confirm` (Order Service)
 - **/agent/delivery-dashboard** -> GET `/api/orders?status=OUT_FOR_DELIVERY` & PUT `/api/orders/:id/complete-delivery` (Order Service)
 - **/admin/planning** -> Connects to `dispatch-service` for manifests and `order-service` for auto-seeding.
+- **/admin/orders** -> GET `/api/orders` (Order Service) ⭐ *Phase 3 Feature 1: Real-time Master Orders with dynamic weight, fleet, and financial mapping*
 - **/admin/inwarding** -> PUT `/api/orders/:trackingId/inward` (Order Service)
 - **/admin/outwarding** -> PUT `/api/orders/:trackingId/transit` (Order Service)
 - **/admin/destination-hub** -> PUT `/api/orders/:trackingId/destination-inward` (Order Service)

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, RefreshCw, Loader2, Navigation, AlertTriangle, Filter, Calendar, MapPin, Phone, User, Building, Truck, Car } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
+import axios from 'axios';
 import { format } from 'date-fns';
 
 interface AddressDetails {
@@ -14,6 +15,19 @@ interface AddressDetails {
   receiverPhone?: string;
 }
 
+interface ParcelDetails {
+  weightKg?: number;
+  category?: string;
+  declaredValue?: number;
+  dimensions?: {
+    lengthCm?: number;
+    widthCm?: number;
+    heightCm?: number;
+  };
+  volumetricWeight?: number;
+  chargeableWeight?: number;
+}
+
 interface Order {
   _id: string;
   trackingId?: string;
@@ -21,12 +35,23 @@ interface Order {
   customerId: string;
   pickupAddress: AddressDetails;
   deliveryAddress: AddressDetails;
+  parcelDetails?: ParcelDetails;
+  weight?: number;
+  volumetricWeight?: number;
+  chargeableWeight?: number;
   status: string;
   createdAt: string;
   paymentMethod?: string;
+  paymentStatus?: string;
   totalAmount?: number;
+  price?: number;
   driver?: string;
   vehicle?: string;
+  routing?: {
+    agentId?: string;
+    vehicleId?: string;
+    vehicleNumber?: string;
+  };
 }
 
 export default function MasterOrdersPage() {
@@ -47,15 +72,22 @@ export default function MasterOrdersPage() {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      const res = await apiClient.get(`/orders?${params.toString()}`);
+      let res;
+      try {
+        res = await apiClient.get(`/orders?${params.toString()}`);
+      } catch (gwErr) {
+        // Fallback to direct Order Service port 4004
+        const directUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + `/api/orders?${params.toString()}`;
+        res = await axios.get(directUrl);
+      }
       
-      const mockEnhancedData = res.data.data?.map((o: any) => ({
+      const realOrdersData = res.data.data?.map((o: any) => ({
         ...o,
-        driver: o.status !== 'PENDING' && o.status !== 'ORDER_PLACED' ? 'Rahul Kumar' : 'Unassigned',
-        vehicle: o.status !== 'PENDING' && o.status !== 'ORDER_PLACED' ? 'V-101 (Tata Ace)' : 'Unassigned',
+        driver: o.driver || (o.routing?.agentId ? 'Assigned Agent' : 'Unassigned'),
+        vehicle: o.vehicle || o.routing?.vehicleNumber || (o.routing?.vehicleId ? 'Assigned Vehicle' : 'Unassigned'),
       })) || [];
       
-      setOrders(mockEnhancedData);
+      setOrders(realOrdersData);
     } catch (error) {
       console.error("Failed to fetch orders", error);
     } finally {
@@ -68,8 +100,24 @@ export default function MasterOrdersPage() {
   }, [statusFilter, startDate, endDate]);
 
   const filteredOrders = orders.filter(order => {
-    const trackId = order.trackingId || order.awb || order._id;
-    return trackId.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    const trackId = order.trackingId || order.awb || order._id || '';
+    const sender = order.pickupAddress?.senderName || '';
+    const receiver = order.deliveryAddress?.receiverName || '';
+    const senderPhone = order.pickupAddress?.senderPhone || '';
+    const receiverPhone = order.deliveryAddress?.receiverPhone || '';
+    const pickupPin = order.pickupAddress?.pinCode || '';
+    const dropPin = order.deliveryAddress?.pinCode || '';
+    return (
+      trackId.toLowerCase().includes(q) ||
+      sender.toLowerCase().includes(q) ||
+      receiver.toLowerCase().includes(q) ||
+      senderPhone.includes(q) ||
+      receiverPhone.includes(q) ||
+      pickupPin.includes(q) ||
+      dropPin.includes(q)
+    );
   });
 
   const getStatusBadge = (status: string) => {
@@ -198,8 +246,24 @@ export default function MasterOrdersPage() {
                           {order.trackingId || order.awb || order._id.slice(-8).toUpperCase()}
                         </span>
                         <span className="text-[10px] text-slate-500">
-                          {format(new Date(order.createdAt), 'MMM dd, yyyy HH:mm')}
+                          {order.createdAt ? format(new Date(order.createdAt), 'MMM dd, yyyy HH:mm') : 'N/A'}
                         </span>
+                        {/* Real Parcel Details: Weight, Category, Volumetric Wt */}
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-indigo-300 font-semibold">
+                            {order.parcelDetails?.weightKg ?? order.weight ?? 0} kg
+                          </span>
+                          {order.parcelDetails?.category && (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-slate-400">
+                              {order.parcelDetails.category}
+                            </span>
+                          )}
+                          {(order.volumetricWeight || order.parcelDetails?.volumetricWeight) ? (
+                            <span className="text-[10px] text-slate-500">
+                              (Vol: {order.volumetricWeight ?? order.parcelDetails?.volumetricWeight} kg)
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </td>
                     <td className="p-5 align-top">
@@ -262,12 +326,17 @@ export default function MasterOrdersPage() {
                         {getStatusBadge(order.status)}
                         {order.paymentMethod && (
                           <div className="text-xs font-medium text-slate-400 mt-1 flex gap-1">
-                            Payment: <span className={order.paymentMethod === 'COD' ? 'text-amber-400' : 'text-indigo-400'}>{order.paymentMethod}</span>
+                            Payment: <span className={order.paymentMethod === 'COD' ? 'text-amber-400 font-semibold' : 'text-indigo-400 font-semibold'}>{order.paymentMethod}</span>
                           </div>
                         )}
-                        {order.totalAmount !== undefined && (
+                        {order.paymentStatus && (
+                          <div className="text-[10px] font-semibold tracking-wider uppercase text-slate-500">
+                            Status: <span className={order.paymentStatus === 'PAID' ? 'text-emerald-400' : 'text-amber-400'}>{order.paymentStatus.replace(/_/g, ' ')}</span>
+                          </div>
+                        )}
+                        {(order.totalAmount !== undefined || order.price !== undefined) && (
                           <div className="text-sm font-bold text-slate-200">
-                            ₹{order.totalAmount}
+                            ₹{order.totalAmount ?? order.price ?? 0}
                           </div>
                         )}
                       </div>

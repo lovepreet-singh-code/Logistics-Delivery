@@ -63,6 +63,26 @@
   - UI: Sleek Price Summary card placed in right column directly above the "Scheduling & Payment" card. Displays Chargeable Weight, Base Charge, Category Surcharge (if applicable), GST (18%), and Grand Total. Displays placeholder prompt when weight/dimensions are empty.
 - **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service api-gateway`
 
+## 🛠️ Phase 3: Admin Panel Operations (STARTED — 2026-10-14)
+
+### ✅ Feature 1: Admin All Orders Integration (IMPLEMENTED & VERIFIED)
+- **Backend:** Enriched `GET /api/orders` (`getAllOrders`) in `order-service/src/controllers/orderController.ts`.
+  - Added dynamic calculation and inclusion of `volumetricWeight` (`(L*W*H)/5000`) and `chargeableWeight`.
+  - Enriched with actual agent and vehicle lookup from MongoDB (`users` collection) based on `routing.agentId`.
+  - Returns complete order model with sender/receiver details, parcel dimensions, weights, `paymentMethod`, `paymentStatus`, `totalAmount`, and tracking status.
+  - Results strictly sorted newest first: `.sort({ createdAt: -1 })`.
+- **Frontend (`frontend/src/app/admin/orders/page.tsx`):**
+  - Replaced mock array mapping with direct integration to `/api/orders` using dual fallback (API Gateway + direct order-service port 4004).
+  - Preserved 100% of the existing UI layout and components (strictly adheres to no-redesign rule).
+  - Bound real data fields:
+    - Order Details: AWB/Tracking ID, formatted creation date, parcel weight (`kg`), category badge, and volumetric weight.
+    - Sender & Receiver: Full addresses, names, and phone numbers.
+    - Route & Fleet: Origin/Destination pincodes with real driver name and vehicle number (or "Unassigned").
+    - Status & Finance: Status badge, payment method (`COD`/`PREPAID`), `paymentStatus` badge, and total amount (`₹`).
+  - Search bar expanded to search across tracking ID, sender/receiver names, phone numbers, and pincodes.
+  - Status and date range filters fully operational with backend query params.
+- **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service`
+
 ## 🚀 Smart Auto-Dispatch Engine (Implemented)
 - **Location:** `orderController.ts` → `createOrder` function
 - **How it works:** At order creation, queries `users` collection with 3-tier priority:

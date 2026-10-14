@@ -214,7 +214,7 @@ export const getAllOrders = async (
     }
 
     console.log("DB Query:", filter);
-    let orders = await Order.find(filter).sort({ createdAt: -1 });
+    let orders: any[] = await Order.find(filter).sort({ createdAt: -1 }).lean();
     console.log("Orders Found:", orders.length);
 
     // DEMO FALLBACK: If querying for PICKUP_ASSIGNED and finding 0, convert the most recent order
@@ -226,16 +226,68 @@ export const getAllOrders = async (
             if (!recentOrder.routing) recentOrder.routing = {};
             if (agentId) recentOrder.routing.agentId = new mongoose.Types.ObjectId(agentId as string);
             await recentOrder.save();
-            orders = [recentOrder];
+            orders = [recentOrder.toObject()];
             console.log(`Forced order ${recentOrder._id} to PICKUP_ASSIGNED`);
         }
     }
 
+    // Enrich orders with volumetric weight, chargeable weight, and driver details
+    const enrichedOrders = await Promise.all(
+      orders.map(async (o: any) => {
+        const dims = o.parcelDetails?.dimensions;
+        const lengthCm = Number(dims?.lengthCm) || 0;
+        const widthCm = Number(dims?.widthCm) || 0;
+        const heightCm = Number(dims?.heightCm) || 0;
+        const volumetricWeight =
+          lengthCm > 0 && widthCm > 0 && heightCm > 0
+            ? parseFloat(((lengthCm * widthCm * heightCm) / 5000).toFixed(2))
+            : 0;
+
+        const weightKg = Number(o.parcelDetails?.weightKg ?? o.actualWeight ?? 0);
+        const chargeableWeight = parseFloat(Math.max(weightKg, volumetricWeight).toFixed(2));
+
+        let driverName = o.driver || 'Unassigned';
+        let vehicleInfo = o.vehicle || o.routing?.vehicleNumber || 'Unassigned';
+
+        if (o.routing?.agentId && mongoose.connection.db && (driverName === 'Unassigned' || !o.driver)) {
+          try {
+            const usersCollection = mongoose.connection.db.collection("users");
+            const agent = await usersCollection.findOne({
+              _id: new mongoose.Types.ObjectId(o.routing.agentId),
+            });
+            if (agent) {
+              driverName = agent.name || agent.email || 'Assigned Agent';
+              if (agent.vehicleNumber && (vehicleInfo === 'Unassigned' || !o.vehicle)) {
+                vehicleInfo = agent.vehicleNumber;
+              }
+            }
+          } catch (agentErr) {
+            // Ignore agent lookup errors in listing
+          }
+        }
+
+        return {
+          ...o,
+          weight: weightKg,
+          volumetricWeight,
+          chargeableWeight,
+          driver: driverName,
+          vehicle: vehicleInfo,
+          parcelDetails: {
+            ...o.parcelDetails,
+            weightKg,
+            volumetricWeight,
+            chargeableWeight,
+          },
+        };
+      })
+    );
+
     res.status(200).json({
       success: true,
       message: "Orders retrieved successfully.",
-      count: orders.length,
-      data: orders,
+      count: enrichedOrders.length,
+      data: enrichedOrders,
     } as ApiResponse);
   } catch (error) {
     console.error("Get orders error:", error);
