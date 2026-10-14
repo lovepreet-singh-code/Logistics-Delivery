@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, MapPin, CheckCircle, Loader2, Send, AlertTriangle, IndianRupee, Calendar, Wallet, CreditCard } from 'lucide-react';
+import { Package, MapPin, CheckCircle, Loader2, Send, AlertTriangle, IndianRupee, Calendar, Wallet, CreditCard, Sparkles, TrendingUp } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import axios from 'axios';
 import { Toaster, toast } from 'react-hot-toast';
@@ -11,6 +11,22 @@ interface Hub {
   _id: string;
   hubName: string;
   serviceablePincodes: string[];
+}
+
+// ── Phase 2 Feature 2: Price Summary ──
+interface PriceSummary {
+  volumetricWeight: number;
+  chargeableWeight: number;
+  baseCharge: number;
+  premium: number;
+  tax: number;
+  totalAmount: number;
+  breakdown: {
+    ratePerKg: number;
+    gstPercent: number;
+    category: string;
+    isPremium: boolean;
+  };
 }
 
 export default function BookParcelPage() {
@@ -30,6 +46,10 @@ export default function BookParcelPage() {
   const [isDeliveryServiceable, setIsDeliveryServiceable] = useState<boolean | null>(null);
   const [deliveryServiceCity, setDeliveryServiceCity] = useState('');
   const [deliveryServiceLoading, setDeliveryServiceLoading] = useState(false);
+
+  // ── Phase 2 Feature 2: Price Summary State ──
+  const [priceSummary, setPriceSummary] = useState<PriceSummary | null>(null);
+  const [isCalculatingPrice, setIsCalculatingPrice] = useState(false);
 
   useEffect(() => {
     const fetchHubs = async () => {
@@ -126,6 +146,109 @@ export default function BookParcelPage() {
       setCheckLoading(false);
     }
   };
+
+  // ── Phase 2 Feature 2: Local Calculation Helper (Failsafe Fallback) ──
+  const computeLocalPrice = (w: number, l: number, wth: number, h: number, cat: string): PriceSummary => {
+    const volWeight = (l > 0 && wth > 0 && h > 0)
+      ? parseFloat(((l * wth * h) / 5000).toFixed(2))
+      : 0;
+    const chWeight = parseFloat(Math.max(w, volWeight).toFixed(2));
+    const base = parseFloat((chWeight * 50).toFixed(2));
+    const isPrem = cat === 'FRAGILE' || cat === 'ELECTRONICS';
+    const prem = isPrem ? 100 : 0;
+    const taxable = base + prem;
+    const gst = parseFloat((taxable * 0.18).toFixed(2));
+    const total = parseFloat((taxable + gst).toFixed(2));
+    return {
+      volumetricWeight: volWeight,
+      chargeableWeight: chWeight,
+      baseCharge: base,
+      premium: prem,
+      tax: gst,
+      totalAmount: total,
+      breakdown: {
+        ratePerKg: 50,
+        gstPercent: 18,
+        category: cat,
+        isPremium: isPrem,
+      },
+    };
+  };
+
+  // ── Phase 2 Feature 2: Live Price Estimation ──
+  const fetchPriceEstimate = async () => {
+    const numWeight = parseFloat(String(weight || '0').trim());
+    if (isNaN(numWeight) || numWeight <= 0) {
+      setPriceSummary(null);
+      return;
+    }
+
+    const numLength = parseFloat(String(length || '0').trim()) || 0;
+    const numWidth = parseFloat(String(width || '0').trim()) || 0;
+    const numHeight = parseFloat(String(height || '0').trim()) || 0;
+    const currentCategory = category || 'DOCUMENT';
+
+    setIsCalculatingPrice(true);
+
+    const payload = {
+      weight: Number(numWeight),
+      length: Number(numLength),
+      width: Number(numWidth),
+      height: Number(numHeight),
+      category: currentCategory,
+    };
+
+    try {
+      let res: any = null;
+      // 1. Attempt via Central API Gateway
+      try {
+        res = await apiClient.post('/pricing/calculate', payload);
+      } catch (gwErr) {
+        // 2. Direct fallback to Order Service port 4004
+        try {
+          const directUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + '/api/pricing/calculate';
+          res = await axios.post(directUrl, payload);
+        } catch (directErr) {
+          console.warn('[Pricing] Network endpoints offline, switching to client calculation fallback');
+        }
+      }
+
+      const responseData = res?.data?.data || res?.data;
+      if (responseData && typeof responseData.totalAmount === 'number' && typeof responseData.baseCharge === 'number') {
+        setPriceSummary({
+          volumetricWeight: Number(responseData.volumetricWeight) || 0,
+          chargeableWeight: Number(responseData.chargeableWeight) || 0,
+          baseCharge: Number(responseData.baseCharge) || 0,
+          premium: Number(responseData.premium) || 0,
+          tax: Number(responseData.tax) || 0,
+          totalAmount: Number(responseData.totalAmount) || 0,
+          breakdown: responseData.breakdown || {
+            ratePerKg: 50,
+            gstPercent: 18,
+            category: currentCategory,
+            isPremium: (Number(responseData.premium) || 0) > 0,
+          },
+        });
+      } else {
+        // Use exact local formula if response structure is unavailable or invalid
+        setPriceSummary(computeLocalPrice(numWeight, numLength, numWidth, numHeight, currentCategory));
+      }
+    } catch (err) {
+      console.error('[Pricing] Calculation error:', err);
+      setPriceSummary(computeLocalPrice(numWeight, numLength, numWidth, numHeight, currentCategory));
+    } finally {
+      setIsCalculatingPrice(false);
+    }
+  };
+
+  useEffect(() => {
+    const numWeight = parseFloat(String(weight || '0').trim());
+    if (!isNaN(numWeight) && numWeight > 0) {
+      fetchPriceEstimate();
+    } else {
+      setPriceSummary(null);
+    }
+  }, [weight, length, width, height, category]);
 
   const handlePayment = async (orderId: string, amount: number) => {
     try {
@@ -544,32 +667,98 @@ export default function BookParcelPage() {
               </div>
             </div>
 
-            {/* Scheduling & Payment */}
-            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2 border-b border-slate-800 pb-3 mb-5">
-                  <Calendar className="w-5 h-5 text-pink-400" /> Scheduling & Payment
-                </h3>
-                
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Pickup Date</label>
-                    <input type="date" required value={pickupDate} onChange={e => setPickupDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-pink-500" />
-                  </div>
+            {/* Right Column: Price Summary + Scheduling & Payment */}
+            <div className="space-y-6">
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Payment Method</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button type="button" onClick={() => setPaymentMethod('PREPAID')} className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold transition-all border ${paymentMethod === 'PREPAID' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'}`}>
-                        <CreditCard className="w-4 h-4" /> Prepaid
-                      </button>
-                      <button type="button" onClick={() => setPaymentMethod('COD')} className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold transition-all border ${paymentMethod === 'COD' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'}`}>
-                        <Wallet className="w-4 h-4" /> COD
-                      </button>
+              {/* Phase 2: Live Price Summary Card */}
+              <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                    <IndianRupee className="w-5 h-5 text-indigo-400" /> Price Summary
+                  </h3>
+                  {isCalculatingPrice && (
+                    <span className="flex items-center gap-1.5 text-xs text-indigo-400 font-medium animate-pulse">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculating...
+                    </span>
+                  )}
+                </div>
+
+                {priceSummary && typeof priceSummary.totalAmount === 'number' ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                        <span className="text-slate-400 block mb-0.5">Chargeable Weight</span>
+                        <span className="text-indigo-400 font-bold text-base">{Number(priceSummary.chargeableWeight || 0)} kg</span>
+                        {Number(priceSummary.volumetricWeight || 0) > 0 && (
+                          <span className="text-[10px] text-slate-500 block">Volumetric: {Number(priceSummary.volumetricWeight || 0)} kg</span>
+                        )}
+                      </div>
+                      <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                        <span className="text-slate-400 block mb-0.5">Base Charge</span>
+                        <span className="text-white font-bold text-base">₹{Number(priceSummary.baseCharge || 0).toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-500 block">@ ₹50 / kg</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/60 pt-3">
+                      {Number(priceSummary.premium || 0) > 0 && (
+                        <div className="flex justify-between items-center text-amber-400">
+                          <span>Special Handling ({priceSummary.breakdown?.category || category})</span>
+                          <span className="font-semibold">+ ₹{Number(priceSummary.premium || 0).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center text-slate-400">
+                        <span>GST (18%)</span>
+                        <span className="text-slate-200 font-medium">₹{Number(priceSummary.tax || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-800 pt-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-xs text-slate-400 uppercase tracking-wider block font-bold">Total Amount</span>
+                        <span className="text-[10px] text-slate-500">All taxes included</span>
+                      </div>
+                      <div className="text-2xl font-black text-emerald-400 flex items-center">
+                        ₹{Number(priceSummary.totalAmount || 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-6 text-center text-slate-500 text-xs flex flex-col items-center justify-center gap-2">
+                    <Package className="w-8 h-8 text-slate-700 stroke-[1.5]" />
+                    <p>Enter parcel weight and dimensions to see estimated price</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Scheduling & Payment */}
+              <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2 border-b border-slate-800 pb-3 mb-5">
+                    <Calendar className="w-5 h-5 text-pink-400" /> Scheduling & Payment
+                  </h3>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Pickup Date</label>
+                      <input type="date" required value={pickupDate} onChange={e => setPickupDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-pink-500" />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Payment Method</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button type="button" onClick={() => setPaymentMethod('PREPAID')} className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold transition-all border ${paymentMethod === 'PREPAID' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'}`}>
+                          <CreditCard className="w-4 h-4" /> Prepaid
+                        </button>
+                        <button type="button" onClick={() => setPaymentMethod('COD')} className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold transition-all border ${paymentMethod === 'COD' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'}`}>
+                          <Wallet className="w-4 h-4" /> COD
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+
             </div>
             
           </div>

@@ -45,6 +45,24 @@
   - All calls use gateway-first with direct order-service fallback (port 4004) matching the established pattern.
 - **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service api-gateway`
 
+### ✅ Feature 2: Live Price Calculator & Summary (IMPLEMENTED & VERIFIED)
+- **Backend:** `POST /api/pricing/calculate` implemented in `order-service/src/routes/pricingRoutes.ts` and mounted in `server.ts` at `/api/pricing`.
+- **Pricing Logic:**
+  - Volumetric Weight = `(length * width * height) / 5000` (defaults to 0 if dimensions omitted/0).
+  - Chargeable Weight = `Math.max(actual weight, volumetric weight)`.
+  - Base Charge = `chargeableWeight * ₹50/kg`.
+  - Flat Category Premium = `₹100` if category is `FRAGILE` or `ELECTRONICS`.
+  - GST (18%) = `18%` of taxable base charge + premium.
+  - Total Amount = `baseCharge + premium + GST`.
+  - Returns: `{ baseCharge, premium, tax, totalAmount, chargeableWeight, volumetricWeight }` (and nested `data`).
+- **Gateway:** `api-gateway/nginx.conf` updated with `location /api/pricing` proxying to `order-service:4004`.
+- **Frontend (`customer/book/page.tsx`):**
+  - States: `priceSummary` and `isCalculatingPrice`.
+  - Function: `fetchPriceEstimate()` with gateway-first + direct order-service port 4004 fallback.
+  - `useEffect`: Triggers recalculation dynamically on any change to `weight`, `length`, `width`, `height`, or `category` whenever weight > 0.
+  - UI: Sleek Price Summary card placed in right column directly above the "Scheduling & Payment" card. Displays Chargeable Weight, Base Charge, Category Surcharge (if applicable), GST (18%), and Grand Total. Displays placeholder prompt when weight/dimensions are empty.
+- **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service api-gateway`
+
 ## 🚀 Smart Auto-Dispatch Engine (Implemented)
 - **Location:** `orderController.ts` → `createOrder` function
 - **How it works:** At order creation, queries `users` collection with 3-tier priority:

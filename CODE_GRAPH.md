@@ -18,6 +18,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 - `http://localhost:8080/api/fleet` -> **Fleet Service** (`fleet-service:4003/api/fleet`)
 - `http://localhost:8080/api/analytics` -> **Analytics Service** (`analytics-service:4006/api/analytics`)
 - `http://localhost:8080/api/serviceability` -> **Order Service** (`order-service:4004/api/serviceability`) ⭐ *Phase 2 — CX Upgrade*
+- `http://localhost:8080/api/pricing` -> **Order Service** (`order-service:4004/api/pricing`) ⭐ *Phase 2 Feature 2 — Live Price Calculator*
 
 ## 3. Microservice Deep Dives
 
@@ -35,6 +36,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 - `orderController.ts`: Handles CRUD, Zero-Touch Auto-Dispatch Cron Engine (`runAutoDispatchLogic`), and pricing calculation (`calculateTotalAmount`).
 - `hubController.ts`: Handles Hub lookups.
 - `serviceabilityRoutes.ts`: ⭐ *Phase 2* — `GET /api/serviceability/check?pincode=XXXXXX` — **Dynamically** queries `Hub.findOne({ serviceablePincodes: pincode, isActive: true })`. City name sourced from `hub.hubName`. Returns `{ serviceable: boolean, city, hubCode, message }`. Zero hardcoding — fully driven by Admin-managed Hub records in MongoDB.
+- `pricingRoutes.ts`: ⭐ *Phase 2 Feature 2* — `POST /api/pricing/calculate` — Live parcel pricing engine. Calculates volumetric weight (`(L*W*H)/5000`), chargeable weight (`max(actual, volumetric)`), base charge (`₹50/kg`), flat premium (`₹100` for `FRAGILE`/`ELECTRONICS`), and `18% GST`. Returns `{ baseCharge, tax, totalAmount, chargeableWeight, volumetricWeight }`.
 
 ### 🔐 Identity Service (`identity-service`)
 **Entry Point:** `src/server.ts`
@@ -53,7 +55,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 **Entry Point:** `src/app/layout.tsx` (Next.js 14 App Router)
 **API Client:** Uses `src/lib/apiClient.ts` connecting to `http://localhost:8080/api`
 
-- **/customer/book** -> POST `/api/orders` (Order Service) + GET `/api/serviceability/check?pincode=XXXXXX` ⭐ *Phase 2: Live PIN validation on pincode select change*
+- **/customer/book** -> POST `/api/orders` (Order Service) + GET `/api/serviceability/check?pincode=XXXXXX` (Phase 2 Feature 1) + POST `/api/pricing/calculate` ⭐ *Phase 2 Feature 2: Real-time dynamic pricing summary*
 - **/customer/track/[orderId]** -> GET `/api/orders/:id` (Order Service Cache) & Socket.io for Real-time maps (`TrackingMap.tsx`).
 - **/agent/pickup-dashboard** -> GET `/api/orders` & PUT `/api/orders/:id/pickup-confirm` (Order Service)
 - **/agent/delivery-dashboard** -> GET `/api/orders?status=OUT_FOR_DELIVERY` & PUT `/api/orders/:id/complete-delivery` (Order Service)

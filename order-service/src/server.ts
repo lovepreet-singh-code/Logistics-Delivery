@@ -9,6 +9,7 @@ import { connectProducer, startConsumer, disconnectKafka, isKafkaAvailable } fro
 import orderRoutes from "./routes/orderRoutes";
 import hubRoutes from "./routes/hubRoutes";
 import serviceabilityRoutes from "./routes/serviceabilityRoutes";
+import pricingRoutes from "./routes/pricingRoutes";
 import { startOrderRoutedWorker } from "./workers/orderRoutedWorker";
 import { startDispatchManifestedWorker } from "./workers/dispatchManifestedWorker";
 import { startDeliveryCompletedWorker } from "./workers/deliveryCompletedWorker";
@@ -73,7 +74,9 @@ app.get("/health", (_req: Request, res: Response) => {
 // ──── API Routes ────
 app.use("/api/orders", orderRoutes);
 app.use("/api/hubs", hubRoutes);
+// ── Phase 2: CX Routes ──
 app.use("/api/serviceability", serviceabilityRoutes);
+app.use("/api/pricing", pricingRoutes);
 
 // ──── 404 Handler ────
 app.use((req: Request, res: Response) => {
