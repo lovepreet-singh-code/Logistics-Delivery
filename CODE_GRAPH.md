@@ -19,12 +19,13 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 - `http://localhost:8080/api/analytics` -> **Analytics Service** (`analytics-service:4006/api/analytics`)
 - `http://localhost:8080/api/serviceability` -> **Order Service** (`order-service:4004/api/serviceability`) ⭐ *Phase 2 — CX Upgrade*
 - `http://localhost:8080/api/pricing` -> **Order Service** (`order-service:4004/api/pricing`) ⭐ *Phase 2 Feature 2 — Live Price Calculator*
+- `http://localhost:8080/api/users` -> **Order Service** (`order-service:4004/api/users` / `available-agents`) ⭐ *Phase 3 Feature 2 — Available Agents Query*
 
 ## 3. Microservice Deep Dives
 
 ### 📦 Order Service (`order-service`)
 **Entry Point:** `src/server.ts`
-**Database:** MongoDB (`Order`, `Hub` models) + Redis (Tracking Cache)
+**Database:** MongoDB (`Order`, `Hub`, `User` models) + Redis (Tracking Cache)
 **Kafka Topics Published:** 
 - `orders.created` (Upon Booking)
 - `order.status.updated` (Pickup/Delivery execution)
@@ -33,7 +34,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 - `dispatch.manifested` -> Handled by `dispatchManifestedWorker.ts`
 - `delivery.completed` -> Handled by `deliveryCompletedWorker.ts`
 **Internal Controllers:**
-- `orderController.ts`: Handles CRUD, Zero-Touch Auto-Dispatch Cron Engine (`runAutoDispatchLogic`), and pricing calculation (`calculateTotalAmount`).
+- `orderController.ts`: Handles CRUD, Zero-Touch Auto-Dispatch Cron Engine (`runAutoDispatchLogic`), pricing calculation (`calculateTotalAmount`), `assignAgentToOrder` (`PUT /api/orders/:id/assign-agent`), and `getAvailableAgents` (`GET /api/orders/available-agents` & `GET /api/users`).
 - `hubController.ts`: Handles Hub lookups.
 - `serviceabilityRoutes.ts`: ⭐ *Phase 2* — `GET /api/serviceability/check?pincode=XXXXXX` — **Dynamically** queries `Hub.findOne({ serviceablePincodes: pincode, isActive: true })`. City name sourced from `hub.hubName`. Returns `{ serviceable: boolean, city, hubCode, message }`. Zero hardcoding — fully driven by Admin-managed Hub records in MongoDB.
 - `pricingRoutes.ts`: ⭐ *Phase 2 Feature 2* — `POST /api/pricing/calculate` — Live parcel pricing engine. Calculates volumetric weight (`(L*W*H)/5000`), chargeable weight (`max(actual, volumetric)`), base charge (`₹50/kg`), flat premium (`₹100` for `FRAGILE`/`ELECTRONICS`), and `18% GST`. Returns `{ baseCharge, tax, totalAmount, chargeableWeight, volumetricWeight }`.
@@ -55,12 +56,12 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 **Entry Point:** `src/app/layout.tsx` (Next.js 14 App Router)
 **API Client:** Uses `src/lib/apiClient.ts` connecting to `http://localhost:8080/api`
 
-- **/customer/book** -> POST `/api/orders` (Order Service) + GET `/api/serviceability/check?pincode=XXXXXX` (Phase 2 Feature 1) + POST `/api/pricing/calculate` ⭐ *Phase 2 Feature 2: Real-time dynamic pricing summary*
+- **/customer/book** -> POST `/api/orders` (Order Service with `pickupTimeSlot` & `pickupDetails`) + GET `/api/serviceability/check?pincode=XXXXXX` (Phase 2 Feature 1) + POST `/api/pricing/calculate` (Phase 2 Feature 2) ⭐ *Phase 3 Feature 2: Pickup Scheduling dropdown*
 - **/customer/track/[orderId]** -> GET `/api/orders/:id` (Order Service Cache) & Socket.io for Real-time maps (`TrackingMap.tsx`).
 - **/agent/pickup-dashboard** -> GET `/api/orders` & PUT `/api/orders/:id/pickup-confirm` (Order Service)
 - **/agent/delivery-dashboard** -> GET `/api/orders?status=OUT_FOR_DELIVERY` & PUT `/api/orders/:id/complete-delivery` (Order Service)
 - **/admin/planning** -> Connects to `dispatch-service` for manifests and `order-service` for auto-seeding.
-- **/admin/orders** -> GET `/api/orders` (Order Service) ⭐ *Phase 3 Feature 1: Real-time Master Orders with dynamic weight, fleet, and financial mapping*
+- **/admin/orders** -> GET `/api/orders` (Order Service) + GET `/api/users` / `/api/orders/available-agents` + PUT `/api/orders/:id/assign-agent` ⭐ *Phase 3 Feature 2: Route & Fleet real agent assignment modal and live fleet status*
 - **/admin/inwarding** -> PUT `/api/orders/:trackingId/inward` (Order Service)
 - **/admin/outwarding** -> PUT `/api/orders/:trackingId/transit` (Order Service)
 - **/admin/destination-hub** -> PUT `/api/orders/:trackingId/destination-inward` (Order Service)

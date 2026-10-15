@@ -1,10 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Package, Search, RefreshCw, Loader2, Navigation, AlertTriangle, Filter, Calendar, MapPin, Phone, User, Building, Truck, Car } from 'lucide-react';
+import { Package, Search, RefreshCw, Loader2, Navigation, AlertTriangle, Filter, Calendar, MapPin, Phone, User, Building, Truck, Car, UserPlus, X, Check } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import axios from 'axios';
 import { format } from 'date-fns';
+
+interface Agent {
+  _id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  vehicleNumber?: string;
+  status?: string;
+  availabilityStatus?: string;
+}
 
 interface AddressDetails {
   pinCode: string;
@@ -64,6 +74,14 @@ export default function MasterOrdersPage() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
+  // Agent Assignment State (Phase 3 Feature 2)
+  const [assigningOrder, setAssigningOrder] = useState<Order | null>(null);
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  const [isSubmittingAssign, setIsSubmittingAssign] = useState(false);
+  const [assignError, setAssignError] = useState<string>('');
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
@@ -83,8 +101,8 @@ export default function MasterOrdersPage() {
       
       const realOrdersData = res.data.data?.map((o: any) => ({
         ...o,
-        driver: o.driver || (o.routing?.agentId ? 'Assigned Agent' : 'Unassigned'),
-        vehicle: o.vehicle || o.routing?.vehicleNumber || (o.routing?.vehicleId ? 'Assigned Vehicle' : 'Unassigned'),
+        driver: (o.driver && o.driver !== 'Unassigned') ? o.driver : (o.routing?.agentId ? 'Assigned Agent' : 'Unassigned'),
+        vehicle: (o.vehicle && o.vehicle !== 'Unassigned') ? o.vehicle : (o.routing?.vehicleNumber || (o.routing?.vehicleId ? 'Assigned Vehicle' : 'Unassigned')),
       })) || [];
       
       setOrders(realOrdersData);
@@ -98,6 +116,64 @@ export default function MasterOrdersPage() {
   useEffect(() => {
     fetchOrders();
   }, [statusFilter, startDate, endDate]);
+
+  const openAssignModal = async (order: Order) => {
+    setAssigningOrder(order);
+    setSelectedAgentId('');
+    setAssignError('');
+    setLoadingAgents(true);
+    try {
+      let res;
+      try {
+        res = await apiClient.get('/users?role=agent&status=AVAILABLE');
+      } catch (err) {
+        try {
+          res = await apiClient.get('/orders/available-agents');
+        } catch (err2) {
+          const directUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + '/api/orders/available-agents';
+          res = await axios.get(directUrl);
+        }
+      }
+      const agentsList: Agent[] = res.data?.data || res.data || [];
+      setAvailableAgents(agentsList);
+      if (agentsList.length > 0) {
+        setSelectedAgentId(agentsList[0]._id);
+      }
+    } catch (err) {
+      console.error("Failed to fetch available agents", err);
+      setAssignError("Could not load available agents. Please try again.");
+    } finally {
+      setLoadingAgents(false);
+    }
+  };
+
+  const handleAssignAgent = async () => {
+    if (!assigningOrder || !selectedAgentId) return;
+    setIsSubmittingAssign(true);
+    setAssignError('');
+    try {
+      const orderId = assigningOrder._id;
+      let res;
+      try {
+        res = await apiClient.put(`/orders/${orderId}/assign-agent`, { agentId: selectedAgentId });
+      } catch (gwErr) {
+        const directUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + `/api/orders/${orderId}/assign-agent`;
+        res = await axios.put(directUrl, { agentId: selectedAgentId });
+      }
+
+      if (res.data?.success) {
+        await fetchOrders();
+        setAssigningOrder(null);
+      } else {
+        setAssignError(res.data?.message || "Failed to assign agent");
+      }
+    } catch (err: any) {
+      console.error("Assignment failed:", err);
+      setAssignError(err.response?.data?.message || err.message || "Failed to assign agent.");
+    } finally {
+      setIsSubmittingAssign(false);
+    }
+  };
 
   const filteredOrders = orders.filter(order => {
     const q = searchQuery.toLowerCase().trim();
@@ -309,13 +385,25 @@ export default function MasterOrdersPage() {
                             {order.deliveryAddress.pinCode}
                           </span>
                         </div>
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-2 text-xs">
-                            <User className="w-3 h-3 text-slate-500" />
-                            <span className={order.driver === 'Unassigned' ? 'text-amber-500' : 'text-slate-300'}>{order.driver}</span>
+                            <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            {order.routing?.agentId || (order.driver && order.driver !== 'Unassigned') ? (
+                              <span className="text-slate-200 font-semibold">{order.driver && order.driver !== 'Unassigned' ? order.driver : 'Assigned Agent'}</span>
+                            ) : ['ORDER_PLACED', 'PENDING', 'PENDING_PICKUP', 'BOOKED'].includes(order.status?.toUpperCase()) ? (
+                              <button
+                                onClick={() => openAssignModal(order)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-400 hover:text-indigo-300 rounded-lg text-xs font-semibold transition-all active:scale-95 shadow-sm"
+                              >
+                                <UserPlus className="w-3 h-3" />
+                                Assign Agent
+                              </button>
+                            ) : (
+                              <span className="text-amber-500">Unassigned</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 text-xs">
-                            <Car className="w-3 h-3 text-slate-500" />
+                            <Car className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                             <span className={order.vehicle === 'Unassigned' ? 'text-amber-500' : 'text-slate-400'}>{order.vehicle}</span>
                           </div>
                         </div>
@@ -348,6 +436,126 @@ export default function MasterOrdersPage() {
           </table>
         </div>
       </div>
+
+      {/* Assign Agent Modal (Phase 3 Feature 2) */}
+      {assigningOrder && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-w-md w-full relative">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Assign Delivery Agent</h3>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    Order: {assigningOrder.trackingId || assigningOrder.awb || assigningOrder._id.slice(-8).toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAssigningOrder(null)}
+                disabled={isSubmittingAssign}
+                className="text-slate-500 hover:text-slate-300 p-1 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {assignError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{assignError}</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Select Available Agent
+                </label>
+                {loadingAgents ? (
+                  <div className="py-8 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
+                    <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                    <span>Fetching available agents...</span>
+                  </div>
+                ) : availableAgents.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-center">
+                    <p className="text-xs text-slate-400">No available agents found in pool.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {availableAgents.map((agent) => (
+                      <label
+                        key={agent._id}
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                          selectedAgentId === agent._id
+                            ? 'bg-indigo-600/15 border-indigo-500 text-white shadow-inner'
+                            : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="selectedAgent"
+                            value={agent._id}
+                            checked={selectedAgentId === agent._id}
+                            onChange={(e) => setSelectedAgentId(e.target.value)}
+                            className="text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <div>
+                            <div className="text-sm font-semibold">{agent.name}</div>
+                            <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                              {agent.phone && <span>{agent.phone}</span>}
+                              {agent.vehicleNumber && (
+                                <span className="font-mono text-[11px] text-slate-400">
+                                  • {agent.vehicleNumber}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          {agent.status || 'AVAILABLE'}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setAssigningOrder(null)}
+                disabled={isSubmittingAssign}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAssignAgent}
+                disabled={isSubmittingAssign || !selectedAgentId || loadingAgents}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 active:scale-95"
+              >
+                {isSubmittingAssign ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    Confirm Assignment
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

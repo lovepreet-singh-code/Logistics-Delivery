@@ -32,12 +32,18 @@ import {
   autoDispatchPickups,
   executePickup,
   completeDelivery,
+  assignAgentToOrder,
+  getAvailableAgents,
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
+// ──── Available Agents (Phase 3 Feature 2) ────
+router.get("/available-agents", getAvailableAgents);
+router.put("/:id/assign-agent", assignAgentToOrder);
 
 // ──── Dashboard Stats ────
 router.post("/auto-dispatch", autoDispatchPickups);

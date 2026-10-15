@@ -95,6 +95,7 @@ export default function BookParcelPage() {
 
   // Section 3: Scheduling
   const [pickupDate, setPickupDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pickupTimeSlot, setPickupTimeSlot] = useState("09:00 AM - 12:00 PM");
 
   // Section 4: Payment Method
   const [paymentMethod, setPaymentMethod] = useState<'PREPAID' | 'COD'>('PREPAID');
@@ -437,6 +438,12 @@ export default function BookParcelPage() {
           restrictedItemsConfirmed: restrictedItemsConfirmed
         },
         pickupDate,
+        pickupTimeSlot,
+        pickupDetails: {
+          pickupDate,
+          pickupTimeSlot,
+          pincode: pickupPincode,
+        },
         paymentMethod
       };
 
@@ -739,9 +746,23 @@ export default function BookParcelPage() {
                   </h3>
                   
                   <div className="space-y-6">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Pickup Date</label>
-                      <input type="date" required value={pickupDate} onChange={e => setPickupDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-pink-500" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Pickup Date</label>
+                        <input type="date" required value={pickupDate} onChange={e => setPickupDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-pink-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Pickup Time Slot</label>
+                        <select
+                          value={pickupTimeSlot}
+                          onChange={e => setPickupTimeSlot(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-pink-500 text-sm"
+                        >
+                          <option value="09:00 AM - 12:00 PM">09:00 AM - 12:00 PM</option>
+                          <option value="12:00 PM - 03:00 PM">12:00 PM - 03:00 PM</option>
+                          <option value="03:00 PM - 06:00 PM">03:00 PM - 06:00 PM</option>
+                        </select>
+                      </div>
                     </div>
 
                     <div>

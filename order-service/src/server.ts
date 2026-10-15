@@ -15,7 +15,7 @@ import { startDispatchManifestedWorker } from "./workers/dispatchManifestedWorke
 import { startDeliveryCompletedWorker } from "./workers/deliveryCompletedWorker";
 import { startOrderStatusWorker } from "./workers/orderStatusWorker";
 import cron from "node-cron";
-import { runAutoDispatchLogic } from "./controllers/orderController";
+import { runAutoDispatchLogic, getAvailableAgents } from "./controllers/orderController";
 
 // ──── Initialize Express App ────
 const app = express();
@@ -77,6 +77,8 @@ app.use("/api/hubs", hubRoutes);
 // ── Phase 2: CX Routes ──
 app.use("/api/serviceability", serviceabilityRoutes);
 app.use("/api/pricing", pricingRoutes);
+// ── Phase 3: Available Agents/Users Route ──
+app.get("/api/users", getAvailableAgents);
 
 // ──── 404 Handler ────
 app.use((req: Request, res: Response) => {

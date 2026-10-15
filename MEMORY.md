@@ -83,6 +83,33 @@
   - Status and date range filters fully operational with backend query params.
 - **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service`
 
+### ✅ Feature 2: Pickup Scheduling & Agent Assignment (IMPLEMENTED & VERIFIED)
+- **Schema & Types:**
+  - `order-service/src/@types/index.ts`: Added `pickupTimeSlot` (string) and `pickupDetails` subdocument to `IOrder`.
+  - `order-service/src/models/Order.ts`: Added `pickupTimeSlot` and `pickupDetails: { pickupTimeSlot, pickupDate, pincode }` to Mongoose `orderSchema`.
+- **Backend APIs (`order-service`):**
+  - Updated `createOrder`: Captures `pickupTimeSlot` and `pickupDate` and persists into both root and `pickupDetails` subdocument.
+  - New Endpoint: `PUT /api/orders/:id/assign-agent`
+    - Payload: `{ agentId: string }`.
+    - Updates order: `routing.agentId`, `routing.vehicleNumber` (from agent record), `routing.assignmentType = "MANUAL_ASSIGNMENT"`, status set to `PICKUP_ASSIGNED`.
+    - Logs transition in `statusHistory`: `{ status: 'PICKUP_ASSIGNED', updatedBy: 'ADMIN', timestamp, note }`.
+    - Updates Agent status in `users` collection: `status = 'BUSY'` and `availabilityStatus = 'BUSY'`.
+    - Invalidates Redis cache for real-time tracking accuracy.
+  - New Endpoint: `GET /api/orders/available-agents` and `GET /api/users` (also proxied via Gateway `location /api/users`).
+    - Filters delivery agents by role and availability, cross-referencing active non-completed orders to avoid double dispatching.
+- **Frontend Customer Booking (`frontend/src/app/customer/book/page.tsx`):**
+  - Added `pickupTimeSlot` state (defaulting to `"09:00 AM - 12:00 PM"`).
+  - Placed "Pickup Time Slot" dropdown right next to "Pickup Date" in a 2-column responsive grid within the "Scheduling & Payment" section.
+  - Options: `"09:00 AM - 12:00 PM"`, `"12:00 PM - 03:00 PM"`, `"03:00 PM - 06:00 PM"`.
+  - Included `pickupTimeSlot` in `payloadData` sent to `POST /api/orders`.
+- **Frontend Admin Orders (`frontend/src/app/admin/orders/page.tsx`):**
+  - Route & Fleet column dynamically checks if `order.routing?.agentId` or `order.driver !== 'Unassigned'` exists.
+  - If assigned, displays the agent's real name (`order.driver`).
+  - If unassigned and order is in a pending/placed state (`ORDER_PLACED`, `PENDING`, `PENDING_PICKUP`, `BOOKED`), renders an "Assign Agent" button.
+  - Clicking "Assign Agent" opens a modal fetching available delivery agents (`/api/users?role=agent&status=AVAILABLE` with fallback to `/api/orders/available-agents` and direct port 4004).
+  - Admin selects an agent from the interactive list and clicks "Confirm Assignment", which calls `PUT /api/orders/:id/assign-agent` and automatically refreshes Master Orders.
+- **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service api-gateway`
+
 ## 🚀 Smart Auto-Dispatch Engine (Implemented)
 - **Location:** `orderController.ts` → `createOrder` function
 - **How it works:** At order creation, queries `users` collection with 3-tier priority:

@@ -42,7 +42,7 @@ router.get("/check", async (req: Request, res: Response) => {
 
   // ── Dynamic DB Lookup ─────────────────────────────────────────────────────
   try {
-    const hub = await Hub.findOne({
+    const hub: any = await Hub.findOne({
       serviceablePincodes: sanitized, // Mongoose checks if value exists in the array
       isActive: true,
     }).select("hubName hubCode serviceablePincodes").lean();

@@ -163,6 +163,15 @@ const orderSchema = new Schema<IOrderDocument>(
       type: Date,
       default: null,
     },
+    pickupTimeSlot: {
+      type: String,
+      default: null,
+    },
+    pickupDetails: {
+      pickupTimeSlot: { type: String, default: null },
+      pickupDate: { type: Date, default: null },
+      pincode: { type: String, default: null },
+    },
     status: {
       type: String,
       enum: {

@@ -75,6 +75,12 @@ export interface IOrder {
   routing: IRouting;
   status: OrderStatus;
   pickupDate?: Date;
+  pickupTimeSlot?: string;
+  pickupDetails?: {
+    pickupDate?: Date;
+    pickupTimeSlot?: string;
+    pincode?: string;
+  };
   paymentStatus?: PaymentStatus;
   paymentMethod?: "PREPAID" | "COD";
   totalAmount?: number;

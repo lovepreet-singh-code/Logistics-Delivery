@@ -37,7 +37,9 @@ export const createOrder = async (
     console.log("📥 INCOMING BOOKING PAYLOAD:", JSON.stringify(req.body, null, 2));
     const user = (req as any).user;
     const customerId = req.body.customerId || user?.id || user?._id || user?.userId || "64f1b2c3e4d5a6b7c8d9e0f1";
-    const { sender, receiver, parcelDetails, paymentMethod, pickupDate } = req.body;
+    const { sender, receiver, parcelDetails, paymentMethod, pickupDate, pickupTimeSlot } = req.body;
+    const finalPickupTimeSlot = pickupTimeSlot || req.body.pickupDetails?.pickupTimeSlot || null;
+    const finalPickupDate = pickupDate || req.body.pickupDetails?.pickupDate || null;
 
     // Support both direct pickupAddress/deliveryAddress and the new sender/receiver objects
     const pickupAddress = sender ? {
@@ -123,7 +125,13 @@ export const createOrder = async (
       pickupAddress,
       deliveryAddress,
       parcelDetails,
-      pickupDate,
+      pickupDate: finalPickupDate,
+      pickupTimeSlot: finalPickupTimeSlot,
+      pickupDetails: {
+        pickupDate: finalPickupDate,
+        pickupTimeSlot: finalPickupTimeSlot,
+        pincode: pickupAddress.pinCode,
+      },
       status: req.body.status || OrderStatus.ORDER_PLACED,
       paymentMethod: paymentMethod || "PREPAID",
       totalAmount: totalAmount || req.body.price,
@@ -1994,5 +2002,221 @@ export const completeDelivery = async (req: Request, res: Response): Promise<voi
   } catch (error: any) {
     console.error("Complete delivery error:", error);
     res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  PHASE 3 FEATURE 2: ASSIGN AGENT TO ORDER
+// ═══════════════════════════════════════════════
+
+// PUT /api/orders/:id/assign-agent
+export const assignAgentToOrder = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { agentId } = req.body;
+
+    if (!agentId) {
+      res.status(400).json({
+        success: false,
+        message: "agentId is required in the request body",
+      } as ApiResponse);
+      return;
+    }
+
+    const isValidId = mongoose.Types.ObjectId.isValid(id);
+    const order = await Order.findOne({
+      $or: [
+        { _id: isValidId ? new mongoose.Types.ObjectId(id) : null },
+        { trackingId: id },
+        { awb: id },
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({
+        success: false,
+        message: "Order not found",
+      } as ApiResponse);
+      return;
+    }
+
+    // Lookup Agent in MongoDB users collection
+    const isValidAgentId = mongoose.Types.ObjectId.isValid(agentId);
+    let agent: any = null;
+    if (isValidAgentId) {
+      agent = await User.findById(agentId);
+    }
+    if (!agent && mongoose.connection.db) {
+      const usersCol = mongoose.connection.db.collection("users");
+      const queryList: any[] = [{ email: agentId }, { name: agentId }];
+      if (isValidAgentId) {
+        queryList.unshift({ _id: new mongoose.Types.ObjectId(agentId) });
+      }
+      agent = await usersCol.findOne({ $or: queryList });
+    }
+
+    if (!agent) {
+      res.status(404).json({
+        success: false,
+        message: "Agent not found in system",
+      } as ApiResponse);
+      return;
+    }
+
+    // Update order routing
+    if (!order.routing) {
+      order.routing = {} as any;
+    }
+    order.routing.agentId = agent._id;
+    if (agent.vehicleNumber) {
+      order.routing.vehicleNumber = agent.vehicleNumber;
+    }
+    order.routing.assignmentType = "MANUAL_ASSIGNMENT";
+
+    // Update order status to PICKUP_ASSIGNED
+    order.status = OrderStatus.PICKUP_ASSIGNED;
+
+    // Record in statusHistory
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status: OrderStatus.PICKUP_ASSIGNED,
+      updatedBy: "ADMIN",
+      timestamp: new Date(),
+      note: `Assigned to agent ${agent.name || agent.email || agent._id}`,
+    });
+
+    await order.save();
+
+    // Mark agent status as BUSY in User collection
+    try {
+      if (mongoose.connection.db) {
+        await mongoose.connection.db.collection("users").updateOne(
+          { _id: new mongoose.Types.ObjectId(agent._id) },
+          { $set: { status: "BUSY", availabilityStatus: "BUSY" } }
+        );
+      } else {
+        await User.findByIdAndUpdate(agent._id, { status: "BUSY", availabilityStatus: "BUSY" });
+      }
+    } catch (agentUpdateErr) {
+      console.warn("Could not update agent status to BUSY:", agentUpdateErr);
+    }
+
+    // Invalidate Redis cache
+    try {
+      if (redisClient && redisClient.isOpen) {
+        await redisClient.del(`track_order:${order._id}`);
+        if (order.awb) await redisClient.del(`track_order:${order.awb}`);
+      }
+    } catch (cacheErr) {
+      console.warn("Redis cache invalidation skipped:", cacheErr);
+    }
+
+    const agentName = agent.name || agent.email || "Assigned Agent";
+    const vehicleNumber = agent.vehicleNumber || order.routing.vehicleNumber || "Assigned Vehicle";
+
+    res.status(200).json({
+      success: true,
+      message: `Order assigned to agent ${agentName} successfully.`,
+      data: {
+        ...order.toObject(),
+        driver: agentName,
+        vehicle: vehicleNumber,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error assigning agent to order:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to assign agent to order",
+    } as ApiResponse);
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  PHASE 3 FEATURE 2: GET AVAILABLE AGENTS
+// ═══════════════════════════════════════════════
+
+// GET /api/orders/available-agents OR GET /api/users
+export const getAvailableAgents = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { role, status } = req.query;
+
+    const query: any = {};
+    if (role) {
+      query.role = { $regex: new RegExp(`^${role}$`, "i") };
+    } else {
+      query.role = { $in: ["AGENT", "agent", "DRIVER", "driver"] };
+    }
+
+    if (status && String(status).toUpperCase() === "AVAILABLE") {
+      query.$or = [
+        { status: { $regex: /available/i } },
+        { availabilityStatus: { $regex: /available/i } },
+        { status: { $nin: ["BUSY", "busy", "INACTIVE", "inactive"] } },
+        { status: null },
+        { status: { $exists: false } },
+      ];
+    }
+
+    let agents: any[] = [];
+    if (mongoose.connection.db) {
+      const usersCol = mongoose.connection.db.collection("users");
+      agents = await usersCol.find(query).toArray();
+    } else {
+      agents = await User.find(query).lean();
+    }
+
+    // Check active uncompleted pickup assignments to identify currently busy agents
+    const activeAssignedAgentIds = await Order.distinct("routing.agentId", {
+      status: { $in: ["PICKUP_ASSIGNED", "PICKUP_ACCEPTED", "OUT_FOR_DELIVERY"] },
+    });
+    const busyAgentIdSet = new Set(
+      activeAssignedAgentIds.map((id) => (id ? id.toString() : ""))
+    );
+
+    const cleanedAgents = agents.map((agent) => {
+      const isBusy = busyAgentIdSet.has(agent._id?.toString() || "");
+      return {
+        _id: agent._id,
+        id: agent._id,
+        name: agent.name || agent.fullName || agent.username || "Delivery Agent",
+        email: agent.email || "",
+        phone: agent.phone || agent.phoneNumber || "",
+        role: agent.role || "AGENT",
+        vehicleNumber: agent.vehicleNumber || agent.vehicleNo || "KA-01-EQ-1000",
+        status: isBusy ? "BUSY" : agent.status || "AVAILABLE",
+        availabilityStatus: isBusy ? "BUSY" : agent.availabilityStatus || "AVAILABLE",
+      };
+    });
+
+    // If query asked for AVAILABLE, filter out busy ones; fallback to returning list if none found
+    let finalAgents =
+      status && String(status).toUpperCase() === "AVAILABLE"
+        ? cleanedAgents.filter((a) => a.status !== "BUSY")
+        : cleanedAgents;
+
+    // Resilient fallback: If no strictly available agent found, return all delivery agents
+    if (finalAgents.length === 0 && cleanedAgents.length > 0) {
+      finalAgents = cleanedAgents;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: finalAgents,
+      count: finalAgents.length,
+    });
+  } catch (error: any) {
+    console.error("Error fetching available agents:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch agents",
+      data: [],
+    });
   }
 };
