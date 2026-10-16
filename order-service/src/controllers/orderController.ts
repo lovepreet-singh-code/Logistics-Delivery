@@ -2220,3 +2220,225 @@ export const getAvailableAgents = async (
     });
   }
 };
+
+// ═══════════════════════════════════════════════
+//  PHASE 3 FEATURE 3: WEIGHT VERIFICATION & PRICE ADJUSTMENT
+// ═══════════════════════════════════════════════
+
+// PUT /api/orders/:id/verify-weight
+export const verifyOrderWeight = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const actualWeight = parseFloat(req.body?.actualWeight);
+    const lengthCm = Math.max(0, parseFloat(req.body?.length) || 0);
+    const widthCm = Math.max(0, parseFloat(req.body?.width) || 0);
+    const heightCm = Math.max(0, parseFloat(req.body?.height) || 0);
+
+    if (isNaN(actualWeight) || actualWeight <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "Actual physical weight must be greater than 0.",
+      } as ApiResponse);
+      return;
+    }
+
+    const isValidId = mongoose.Types.ObjectId.isValid(id);
+    const order = await Order.findOne({
+      $or: [
+        { _id: isValidId ? new mongoose.Types.ObjectId(id) : null },
+        { trackingId: id },
+        { awb: id },
+      ],
+    });
+
+    if (!order) {
+      res.status(404).json({
+        success: false,
+        message: "Order not found",
+      } as ApiResponse);
+      return;
+    }
+
+    // 1. Calculate volumetric weight and chargeable weight
+    const volumetricWeight =
+      lengthCm > 0 && widthCm > 0 && heightCm > 0
+        ? parseFloat(((lengthCm * widthCm * heightCm) / 5000).toFixed(2))
+        : 0;
+
+    const chargeableWeight = parseFloat(
+      Math.max(actualWeight, volumetricWeight).toFixed(2)
+    );
+
+    // 2. Calculate new Base Charge, Category Surcharge, Tax (18%), and Total Amount
+    const RATE_PER_KG = 50;
+    const PREMIUM_CATEGORIES = new Set(["FRAGILE", "ELECTRONICS"]);
+    const category = (order.parcelDetails?.category || "OTHER").toUpperCase().trim();
+    const premium = PREMIUM_CATEGORIES.has(category) ? 100 : 0;
+    const baseCharge = parseFloat((chargeableWeight * RATE_PER_KG).toFixed(2));
+    const taxableAmount = baseCharge + premium;
+    const tax = parseFloat((taxableAmount * 0.18).toFixed(2));
+    const newTotalAmount = parseFloat((taxableAmount + tax).toFixed(2));
+
+    const oldTotalAmount = order.totalAmount || 0;
+    const priceAdjustment = parseFloat((newTotalAmount - oldTotalAmount).toFixed(2));
+
+    // 3. Update Order
+    order.isWeightVerified = true;
+    order.verifiedWeight = actualWeight;
+    order.actualWeight = actualWeight;
+    order.verifiedDimensions = {
+      length: lengthCm,
+      width: widthCm,
+      height: heightCm,
+    };
+    order.priceAdjustment = priceAdjustment;
+    order.totalAmount = newTotalAmount;
+
+    if (order.parcelDetails) {
+      order.parcelDetails.weightKg = actualWeight;
+      if (lengthCm > 0 && widthCm > 0 && heightCm > 0) {
+        order.parcelDetails.dimensions = {
+          lengthCm,
+          widthCm,
+          heightCm,
+        };
+        order.parcelDetails.totalVolumeCm3 = lengthCm * widthCm * heightCm;
+      }
+    }
+
+    // 4. Log in statusHistory
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status: order.status || OrderStatus.ORDER_PLACED,
+      updatedBy: "ADMIN",
+      timestamp: new Date(),
+      note: `Weight Verified: Revised Charges Applied. Verified Weight: ${actualWeight} kg, Dimensions: ${lengthCm}x${widthCm}x${heightCm} cm, New Total: ₹${newTotalAmount} (${priceAdjustment >= 0 ? '+' : ''}₹${priceAdjustment})`,
+    });
+
+    await order.save();
+
+    // 5. Invalidate Redis cache
+    try {
+      if (redisClient && redisClient.isOpen) {
+        await redisClient.del(`track_order:${order._id}`);
+        if (order.awb) await redisClient.del(`track_order:${order.awb}`);
+      }
+    } catch (cacheErr) {
+      console.warn("Redis cache invalidation skipped:", cacheErr);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Weight verified and price adjusted successfully.",
+      data: {
+        ...order.toObject(),
+        volumetricWeight,
+        chargeableWeight,
+        baseCharge,
+        tax,
+        priceAdjustment,
+        newTotalAmount,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error verifying order weight:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to verify weight",
+    } as ApiResponse);
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  PHASE 3 FEATURE 4: DASHBOARD AGGREGATION API
+// ═══════════════════════════════════════════════
+
+// GET /api/orders/stats/dashboard
+export const getDashboardStats = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const [
+      totalOrders,
+      pendingPickups,
+      inTransit,
+      outForDelivery,
+      delivered,
+      revenueResult,
+    ] = await Promise.all([
+      // Total count of all orders in system
+      Order.countDocuments({}),
+
+      // Orders waiting for pickup or assignment
+      Order.countDocuments({
+        status: {
+          $in: [
+            "ORDER_PLACED",
+            "PENDING",
+            "PENDING_PICKUP",
+            "PICKUP_ASSIGNED",
+            "PICKUP_ACCEPTED",
+          ],
+        },
+      }),
+
+      // Orders currently in transit or moving through hubs
+      Order.countDocuments({
+        status: {
+          $in: [
+            "IN_TRANSIT",
+            "DESTINATION_HUB",
+            "AT_HUB",
+            "INWARDED_AT_HUB",
+            "PICKED_UP",
+          ],
+        },
+      }),
+
+      // Orders currently out for delivery to customer
+      Order.countDocuments({
+        status: "OUT_FOR_DELIVERY",
+      }),
+
+      // Successfully delivered orders
+      Order.countDocuments({
+        status: "DELIVERED",
+      }),
+
+      // Total revenue of non-cancelled orders
+      Order.aggregate([
+        { $match: { status: { $nin: ["CANCELLED", "RTO"] } } },
+        { $group: { _id: null, totalRevenue: { $sum: "$totalAmount" } } },
+      ]),
+    ]);
+
+    const rawRevenue = revenueResult[0]?.totalRevenue || 0;
+    const revenue = Math.round(rawRevenue * 100) / 100;
+
+    const statsData = {
+      totalOrders,
+      pendingPickups,
+      inTransit,
+      outForDelivery,
+      delivered,
+      revenue,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Dashboard statistics retrieved successfully.",
+      data: statsData,
+      ...statsData,
+    });
+  } catch (error: any) {
+    console.error("Error generating dashboard stats:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to retrieve dashboard statistics.",
+    } as ApiResponse);
+  }
+};

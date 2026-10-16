@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Package, Search, RefreshCw, Loader2, Navigation, AlertTriangle, Filter, Calendar, MapPin, Phone, User, Building, Truck, Car, UserPlus, X, Check } from 'lucide-react';
+import { Package, Search, RefreshCw, Loader2, Navigation, AlertTriangle, Filter, Calendar, MapPin, Phone, User, Building, Truck, Car, UserPlus, X, Check, Scale } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import axios from 'axios';
 import { format } from 'date-fns';
@@ -62,6 +62,14 @@ interface Order {
     vehicleId?: string;
     vehicleNumber?: string;
   };
+  isWeightVerified?: boolean;
+  verifiedWeight?: number;
+  verifiedDimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+  };
+  priceAdjustment?: number;
 }
 
 export default function MasterOrdersPage() {
@@ -81,6 +89,15 @@ export default function MasterOrdersPage() {
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [isSubmittingAssign, setIsSubmittingAssign] = useState(false);
   const [assignError, setAssignError] = useState<string>('');
+
+  // Weight Verification State (Phase 3 Feature 3)
+  const [verifyingOrder, setVerifyingOrder] = useState<Order | null>(null);
+  const [actualWeightInput, setActualWeightInput] = useState<string>('');
+  const [lengthInput, setLengthInput] = useState<string>('');
+  const [widthInput, setWidthInput] = useState<string>('');
+  const [heightInput, setHeightInput] = useState<string>('');
+  const [isSubmittingWeight, setIsSubmittingWeight] = useState(false);
+  const [verifyWeightError, setVerifyWeightError] = useState<string>('');
 
   const fetchOrders = async () => {
     try {
@@ -172,6 +189,57 @@ export default function MasterOrdersPage() {
       setAssignError(err.response?.data?.message || err.message || "Failed to assign agent.");
     } finally {
       setIsSubmittingAssign(false);
+    }
+  };
+
+  const openVerifyWeightModal = (order: Order) => {
+    setVerifyingOrder(order);
+    setVerifyWeightError('');
+    const dims = order.parcelDetails?.dimensions;
+    setActualWeightInput(String(order.verifiedWeight || order.parcelDetails?.weightKg || order.weight || ''));
+    setLengthInput(String(order.verifiedDimensions?.length || dims?.lengthCm || ''));
+    setWidthInput(String(order.verifiedDimensions?.width || dims?.widthCm || ''));
+    setHeightInput(String(order.verifiedDimensions?.height || dims?.heightCm || ''));
+  };
+
+  const handleVerifyWeightSubmit = async () => {
+    if (!verifyingOrder) return;
+    const parsedWeight = parseFloat(actualWeightInput);
+    if (isNaN(parsedWeight) || parsedWeight <= 0) {
+      setVerifyWeightError("Please enter a valid physical weight greater than 0 kg.");
+      return;
+    }
+
+    setIsSubmittingWeight(true);
+    setVerifyWeightError('');
+    try {
+      const orderId = verifyingOrder._id;
+      const payload = {
+        actualWeight: parsedWeight,
+        length: parseFloat(lengthInput) || 0,
+        width: parseFloat(widthInput) || 0,
+        height: parseFloat(heightInput) || 0,
+      };
+
+      let res;
+      try {
+        res = await apiClient.put(`/orders/${orderId}/verify-weight`, payload);
+      } catch (gwErr) {
+        const directUrl = (process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || 'http://localhost:4004') + `/api/orders/${orderId}/verify-weight`;
+        res = await axios.put(directUrl, payload);
+      }
+
+      if (res.data?.success) {
+        await fetchOrders();
+        setVerifyingOrder(null);
+      } else {
+        setVerifyWeightError(res.data?.message || "Failed to verify weight.");
+      }
+    } catch (err: any) {
+      console.error("Weight verification failed:", err);
+      setVerifyWeightError(err.response?.data?.message || err.message || "Failed to verify weight.");
+    } finally {
+      setIsSubmittingWeight(false);
     }
   };
 
@@ -327,8 +395,14 @@ export default function MasterOrdersPage() {
                         {/* Real Parcel Details: Weight, Category, Volumetric Wt */}
                         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
                           <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-indigo-300 font-semibold">
-                            {order.parcelDetails?.weightKg ?? order.weight ?? 0} kg
+                            {order.verifiedWeight ?? order.parcelDetails?.weightKg ?? order.weight ?? 0} kg
                           </span>
+                          {order.isWeightVerified && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold flex items-center gap-1 text-[10px]">
+                              <Check className="w-3 h-3" />
+                              Verified
+                            </span>
+                          )}
                           {order.parcelDetails?.category && (
                             <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-slate-400">
                               {order.parcelDetails.category}
@@ -340,6 +414,18 @@ export default function MasterOrdersPage() {
                             </span>
                           ) : null}
                         </div>
+                        {/* Verify Weight Action Button */}
+                        {!order.isWeightVerified && order.status !== 'DELIVERED' && (
+                          <div className="mt-1.5">
+                            <button
+                              onClick={() => openVerifyWeightModal(order)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 hover:text-amber-300 rounded-lg text-xs font-semibold transition-all active:scale-95 shadow-sm"
+                            >
+                              <Scale className="w-3.5 h-3.5" />
+                              Verify Weight
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="p-5 align-top">
@@ -423,8 +509,15 @@ export default function MasterOrdersPage() {
                           </div>
                         )}
                         {(order.totalAmount !== undefined || order.price !== undefined) && (
-                          <div className="text-sm font-bold text-slate-200">
-                            ₹{order.totalAmount ?? order.price ?? 0}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-sm font-bold text-slate-200">
+                              ₹{order.totalAmount ?? order.price ?? 0}
+                            </span>
+                            {order.isWeightVerified && (order.priceAdjustment ?? 0) > 0 && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 text-amber-400">
+                                +₹{order.priceAdjustment} Due
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -549,6 +642,175 @@ export default function MasterOrdersPage() {
                   <>
                     <Check className="w-3.5 h-3.5" />
                     Confirm Assignment
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verify Weight & Adjust Price Modal (Phase 3 Feature 3) */}
+      {verifyingOrder && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-w-md w-full relative">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                  <Scale className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Weight Verification</h3>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    Order: {verifyingOrder.trackingId || verifyingOrder.awb || verifyingOrder._id.slice(-8).toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setVerifyingOrder(null)}
+                disabled={isSubmittingWeight}
+                className="text-slate-500 hover:text-slate-300 p-1 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {verifyWeightError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{verifyWeightError}</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Actual Physical Weight (kg) <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="e.g. 2.5"
+                  value={actualWeightInput}
+                  onChange={(e) => setActualWeightInput(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3.5 text-white focus:outline-none focus:border-amber-500 text-sm font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Dimensions (L × W × H in cm)
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase block mb-1">Length</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="L (cm)"
+                      value={lengthInput}
+                      onChange={(e) => setLengthInput(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-amber-500 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase block mb-1">Width</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="W (cm)"
+                      value={widthInput}
+                      onChange={(e) => setWidthInput(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-amber-500 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase block mb-1">Height</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="H (cm)"
+                      value={heightInput}
+                      onChange={(e) => setHeightInput(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-amber-500 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Live Calculation Card */}
+              {(() => {
+                const actW = parseFloat(actualWeightInput) || 0;
+                const l = parseFloat(lengthInput) || 0;
+                const w = parseFloat(widthInput) || 0;
+                const h = parseFloat(heightInput) || 0;
+                const volW = (l > 0 && w > 0 && h > 0) ? parseFloat(((l * w * h) / 5000).toFixed(2)) : 0;
+                const chgW = parseFloat(Math.max(actW, volW).toFixed(2));
+                const category = (verifyingOrder.parcelDetails?.category || 'OTHER').toUpperCase();
+                const premium = (category === 'FRAGILE' || category === 'ELECTRONICS') ? 100 : 0;
+                const baseCharge = parseFloat((chgW * 50).toFixed(2));
+                const taxable = baseCharge + premium;
+                const tax = parseFloat((taxable * 0.18).toFixed(2));
+                const estTotal = parseFloat((taxable + tax).toFixed(2));
+                const curTotal = verifyingOrder.totalAmount ?? verifyingOrder.price ?? 0;
+                const diff = parseFloat((estTotal - curTotal).toFixed(2));
+
+                return (
+                  <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-1.5 text-xs">
+                    <div className="flex justify-between text-slate-400">
+                      <span>Volumetric Weight:</span>
+                      <span className="font-mono text-slate-300">{volW} kg</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Chargeable Weight:</span>
+                      <span className="font-mono text-indigo-400 font-bold">{chgW} kg</span>
+                    </div>
+                    <div className="h-px bg-slate-800 my-1"></div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Current Total:</span>
+                      <span className="font-mono text-slate-300">₹{curTotal}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 font-semibold">
+                      <span>Revised Total:</span>
+                      <span className="font-mono text-white font-bold">₹{estTotal}</span>
+                    </div>
+                    <div className="flex justify-between text-amber-400 font-bold pt-1 border-t border-slate-800">
+                      <span>Price Adjustment:</span>
+                      <span className="font-mono">{diff >= 0 ? `+₹${diff} Due` : `-₹${Math.abs(diff)} Refund`}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setVerifyingOrder(null)}
+                disabled={isSubmittingWeight}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleVerifyWeightSubmit}
+                disabled={isSubmittingWeight || !actualWeightInput}
+                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-lg shadow-amber-600/20 flex items-center gap-2 active:scale-95"
+              >
+                {isSubmittingWeight ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    Confirm & Update Price
                   </>
                 )}
               </button>

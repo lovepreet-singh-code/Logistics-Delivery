@@ -218,6 +218,23 @@ const orderSchema = new Schema<IOrderDocument>(
       type: Number,
       default: null,
     },
+    isWeightVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verifiedWeight: {
+      type: Number,
+      default: null,
+    },
+    verifiedDimensions: {
+      length: { type: Number, default: null },
+      width: { type: Number, default: null },
+      height: { type: Number, default: null },
+    },
+    priceAdjustment: {
+      type: Number,
+      default: 0,
+    },
     statusHistory: [
       {
         status: { type: String, required: true },

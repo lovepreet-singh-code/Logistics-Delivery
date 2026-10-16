@@ -110,6 +110,62 @@
   - Admin selects an agent from the interactive list and clicks "Confirm Assignment", which calls `PUT /api/orders/:id/assign-agent` and automatically refreshes Master Orders.
 - **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service api-gateway`
 
+### ✅ Feature 3: Weight Verification & Price Adjustment (IMPLEMENTED & VERIFIED)
+- **Backend Schema & Types (`order-service`):**
+  - Updated `IOrder` interface (`@types/index.ts`) and Mongoose `orderSchema` (`models/Order.ts`):
+    - `isWeightVerified` (boolean, default false)
+    - `verifiedWeight` (number, default null)
+    - `verifiedDimensions: { length: number, width: number, height: number }`
+    - `priceAdjustment` (number, default 0, representing `newTotalAmount - oldTotalAmount`)
+- **Backend Verification API (`orderController.ts` & `orderRoutes.ts`):**
+  - New Endpoint: `PUT /api/orders/:id/verify-weight`
+  - Input: `{ actualWeight: number, length: number, width: number, height: number }`
+  - Core Logic:
+    - Calculates new Volumetric Weight = `(length * width * height) / 5000`.
+    - Calculates new Chargeable Weight = `Math.max(actualWeight, volumetricWeight)`.
+    - Calculates new Base Charge = `chargeableWeight * ₹50/kg`.
+    - Includes Category Surcharge (flat `₹100` if `FRAGILE` or `ELECTRONICS`).
+    - Applies GST (18%) on taxable amount.
+    - Calculates `priceAdjustment = newTotalAmount - oldTotalAmount`.
+    - Persists verified weights, dimensions, new total amount, and sets `isWeightVerified = true`.
+    - Records transition in `statusHistory`: `"Weight Verified: Revised Charges Applied. Verified Weight: X kg, Dimensions: LxWxH cm, New Total: ₹Y (+₹Z Due)"`.
+    - Invalidates Redis tracking cache for real-time consistency.
+- **Frontend Master Orders (`frontend/src/app/admin/orders/page.tsx`):**
+  - In "Order Details" column:
+    - Shows verified weight or original weight.
+    - Displays a green `"Verified"` badge with a checkmark if `order.isWeightVerified` is true.
+    - Displays a sleek `"Verify Weight"` button with scale icon if `!order.isWeightVerified` and status is not `DELIVERED`.
+  - In "Status & Finance" column:
+    - Shows new total amount.
+    - If `order.isWeightVerified && order.priceAdjustment > 0`, displays an amber `+₹X Due` badge.
+  - Interactive Modal:
+    - Prompts Admin for Physical Weight (kg) and Length, Width, Height (cm) with existing data pre-filled.
+    - Includes dynamic live calculations card showing Volumetric Weight, Chargeable Weight, Current Total, Revised Total, and Price Adjustment in real time.
+    - Submits to `PUT /api/orders/:id/verify-weight` with dual fallback (Gateway / direct port 4004) and automatically refreshes table data upon completion.
+- **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service`
+
+### ✅ Feature 4: Dashboard & Shipment Operations (IMPLEMENTED & VERIFIED)
+- **Backend Aggregation API (`orderController.ts` & `orderRoutes.ts`):**
+  - New Endpoint: `GET /api/orders/stats/dashboard`
+  - High-performance parallel aggregation (`Promise.all` with MongoDB `countDocuments` and pipeline `$facet`/`$group`):
+    - `totalOrders`: Full count of all registered orders.
+    - `pendingPickups`: Count of orders in `ORDER_PLACED`, `PENDING`, `PENDING_PICKUP`, `PICKUP_ASSIGNED`, and `PICKUP_ACCEPTED`.
+    - `inTransit`: Count of orders in `IN_TRANSIT`, `DESTINATION_HUB`, `AT_HUB`, `INWARDED_AT_HUB`, and `PICKED_UP`.
+    - `outForDelivery`: Count of orders in `OUT_FOR_DELIVERY`.
+    - `delivered`: Count of orders in `DELIVERED`.
+    - `revenue`: Aggregated sum of `totalAmount` for all active orders excluding `CANCELLED` and `RTO`.
+  - Mounted before parameterized routes in `orderRoutes.ts` for clean resolution.
+- **Frontend Admin Dashboard (`frontend/src/app/admin/page.tsx`):**
+  - Replaced legacy client-side array filtering with dedicated `useEffect` fetching from `GET /api/orders/stats/dashboard` (gateway-first with direct order-service port 4004 fallback).
+  - Preserved 100% of the existing dark-mode UI card layouts and styles.
+  - Mapped real live metrics directly to statistical cards:
+    - **Total Orders**: Live count of all orders.
+    - **Pending Pickups**: Live count of orders awaiting agent pickup.
+    - **In Transit**: Live count of shipments progressing through routing network.
+    - **Delivered**: Live count of successfully completed deliveries.
+  - Added seamless loading spinner state (`Loader2`) and on-demand **Refresh** button in the header.
+- **Docker Rebuild Command:** `docker-compose up -d --build --no-cache order-service`
+
 ## 🚀 Smart Auto-Dispatch Engine (Implemented)
 - **Location:** `orderController.ts` → `createOrder` function
 - **How it works:** At order creation, queries `users` collection with 3-tier priority:

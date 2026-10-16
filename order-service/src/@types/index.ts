@@ -88,6 +88,14 @@ export interface IOrder {
   pickupOTP?: string;
   pickupImageUrl?: string;
   actualWeight?: number;
+  isWeightVerified?: boolean;
+  verifiedWeight?: number;
+  verifiedDimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+  };
+  priceAdjustment?: number;
   exceptionReason?: string;
   rtoImageUrl?: string;
   proofOfDeliverySignature?: string;

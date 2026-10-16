@@ -34,6 +34,8 @@ import {
   completeDelivery,
   assignAgentToOrder,
   getAvailableAgents,
+  verifyOrderWeight,
+  getDashboardStats,
 } from "../controllers/orderController";
 import multer from "multer";
 import { adminAuth } from "../middleware/authMiddleware";
@@ -41,11 +43,13 @@ import { adminAuth } from "../middleware/authMiddleware";
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// ──── Available Agents (Phase 3 Feature 2) ────
+// ──── Admin Order Operations (Phase 3) ────
 router.get("/available-agents", getAvailableAgents);
 router.put("/:id/assign-agent", assignAgentToOrder);
+router.put("/:id/verify-weight", verifyOrderWeight);
 
 // ──── Dashboard Stats ────
+router.get("/stats/dashboard", getDashboardStats);
 router.post("/auto-dispatch", autoDispatchPickups);
 router.put("/:id/execute-pickup", executePickup);
 router.put("/:trackingId/execute-pickup", executePickup);
