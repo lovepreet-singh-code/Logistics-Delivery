@@ -1,45 +1,81 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Truck, ScanLine, CheckCircle2, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
+import axios from 'axios';
 
 export default function HubOutwardingPage() {
   const [trackingId, setTrackingId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [recentScans, setRecentScans] = useState<{ id: string; time: string; success: boolean }[]>([]);
+  const [recentScans, setRecentScans] = useState<{ id: string; time: string; success: boolean; message?: string }[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleOutward = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!trackingId.trim()) return;
+    const scannedAwb = trackingId.trim();
+    if (!scannedAwb) return;
 
     setLoading(true);
     try {
-      // PUT /api/orders/:trackingId/transit
-      const res = await apiClient.put(`/orders/${trackingId}/transit`, {
-        vehicleId: vehicleId.trim() || undefined
-      });
-      
-      if (res.data?.success) {
-        toast.success('Parcel Dispatched for Transit!');
+      let res;
+      const payload = {
+        awb: scannedAwb,
+        vehicleNumber: vehicleId.trim() || undefined,
+        vehicleId: vehicleId.trim() || undefined,
+      };
+
+      try {
+        // Primary: POST /api/orders/outward
+        res = await apiClient.post('/orders/outward', payload);
+      } catch (postErr: any) {
+        // Fallback 1: Direct Order Service port 4004
+        try {
+          res = await axios.post('http://localhost:4004/api/orders/outward', payload);
+        } catch (portErr: any) {
+          // Fallback 2: PUT /orders/:trackingId/transit
+          res = await apiClient.put(`/orders/${scannedAwb}/transit`, payload);
+        }
+      }
+
+      if (res?.data?.success) {
+        toast.success(res.data.message || 'Parcel Dispatched for Transit!');
         setRecentScans((prev) => [
-          { id: trackingId, time: new Date().toLocaleTimeString(), success: true },
+          { 
+            id: scannedAwb, 
+            time: new Date().toLocaleTimeString(), 
+            success: true,
+            message: res.data.message || 'Dispatched Successfully'
+          },
           ...prev,
         ]);
-        setTrackingId('');
       } else {
-        throw new Error(res.data?.message || 'Failed to dispatch parcel');
+        throw new Error(res?.data?.message || 'Failed to dispatch parcel');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || error.message || 'Error dispatching parcel');
+      const errMsg = error.response?.data?.message || error.message || 'Error dispatching parcel';
+      toast.error(errMsg);
       setRecentScans((prev) => [
-        { id: trackingId, time: new Date().toLocaleTimeString(), success: false },
+        { 
+          id: scannedAwb, 
+          time: new Date().toLocaleTimeString(), 
+          success: false,
+          message: errMsg
+        },
         ...prev,
       ]);
     } finally {
       setLoading(false);
+      setTrackingId('');
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     }
   };
 
@@ -81,6 +117,7 @@ export default function HubOutwardingPage() {
                 </label>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <input
+                    ref={inputRef}
                     type="text"
                     value={trackingId}
                     onChange={(e) => setTrackingId(e.target.value)}
@@ -151,7 +188,7 @@ export default function HubOutwardingPage() {
                     )}
                     <div>
                       <p className="text-white font-mono font-bold tracking-tight">{scan.id}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{scan.success ? 'Dispatched Successfully' : 'Dispatch Failed'}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{scan.message || (scan.success ? 'Dispatched Successfully' : 'Dispatch Failed')}</p>
                     </div>
                   </div>
                   <div className="text-sm text-slate-400 font-mono">

@@ -19,6 +19,7 @@ import {
   inwardParcel,
   dispatchToTransit,
   receiveAtDestinationHub,
+  markOutForDelivery,
   getMyOrders,
   getRecentOrders,
   getUnassignedOrders,
@@ -61,8 +62,12 @@ router.get("/admin/analytics", getAdminAnalytics);
 // ──── Hub Operations ────
 router.put("/:trackingId/inward", adminAuth, inwardParcel);
 router.post("/inward", adminAuth, inwardParcel); // Keeping legacy just in case
+router.post("/outward", adminAuth, dispatchToTransit);
 router.put("/:trackingId/transit", adminAuth, dispatchToTransit);
+router.post("/destination-inward", adminAuth, receiveAtDestinationHub);
 router.put("/:trackingId/destination-inward", adminAuth, receiveAtDestinationHub);
+router.post("/out-for-delivery", adminAuth, markOutForDelivery);
+router.put("/:trackingId/out-for-delivery", adminAuth, markOutForDelivery);
 
 // ──── Order Endpoints ────
 router.post("/", createOrder);

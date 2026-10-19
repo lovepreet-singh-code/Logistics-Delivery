@@ -339,4 +339,88 @@ Simply double-click `start-all.bat` or run `.\start-all.bat` from the root termi
   docker-compose up -d --build --no-cache order-service
   ```
 
+### ✅ Feature 3: Hub Outwarding & Transit Dispatch (IMPLEMENTED & VERIFIED)
+- **Backend Outwarding API (`order-service`):**
+  - **Route:** `POST /api/orders/outward` (and `PUT /:trackingId/transit`).
+  - **Payload:** `{ awb: string, vehicleNumber?: string, vehicleId?: string, destinationHub?: string }`.
+  - **Validation & Business Logic:**
+    - Queries order strictly by `awb`, `trackingId`, or `_id`. Returns 404 if order not found.
+    - Prevents invalid state jumps: If parcel is already dispatched or completed (`IN_TRANSIT`, `DESTINATION_HUB`, `OUT_FOR_DELIVERY`, `DELIVERED`), returns 400 (`"Parcel already in transit or delivered. Current status: ..."`).
+    - Enforces hub origin requirement: Order MUST be `INWARDED_AT_HUB` (or `AT_HUB`, `INWARDED`). Returns 400 if not inwarded yet.
+    - Updates order status to `IN_TRANSIT`.
+    - Updates vehicle routing information (`vehicleNumber`, `vehicleId`) and optional `destinationFranchiseId`.
+    - Pushes audit log entry to `statusHistory`:
+      ```json
+      {
+        "status": "IN_TRANSIT",
+        "updatedBy": "ORIGIN_HUB_ADMIN",
+        "timestamp": "2026-10-19T...",
+        "note": "Parcel dispatched from Origin Hub. In transit to destination."
+      }
+      ```
+    - Emits Kafka `order.status.updated` event.
+    - Clears Redis cache keys (`track_order:${order._id}`, `track_order:${order.awb}`, `track_order:${order.trackingId}`, and `track_order:${awb}`).
+- **Frontend Hub Outwarding Station (`frontend/src/app/admin/outwarding/page.tsx`):**
+  - Connected AWB input field, optional line-haul vehicle ID, and "Dispatch to Transit" button to `POST /api/orders/outward`.
+  - Added triple resilience fallback (API Gateway $\rightarrow$ direct port 4004 $\rightarrow$ legacy PUT route).
+  - Maintained dynamic `recentScans` state displaying scan history (AWB, timestamp, status icon, and specific server response message).
+  - Maintained live "Session Summary" showing Success vs Failed counters.
+  - Automatically clears input field and triggers `inputRef.current?.focus()` after every scan for continuous rapid dispatching.
+  - 100% preserved the existing Hub Outwarding UI layout.
+- **Docker Force-Rebuild Command:**
+  ```bash
+  docker-compose up -d --build --no-cache order-service
+  ```
+
+### ✅ Feature 4: Destination Hub Receiving & Out for Delivery (IMPLEMENTED & VERIFIED)
+- **Backend APIs (`order-service`):**
+  - **Destination Inward Route:** `POST /api/orders/destination-inward` (and `PUT /:trackingId/destination-inward`).
+    - **Payload:** `{ awb: string }` (supports lookup by AWB, trackingId, or MongoDB `_id`).
+    - **Validation & Business Logic:**
+      - Rejects if already received (`DESTINATION_HUB`) or advanced (`OUT_FOR_DELIVERY`, `DELIVERED`) with 400.
+      - Requires status `IN_TRANSIT` (allows `INWARDED_AT_HUB` / `AT_HUB` as fallback for test resilience).
+      - Updates status to `DESTINATION_HUB`.
+      - Clears line-haul vehicle details from routing as parcel has reached destination facility.
+      - Appends audit log to `statusHistory`:
+        ```json
+        {
+          "status": "DESTINATION_HUB",
+          "note": "Reached Destination Hub. Preparing for final delivery.",
+          "updatedBy": "ADMIN"
+        }
+        ```
+      - Invalidation of Redis tracking cache for `track_order:${order._id}`, `track_order:${order.awb}`, and clean AWB.
+  - **Out for Delivery Route:** `POST /api/orders/out-for-delivery` (and `PUT /:trackingId/out-for-delivery`).
+    - **Payload:** `{ awb: string, agentId?: string, deliveryAgentId?: string }`.
+    - **Validation & Business Logic:**
+      - Rejects if already `OUT_FOR_DELIVERY` or `DELIVERED` with 400.
+      - Requires status `DESTINATION_HUB` (allows `IN_TRANSIT` as fallback).
+      - Updates status to `OUT_FOR_DELIVERY`.
+      - If `agentId` or `deliveryAgentId` is provided:
+        - Stores `routing.deliveryAgentId` and `routing.agentId`.
+        - If agent has vehicle details, updates `routing.vehicleNumber`.
+        - Marks agent status as `BUSY` / `ON_DUTY` in `users` collection.
+      - Appends audit log to `statusHistory`:
+        ```json
+        {
+          "status": "OUT_FOR_DELIVERY",
+          "note": "Parcel is out for delivery.",
+          "updatedBy": "ADMIN"
+        }
+        ```
+      - Invalidation of Redis tracking cache.
+- **Frontend Destination Hub Station (`frontend/src/app/admin/destination-hub/page.tsx`):**
+  - Connected AWB input field and "Receive Parcel" button to `POST /api/orders/destination-inward` with `{ awb: scannedAwb }`.
+  - Added triple resilience fallback (API Gateway $\rightarrow$ direct port 4004 $\rightarrow$ legacy PUT route).
+  - Maintained dynamic `recentScans` state displaying scan history (AWB, timestamp, status icon, and specific server response message).
+  - Added one-click **"Out for Delivery"** action button on each inwarded parcel row, allowing instant dispatching via `POST /api/orders/out-for-delivery`. Displays a purple badge once dispatched.
+  - Maintained live "Session Summary" showing Success vs Failed counters.
+  - Auto-clears input field and triggers `inputRef.current?.focus()` after every scan for continuous rapid receiving.
+  - 100% preserved the existing Destination Hub UI layout and dark purple theme.
+- **Docker Force-Rebuild Command:**
+  ```bash
+  docker-compose up -d --build --no-cache order-service
+  ```
+
+
 

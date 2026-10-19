@@ -1,42 +1,135 @@
 "use client";
 
-import React, { useState } from 'react';
-import { DownloadCloud, ScanLine, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { DownloadCloud, ScanLine, CheckCircle2, AlertCircle, Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
+import axios from 'axios';
+
+interface ScannedItem {
+  id: string;
+  time: string;
+  success: boolean;
+  message?: string;
+  status?: string;
+  isDispatching?: boolean;
+}
 
 export default function DestinationHubInwardingPage() {
   const [trackingId, setTrackingId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [recentScans, setRecentScans] = useState<{ id: string; time: string; success: boolean }[]>([]);
+  const [recentScans, setRecentScans] = useState<ScannedItem[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleInward = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!trackingId.trim()) return;
+    const scannedAwb = trackingId.trim();
+    if (!scannedAwb) return;
 
     setLoading(true);
     try {
-      // PUT /api/orders/:trackingId/destination-inward
-      const res = await apiClient.put(`/orders/${trackingId}/destination-inward`);
-      
-      if (res.data?.success) {
-        toast.success('Parcel Received at Destination!');
+      let res;
+      try {
+        // Primary: POST /api/orders/destination-inward with { awb }
+        res = await apiClient.post('/orders/destination-inward', { awb: scannedAwb });
+      } catch (postErr: any) {
+        // Fallback 1: Direct Order Service port 4004
+        try {
+          res = await axios.post('http://localhost:4004/api/orders/destination-inward', { awb: scannedAwb });
+        } catch (portErr: any) {
+          // Fallback 2: PUT /orders/:trackingId/destination-inward
+          res = await apiClient.put(`/orders/${scannedAwb}/destination-inward`);
+        }
+      }
+
+      if (res?.data?.success) {
+        const successMsg = res.data?.message || 'Reached Destination Hub. Preparing for final delivery.';
+        toast.success(successMsg);
         setRecentScans((prev) => [
-          { id: trackingId, time: new Date().toLocaleTimeString(), success: true },
+          {
+            id: scannedAwb,
+            time: new Date().toLocaleTimeString(),
+            success: true,
+            message: successMsg,
+            status: 'DESTINATION_HUB',
+          },
           ...prev,
         ]);
-        setTrackingId('');
       } else {
-        throw new Error(res.data?.message || 'Failed to receive parcel');
+        throw new Error(res?.data?.message || 'Failed to receive parcel');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || error.message || 'Error receiving parcel');
+      const errMsg = error.response?.data?.message || error.message || 'Error receiving parcel';
+      toast.error(errMsg);
       setRecentScans((prev) => [
-        { id: trackingId, time: new Date().toLocaleTimeString(), success: false },
+        {
+          id: scannedAwb,
+          time: new Date().toLocaleTimeString(),
+          success: false,
+          message: errMsg,
+          status: 'FAILED',
+        },
         ...prev,
       ]);
     } finally {
       setLoading(false);
+      setTrackingId('');
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    }
+  };
+
+  const handleOutForDelivery = async (awb: string) => {
+    setRecentScans((prev) =>
+      prev.map((s) => (s.id === awb ? { ...s, isDispatching: true } : s))
+    );
+
+    try {
+      let res;
+      try {
+        // Primary: POST /api/orders/out-for-delivery with { awb }
+        res = await apiClient.post('/orders/out-for-delivery', { awb });
+      } catch (postErr: any) {
+        // Fallback 1: Direct Order Service port 4004
+        try {
+          res = await axios.post('http://localhost:4004/api/orders/out-for-delivery', { awb });
+        } catch (portErr: any) {
+          // Fallback 2: PUT /orders/:trackingId/out-for-delivery
+          res = await apiClient.put(`/orders/${awb}/out-for-delivery`);
+        }
+      }
+
+      if (res?.data?.success) {
+        toast.success(`Parcel ${awb} dispatched Out for Delivery!`);
+        setRecentScans((prev) =>
+          prev.map((s) =>
+            s.id === awb
+              ? {
+                  ...s,
+                  status: 'OUT_FOR_DELIVERY',
+                  message: 'Parcel is out for delivery.',
+                  isDispatching: false,
+                }
+              : s
+          )
+        );
+      } else {
+        throw new Error(res?.data?.message || 'Failed to dispatch out for delivery');
+      }
+    } catch (error: any) {
+      const errMsg =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to dispatch out for delivery';
+      toast.error(errMsg);
+      setRecentScans((prev) =>
+        prev.map((s) => (s.id === awb ? { ...s, isDispatching: false } : s))
+      );
     }
   };
 
@@ -65,6 +158,7 @@ export default function DestinationHubInwardingPage() {
                 </label>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <input
+                    ref={inputRef}
                     type="text"
                     value={trackingId}
                     onChange={(e) => setTrackingId(e.target.value)}
@@ -97,11 +191,11 @@ export default function DestinationHubInwardingPage() {
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6">Session Summary</h3>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-center">
-                  <p className="text-3xl font-black text-emerald-400">{recentScans.filter(s => s.success).length}</p>
+                  <p className="text-3xl font-black text-emerald-400">{recentScans.filter((s) => s.success).length}</p>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Success</p>
                 </div>
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-center">
-                  <p className="text-3xl font-black text-red-400">{recentScans.filter(s => !s.success).length}</p>
+                  <p className="text-3xl font-black text-red-400">{recentScans.filter((s) => !s.success).length}</p>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Failed</p>
                 </div>
               </div>
@@ -135,11 +229,37 @@ export default function DestinationHubInwardingPage() {
                     )}
                     <div>
                       <p className="text-white font-mono font-bold tracking-tight">{scan.id}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{scan.success ? 'Received Successfully' : 'Receive Failed'}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {scan.message || (scan.success ? 'Reached Destination Hub. Preparing for final delivery.' : 'Receive Failed')}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-sm text-slate-400 font-mono">
-                    {scan.time}
+                  <div className="flex items-center gap-4">
+                    {scan.success && scan.status !== 'OUT_FOR_DELIVERY' && (
+                      <button
+                        onClick={() => handleOutForDelivery(scan.id)}
+                        disabled={scan.isDispatching}
+                        className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs font-semibold rounded-lg border border-purple-500/30 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {scan.isDispatching ? (
+                          <div className="w-3.5 h-3.5 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin"></div>
+                        ) : (
+                          <>
+                            <Truck className="w-3.5 h-3.5 text-purple-400" />
+                            Out for Delivery
+                          </>
+                        )}
+                      </button>
+                    )}
+                    {scan.success && scan.status === 'OUT_FOR_DELIVERY' && (
+                      <span className="px-2.5 py-1 bg-purple-950 text-purple-400 border border-purple-700/50 rounded-lg text-xs font-semibold flex items-center gap-1">
+                        <Truck className="w-3 h-3" />
+                        Out for Delivery
+                      </span>
+                    )}
+                    <div className="text-sm text-slate-400 font-mono">
+                      {scan.time}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -150,3 +270,4 @@ export default function DestinationHubInwardingPage() {
     </div>
   );
 }
+

@@ -114,6 +114,11 @@ const routingSchema = new Schema(
       ref: "User",
       default: null,
     },
+    deliveryAgentId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     vehicleId: {
       type: Schema.Types.ObjectId,
       ref: "Vehicle",

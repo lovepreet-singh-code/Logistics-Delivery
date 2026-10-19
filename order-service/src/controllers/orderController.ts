@@ -1171,63 +1171,131 @@ export const inwardParcel = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-// PUT /api/orders/:trackingId/transit
+// POST /api/orders/outward & PUT /api/orders/:trackingId/transit
 export const dispatchToTransit = async (req: Request, res: Response): Promise<void> => {
   try {
-    const trackingId = req.params.trackingId || req.body.trackingId || req.body.awb;
-    const { vehicleId } = req.body;
+    const rawAwb = req.body.awb || req.body.trackingId || req.params.trackingId;
+    const { vehicleNumber, vehicleId, destinationHub } = req.body;
 
-    if (!trackingId) {
-      res.status(400).json({ success: false, message: "trackingId is required" });
+    if (!rawAwb || typeof rawAwb !== "string" || !rawAwb.trim()) {
+      res.status(400).json({ success: false, message: "AWB / Tracking ID is required." });
       return;
     }
 
+    const cleanAwb = rawAwb.trim();
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(cleanAwb);
+
     const order = await Order.findOne({
       $or: [
-        { _id: mongoose.Types.ObjectId.isValid(trackingId) ? new mongoose.Types.ObjectId(trackingId) : null },
-        { awb: trackingId },
-        { trackingId: trackingId }
+        { awb: cleanAwb },
+        { trackingId: cleanAwb },
+        ...(isValidObjectId ? [{ _id: new mongoose.Types.ObjectId(cleanAwb) }] : [])
       ]
     });
 
     if (!order) {
-      res.status(404).json({ success: false, message: "Order not found" });
+      res.status(404).json({ success: false, message: `Order not found with AWB/Tracking ID: ${cleanAwb}` });
       return;
     }
 
-    if (order.status !== OrderStatus.INWARDED_AT_HUB && (order.status as unknown as string) !== "INWARDED") {
-      res.status(400).json({ 
-        success: false, 
-        message: `Order must be inwarded at hub first. Current status: ${order.status}` 
+    // Check if parcel is already dispatched, in transit, or delivered
+    const alreadyDispatchedStatuses = [
+      OrderStatus.IN_TRANSIT,
+      OrderStatus.DESTINATION_HUB,
+      OrderStatus.OUT_FOR_DELIVERY,
+      OrderStatus.DELIVERED,
+    ];
+
+    if (alreadyDispatchedStatuses.includes(order.status)) {
+      res.status(400).json({
+        success: false,
+        message: `Parcel already in transit or delivered. Current status: ${order.status}`,
       });
       return;
     }
 
+    // Status MUST be INWARDED_AT_HUB or AT_HUB
+    const validOutwardStatuses = [
+      OrderStatus.INWARDED_AT_HUB,
+      OrderStatus.AT_HUB,
+      "INWARDED_AT_HUB",
+      "AT_HUB",
+      "INWARDED"
+    ];
+
+    if (!validOutwardStatuses.includes(order.status)) {
+      res.status(400).json({
+        success: false,
+        message: `Order must be inwarded at hub before outward dispatch. Current status: ${order.status}`,
+      });
+      return;
+    }
+
+    // Update status to IN_TRANSIT
     order.status = OrderStatus.IN_TRANSIT;
     if (!order.routing) {
       order.routing = {} as any;
     }
     
+    if (vehicleNumber) {
+      order.routing.vehicleNumber = vehicleNumber;
+    }
+
     if (vehicleId) {
       order.routing.vehicleId = mongoose.Types.ObjectId.isValid(vehicleId) 
         ? new mongoose.Types.ObjectId(vehicleId) 
         : vehicleId;
     }
 
+    if (destinationHub && mongoose.Types.ObjectId.isValid(destinationHub)) {
+      order.routing.destinationFranchiseId = new mongoose.Types.ObjectId(destinationHub);
+    }
+
+    // Push an entry to statusHistory: "Parcel dispatched from Origin Hub. In transit to destination."
     if (!order.statusHistory) {
       order.statusHistory = [];
     }
     order.statusHistory.push({
       status: OrderStatus.IN_TRANSIT,
+      updatedBy: req.body.updatedBy || "ORIGIN_HUB_ADMIN",
       timestamp: new Date(),
-      note: "Dispatched to Destination Facility",
+      note: "Parcel dispatched from Origin Hub. In transit to destination.",
     });
 
     await order.save();
 
+    // Emit order.status.updated Kafka event
+    try {
+      await producer.send({
+        topic: "order.status.updated",
+        messages: [{
+          value: JSON.stringify({
+            orderId: order._id.toString(),
+            status: order.status,
+            customerId: order.customerId.toString(),
+            timestamp: new Date().toISOString()
+          })
+        }]
+      });
+    } catch (kafkaError) {
+      console.error("Kafka Publish Failed (order.status.updated in outwarding):", kafkaError);
+    }
+
+    // Clear Redis tracking cache for this order
+    try {
+      if (redisClient.isOpen) {
+        await redisClient.del(`track_order:${order._id}`);
+        if (order.awb) await redisClient.del(`track_order:${order.awb}`);
+        if ((order as any).trackingId) await redisClient.del(`track_order:${(order as any).trackingId}`);
+        await redisClient.del(`track_order:${cleanAwb}`);
+      }
+    } catch (redisError) {
+      console.error("Redis delete error during outward dispatch:", redisError);
+    }
+
     res.status(200).json({
       success: true,
-      message: "Parcel Dispatched for Transit!",
+      message: "Parcel dispatched from Origin Hub. In transit to destination.",
       data: order,
     });
   } catch (error: any) {
@@ -1236,33 +1304,54 @@ export const dispatchToTransit = async (req: Request, res: Response): Promise<vo
   }
 };
 
-// PUT /api/orders/:trackingId/destination-inward
+// PUT /api/orders/:trackingId/destination-inward or POST /api/orders/destination-inward
 export const receiveAtDestinationHub = async (req: Request, res: Response): Promise<void> => {
   try {
-    const trackingId = req.params.trackingId || req.body.trackingId || req.body.awb;
+    const trackingId = req.body.awb || req.body.trackingId || req.params.trackingId;
 
-    if (!trackingId) {
-      res.status(400).json({ success: false, message: "trackingId is required" });
+    if (!trackingId || typeof trackingId !== "string" || !trackingId.trim()) {
+      res.status(400).json({ success: false, message: "AWB or trackingId is required" });
       return;
     }
 
+    const cleanTrackingId = trackingId.trim();
+
     const order = await Order.findOne({
       $or: [
-        { _id: mongoose.Types.ObjectId.isValid(trackingId) ? new mongoose.Types.ObjectId(trackingId) : null },
-        { awb: trackingId },
-        { trackingId: trackingId }
+        { _id: mongoose.Types.ObjectId.isValid(cleanTrackingId) ? new mongoose.Types.ObjectId(cleanTrackingId) : null },
+        { awb: { $regex: new RegExp(`^${cleanTrackingId}$`, "i") } },
+        { trackingId: { $regex: new RegExp(`^${cleanTrackingId}$`, "i") } }
       ]
     });
 
     if (!order) {
-      res.status(404).json({ success: false, message: "Order not found" });
+      res.status(404).json({ success: false, message: `Order with AWB ${cleanTrackingId} not found` });
       return;
     }
 
-    if (order.status !== OrderStatus.IN_TRANSIT) {
+    if (order.status === OrderStatus.DESTINATION_HUB) {
+      res.status(400).json({
+        success: false,
+        message: `Parcel ${order.awb || cleanTrackingId} is already received at Destination Hub.`,
+        data: order
+      });
+      return;
+    }
+
+    if (order.status === OrderStatus.OUT_FOR_DELIVERY || order.status === OrderStatus.DELIVERED) {
+      res.status(400).json({
+        success: false,
+        message: `Parcel ${order.awb || cleanTrackingId} has already advanced past Destination Hub inwarding (Status: ${order.status}).`,
+        data: order
+      });
+      return;
+    }
+
+    const validStatuses = [OrderStatus.IN_TRANSIT, "IN_TRANSIT", OrderStatus.INWARDED_AT_HUB, "AT_HUB"];
+    if (!validStatuses.includes(order.status as any)) {
       res.status(400).json({ 
         success: false, 
-        message: `Order must be in transit before it can be received at destination hub. Current status: ${order.status}` 
+        message: `Order must be in transit before it can be received at Destination Hub. Current status: ${order.status}` 
       });
       return;
     }
@@ -1276,19 +1365,32 @@ export const receiveAtDestinationHub = async (req: Request, res: Response): Prom
     order.statusHistory.push({
       status: OrderStatus.DESTINATION_HUB,
       timestamp: new Date(),
-      note: "Arrived at Destination Hub - Pending Last Mile Assignment",
+      note: "Reached Destination Hub. Preparing for final delivery.",
+      updatedBy: (req as any).user?.role || "ADMIN",
     });
 
-    // We can remove line-haul vehicle association since it has arrived
-    if (order.routing && order.routing.vehicleId) {
-      delete order.routing.vehicleId;
+    // Remove line-haul vehicle association since it has arrived
+    if (order.routing && (order.routing as any).vehicleId) {
+      delete (order.routing as any).vehicleId;
     }
 
     await order.save();
 
+    // Invalidate Redis cache
+    try {
+      if (redisClient && redisClient.isOpen) {
+        await redisClient.del(`track_order:${order._id}`);
+        if (order.awb) await redisClient.del(`track_order:${order.awb}`);
+        const cleanAwb = (order.awb || "").trim().toUpperCase();
+        if (cleanAwb) await redisClient.del(`track_order:${cleanAwb}`);
+      }
+    } catch (redisError) {
+      console.error("Redis delete error during destination receiving:", redisError);
+    }
+
     res.status(200).json({
       success: true,
-      message: "Parcel Received at Destination Hub!",
+      message: "Reached Destination Hub. Preparing for final delivery.",
       data: order,
     });
   } catch (error: any) {
@@ -1296,6 +1398,141 @@ export const receiveAtDestinationHub = async (req: Request, res: Response): Prom
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// POST /api/orders/out-for-delivery or PUT /api/orders/:trackingId/out-for-delivery
+export const markOutForDelivery = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const trackingId = req.body.awb || req.body.trackingId || req.params.trackingId || req.params.id;
+    const { agentId, deliveryAgentId } = req.body;
+    const targetAgentId = deliveryAgentId || agentId;
+
+    if (!trackingId || typeof trackingId !== "string" || !trackingId.trim()) {
+      res.status(400).json({ success: false, message: "AWB or trackingId is required" });
+      return;
+    }
+
+    const cleanTrackingId = trackingId.trim();
+
+    const order = await Order.findOne({
+      $or: [
+        { _id: mongoose.Types.ObjectId.isValid(cleanTrackingId) ? new mongoose.Types.ObjectId(cleanTrackingId) : null },
+        { awb: { $regex: new RegExp(`^${cleanTrackingId}$`, "i") } },
+        { trackingId: { $regex: new RegExp(`^${cleanTrackingId}$`, "i") } }
+      ]
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, message: `Order with AWB ${cleanTrackingId} not found` });
+      return;
+    }
+
+    if (order.status === OrderStatus.OUT_FOR_DELIVERY) {
+      res.status(400).json({
+        success: false,
+        message: `Parcel ${order.awb || cleanTrackingId} is already out for delivery.`,
+        data: order
+      });
+      return;
+    }
+
+    if (order.status === OrderStatus.DELIVERED) {
+      res.status(400).json({
+        success: false,
+        message: `Parcel ${order.awb || cleanTrackingId} has already been delivered.`,
+        data: order
+      });
+      return;
+    }
+
+    const validStatuses = [OrderStatus.DESTINATION_HUB, "DESTINATION_HUB", OrderStatus.IN_TRANSIT, "IN_TRANSIT"];
+    if (!validStatuses.includes(order.status as any)) {
+      res.status(400).json({
+        success: false,
+        message: `Order must be at Destination Hub before dispatching for delivery. Current status: ${order.status}`
+      });
+      return;
+    }
+
+    order.status = OrderStatus.OUT_FOR_DELIVERY;
+
+    // Handle agent assignment if provided
+    if (targetAgentId) {
+      let agent: any = null;
+      const isValidAgentId = mongoose.Types.ObjectId.isValid(targetAgentId);
+      if (isValidAgentId) {
+        agent = await User.findById(targetAgentId);
+      }
+      if (!agent && mongoose.connection.db) {
+        const usersCol = mongoose.connection.db.collection("users");
+        const queryList: any[] = [{ email: targetAgentId }, { name: targetAgentId }];
+        if (isValidAgentId) {
+          queryList.unshift({ _id: new mongoose.Types.ObjectId(targetAgentId) });
+        }
+        agent = await usersCol.findOne({ $or: queryList });
+      }
+
+      if (agent) {
+        if (!order.routing) {
+          order.routing = {} as any;
+        }
+        order.routing.deliveryAgentId = agent._id;
+        order.routing.agentId = agent._id;
+        if (agent.vehicleNumber) {
+          order.routing.vehicleNumber = agent.vehicleNumber;
+        }
+
+        // Mark agent status as BUSY
+        try {
+          if (mongoose.connection.db) {
+            await mongoose.connection.db.collection("users").updateOne(
+              { _id: new mongoose.Types.ObjectId(agent._id) },
+              { $set: { status: "BUSY", availabilityStatus: "BUSY", updatedAt: new Date() } }
+            );
+          } else {
+            await User.findByIdAndUpdate(agent._id, { status: "BUSY", availabilityStatus: "BUSY" });
+          }
+        } catch (agentErr) {
+          console.warn("Could not update agent status to BUSY:", agentErr);
+        }
+      }
+    }
+
+    if (!order.statusHistory) {
+      order.statusHistory = [];
+    }
+
+    order.statusHistory.push({
+      status: OrderStatus.OUT_FOR_DELIVERY,
+      timestamp: new Date(),
+      note: "Parcel is out for delivery.",
+      updatedBy: (req as any).user?.role || "ADMIN",
+    });
+
+    await order.save();
+
+    // Invalidate Redis cache
+    try {
+      if (redisClient && redisClient.isOpen) {
+        await redisClient.del(`track_order:${order._id}`);
+        if (order.awb) await redisClient.del(`track_order:${order.awb}`);
+        const cleanAwb = (order.awb || "").trim().toUpperCase();
+        if (cleanAwb) await redisClient.del(`track_order:${cleanAwb}`);
+      }
+    } catch (redisError) {
+      console.error("Redis delete error during out for delivery:", redisError);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Parcel is out for delivery.",
+      data: order,
+    });
+  } catch (error: any) {
+    console.error("Out for Delivery Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ═══════════════════════════════════════════════
 //  MANUAL ASSIGNMENT (TESTING BYPASS)
 // ═══════════════════════════════════════════════

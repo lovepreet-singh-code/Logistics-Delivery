@@ -59,6 +59,7 @@ export interface IRouting {
   destinationFranchiseId?: Types.ObjectId;
   isInterFranchise?: boolean;
   agentId?: Types.ObjectId;
+  deliveryAgentId?: Types.ObjectId;
   vehicleId?: Types.ObjectId;
   vehicleNumber?: string;
   assignmentType?: string;
