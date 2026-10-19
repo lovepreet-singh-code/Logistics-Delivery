@@ -34,7 +34,7 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 - `dispatch.manifested` -> Handled by `dispatchManifestedWorker.ts`
 - `delivery.completed` -> Handled by `deliveryCompletedWorker.ts`
 **Internal Controllers:**
-- `orderController.ts`: Handles CRUD, Zero-Touch Auto-Dispatch Cron Engine (`runAutoDispatchLogic`), pricing calculation (`calculateTotalAmount`), `assignAgentToOrder` (`PUT /api/orders/:id/assign-agent`), `getAvailableAgents` (`GET /api/orders/available-agents` & `GET /api/users`), `verifyOrderWeight` (`PUT /api/orders/:id/verify-weight`) ⭐ *Phase 3 Feature 3*, and `getDashboardStats` (`GET /api/orders/stats/dashboard`) ⭐ *Phase 3 Feature 4: Dashboard Aggregation KPI Engine*.
+- `orderController.ts`: Handles CRUD, Zero-Touch Auto-Dispatch Cron Engine (`runAutoDispatchLogic`), pricing calculation (`calculateTotalAmount`), `assignAgentToOrder` (`PUT /api/orders/:id/assign-agent`), `getAvailableAgents` (`GET /api/orders/available-agents` & `GET /api/users`), `verifyOrderWeight` (`PUT /api/orders/:id/verify-weight`) ⭐ *Phase 3 Feature 3*, `getDashboardStats` (`GET /api/orders/stats/dashboard`) ⭐ *Phase 3 Feature 4*, `getAgentOrders` (`GET /api/orders/agent/:agentId`) ⭐ *Phase 4 Feature 1*, enhanced `updateOrderStatus` (`PUT /api/orders/:id/status`) ⭐ *Phase 4 Feature 1*, and `inwardParcel` (`POST /api/orders/inward` & `PUT /api/orders/:trackingId/inward`) ⭐ *Phase 4 Feature 2: Hub Inwarding & Custody Transfer API*.
 - `hubController.ts`: Handles Hub lookups.
 - `serviceabilityRoutes.ts`: ⭐ *Phase 2* — `GET /api/serviceability/check?pincode=XXXXXX` — **Dynamically** queries `Hub.findOne({ serviceablePincodes: pincode, isActive: true })`. City name sourced from `hub.hubName`. Returns `{ serviceable: boolean, city, hubCode, message }`. Zero hardcoding — fully driven by Admin-managed Hub records in MongoDB.
 - `pricingRoutes.ts`: ⭐ *Phase 2 Feature 2* — `POST /api/pricing/calculate` — Live parcel pricing engine. Calculates volumetric weight (`(L*W*H)/5000`), chargeable weight (`max(actual, volumetric)`), base charge (`₹50/kg`), flat premium (`₹100` for `FRAGILE`/`ELECTRONICS`), and `18% GST`. Returns `{ baseCharge, tax, totalAmount, chargeableWeight, volumetricWeight }`.
@@ -58,12 +58,13 @@ The central NGINX Gateway (`api-gateway/nginx.conf`) handles CORS and routes tra
 
 - **/customer/book** -> POST `/api/orders` (Order Service with `pickupTimeSlot` & `pickupDetails`) + GET `/api/serviceability/check?pincode=XXXXXX` (Phase 2 Feature 1) + POST `/api/pricing/calculate` (Phase 2 Feature 2) ⭐ *Phase 3 Feature 2: Pickup Scheduling dropdown*
 - **/customer/track/[orderId]** -> GET `/api/orders/:id` (Order Service Cache) & Socket.io for Real-time maps (`TrackingMap.tsx`).
-- **/agent/pickup-dashboard** -> GET `/api/orders` & PUT `/api/orders/:id/pickup-confirm` (Order Service)
+- **/agent** -> GET `/api/orders/agent/:agentId` (Order Service KPI Stats) ⭐ *Phase 4: Agent KPI metrics*
+- **/agent/pickup-dashboard** -> GET `/api/orders/agent/:agentId` & PUT `/api/orders/:id/status` (Order Service) ⭐ *Phase 4 Feature 1: Real-time Pickup Agent Workflow, Exact Field Mapping & In-Custody Reflection*
 - **/agent/delivery-dashboard** -> GET `/api/orders?status=OUT_FOR_DELIVERY` & PUT `/api/orders/:id/complete-delivery` (Order Service)
 - **/admin** -> GET `/api/orders/stats/dashboard` (Order Service) ⭐ *Phase 3 Feature 4: Live KPI operations overview (Total Orders, Pending Pickups, In Transit, Delivered)*
 - **/admin/planning** -> Connects to `dispatch-service` for manifests and `order-service` for auto-seeding.
 - **/admin/orders** -> GET `/api/orders` (Order Service) + GET `/api/users` / `/api/orders/available-agents` + PUT `/api/orders/:id/assign-agent` + PUT `/api/orders/:id/verify-weight` ⭐ *Phase 3: Route & Fleet agent assignment, real-time fleet status, and Weight Verification & Price Adjustment modal*
-- **/admin/inwarding** -> PUT `/api/orders/:trackingId/inward` (Order Service)
+- **/admin/inwarding** -> POST `/api/orders/inward` & PUT `/api/orders/:trackingId/inward` (Order Service) ⭐ *Phase 4 Feature 2: Hub Inwarding Station & Custody Transfer*
 - **/admin/outwarding** -> PUT `/api/orders/:trackingId/transit` (Order Service)
 - **/admin/destination-hub** -> PUT `/api/orders/:trackingId/destination-inward` (Order Service)
 

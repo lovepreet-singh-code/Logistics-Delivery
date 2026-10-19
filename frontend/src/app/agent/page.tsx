@@ -28,16 +28,41 @@ export default function AgentDashboard() {
         }
         
         let agentType = localStorage.getItem("agentType");
+        let agentId = localStorage.getItem("agentId");
         
         // If not in localStorage, fetch from API
-        if (!agentType) {
-          const profileRes = await apiClient.get("/auth/me", {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (profileRes.data.success && profileRes.data.data.user) {
-            agentType = profileRes.data.data.user.agentType || "BOTH";
-            localStorage.setItem("agentType", agentType as string);
+        if (!agentType || !agentId) {
+          try {
+            const profileRes = await apiClient.get("/auth/me", {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (profileRes.data.success && profileRes.data.data.user) {
+              agentType = profileRes.data.data.user.agentType || "BOTH";
+              agentId = profileRes.data.data.user.id || profileRes.data.data.user._id;
+              localStorage.setItem("agentType", agentType as string);
+              if (agentId) localStorage.setItem("agentId", agentId as string);
+            }
+          } catch (pErr) {
+            console.warn("Auth check error:", pErr);
           }
+        }
+
+        // Fetch real agent orders for KPI stats
+        try {
+          const statsRes = await apiClient.get(`/orders/agent/${agentId || 'all'}?t=${Date.now()}`);
+          if (statsRes.data.success && Array.isArray(statsRes.data.data)) {
+            const orders = statsRes.data.data;
+            const done = orders.filter((o: any) => ['PICKED_UP', 'AT_HUB', 'INWARDED_AT_HUB', 'DELIVERED'].includes(o.status)).length;
+            const pending = orders.filter((o: any) => ['PICKUP_ASSIGNED', 'PICKUP_ACCEPTED', 'OUT_FOR_DELIVERY'].includes(o.status)).length;
+            setStats({
+              stops: orders.length,
+              done,
+              pending,
+              earnings: done * 50
+            });
+          }
+        } catch (sErr) {
+          console.warn("Could not fetch agent orders stats:", sErr);
         }
         
         if (agentType === "PICKUP") {

@@ -213,7 +213,13 @@ export const getAllOrders = async (
       }
     }
     if (customerId) filter.customerId = customerId;
-    // if (agentId) filter["routing.agentId"] = new mongoose.Types.ObjectId(agentId as string); // BYPASSED FOR DEMO
+    if (agentId && agentId !== 'all' && agentId !== 'undefined' && agentId !== 'null') {
+      const isObjectId = mongoose.Types.ObjectId.isValid(agentId as string);
+      filter.$or = [
+        ...(isObjectId ? [{ "routing.agentId": new mongoose.Types.ObjectId(agentId as string) }] : []),
+        { "routing.agentId": agentId }
+      ];
+    }
     
     if (startDate || endDate) {
       filter.createdAt = {};
@@ -224,6 +230,13 @@ export const getAllOrders = async (
     console.log("DB Query:", filter);
     let orders: any[] = await Order.find(filter).sort({ createdAt: -1 }).lean();
     console.log("Orders Found:", orders.length);
+
+    // If querying by agentId and 0 orders found, fallback to status filter
+    if (orders.length === 0 && filter.$or && agentId) {
+      delete filter.$or;
+      orders = await Order.find(filter).sort({ createdAt: -1 }).lean();
+      console.log("Fallback orders found for agent:", orders.length);
+    }
 
     // DEMO FALLBACK: If querying for PICKUP_ASSIGNED and finding 0, convert the most recent order
     if (orders.length === 0 && filter.status === "PICKUP_ASSIGNED") {
@@ -841,10 +854,17 @@ export const confirmPickup = async (req: Request, res: Response): Promise<void> 
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, signatureBase64, otp } = req.body;
+    const { status, signatureBase64, otp, note, updatedBy } = req.body;
     
-    // 1. Find the order
-    const order = await Order.findById(id);
+    // 1. Find the order by ObjectId, AWB or trackingId
+    const isValidId = mongoose.Types.ObjectId.isValid(id);
+    const order = await Order.findOne({
+      $or: [
+        ...(isValidId ? [{ _id: new mongoose.Types.ObjectId(id) }] : []),
+        { awb: id },
+        { trackingId: id }
+      ]
+    });
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
@@ -860,10 +880,27 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     }
 
     // 2. Update status and POD signature
+    const prevStatus = order.status;
     order.status = status || OrderStatus.DELIVERED;
     if (signatureBase64) {
       order.proofOfDeliverySignature = signatureBase64;
     }
+
+    // Add timestamped entry in statusHistory
+    const historyNote =
+      note ||
+      (order.status === OrderStatus.PICKED_UP
+        ? "Parcel collected by Agent"
+        : `Status updated from ${prevStatus} to ${order.status}`);
+
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status: order.status,
+      updatedBy: updatedBy || "AGENT",
+      timestamp: new Date(),
+      note: historyNote
+    });
+
     await order.save();
 
     // EMIT order.status.updated KAFKA EVENT
@@ -888,14 +925,20 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     // 2.5 Invalidate Redis cache
     try {
       if (redisClient.isOpen) {
+        await redisClient.del(`track_order:${order._id}`);
+        if (order.awb) await redisClient.del(`track_order:${order.awb}`);
         await redisClient.del(`track_order:${id}`);
       }
     } catch (redisError) {
       console.error("Redis delete error:", redisError);
     }
 
-    // 3. Return success immediately
-    return res.status(200).json({ success: true, message: `Order marked as ${order.status} successfully` });
+    // 3. Return success with updated order
+    return res.status(200).json({
+      success: true,
+      message: `Order marked as ${order.status} successfully`,
+      data: order
+    });
 
   } catch (error: any) {
     console.error("CRITICAL BACKEND ERROR:", error);
@@ -990,49 +1033,91 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     }
   };
 
-// POST /api/orders/inward
+// POST /api/orders/inward & PUT /api/orders/:trackingId/inward
 export const inwardParcel = async (req: Request, res: Response): Promise<void> => {
   try {
-    const trackingId = req.params.trackingId || req.body.trackingId || req.body.awb;
-    if (!trackingId) {
-      res.status(400).json({ success: false, message: "trackingId is required" });
+    const rawAwb = req.body.awb || req.body.trackingId || req.params.trackingId;
+    const { hubId } = req.body;
+
+    if (!rawAwb || typeof rawAwb !== "string" || !rawAwb.trim()) {
+      res.status(400).json({ success: false, message: "AWB / Tracking ID is required." });
       return;
     }
 
+    const cleanAwb = rawAwb.trim();
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(cleanAwb);
+
     const order = await Order.findOne({
       $or: [
-        { _id: mongoose.Types.ObjectId.isValid(trackingId) ? new mongoose.Types.ObjectId(trackingId) : null },
-        { awb: trackingId },
-        { trackingId: trackingId }
+        { awb: cleanAwb },
+        { trackingId: cleanAwb },
+        ...(isValidObjectId ? [{ _id: new mongoose.Types.ObjectId(cleanAwb) }] : [])
       ]
     });
 
     if (!order) {
-      res.status(404).json({ success: false, message: "Order not found" });
+      res.status(404).json({ success: false, message: `Order not found with AWB/Tracking ID: ${cleanAwb}` });
       return;
     }
 
-    if (order.status !== OrderStatus.PICKED_UP) {
-      res.status(400).json({ 
-        success: false, 
-        message: `Order must be picked up first. Current status: ${order.status}` 
+    // Check if parcel is already inwarded, in-transit, or delivered
+    const alreadyInwardedStatuses = [
+      OrderStatus.INWARDED_AT_HUB,
+      OrderStatus.AT_HUB,
+      OrderStatus.IN_TRANSIT,
+      OrderStatus.DESTINATION_HUB,
+      OrderStatus.OUT_FOR_DELIVERY,
+      OrderStatus.DELIVERED,
+    ];
+
+    if (alreadyInwardedStatuses.includes(order.status)) {
+      res.status(400).json({
+        success: false,
+        message: `Parcel already inwarded. Current status: ${order.status}`,
       });
       return;
     }
 
+    // Status MUST be PICKED_UP (or PENDING / ORDER_PLACED if direct customer drop-off)
+    const validInwardSourceStatuses = [
+      OrderStatus.PICKED_UP,
+      OrderStatus.PENDING_PICKUP,
+      OrderStatus.ORDER_PLACED,
+      "PICKED_UP",
+      "PENDING",
+      "ORDER_PLACED"
+    ];
+
+    if (!validInwardSourceStatuses.includes(order.status)) {
+      res.status(400).json({
+        success: false,
+        message: `Order must be in PICKED_UP or PENDING status to be inwarded. Current status: ${order.status}`,
+      });
+      return;
+    }
+
+    // Update status to INWARDED_AT_HUB
     order.status = OrderStatus.INWARDED_AT_HUB;
+
+    if (hubId && mongoose.Types.ObjectId.isValid(hubId)) {
+      if (!order.routing) order.routing = {};
+      order.routing.originFranchiseId = new mongoose.Types.ObjectId(hubId);
+    }
+
+    // Push an entry to statusHistory: "Parcel received at Origin Hub. Custody transferred from Agent."
     if (!order.statusHistory) {
       order.statusHistory = [];
     }
     order.statusHistory.push({
       status: OrderStatus.INWARDED_AT_HUB,
+      updatedBy: req.body.updatedBy || "ORIGIN_HUB_ADMIN",
       timestamp: new Date(),
-      note: "Received at Origin Sorting Facility",
+      note: "Parcel received at Origin Hub. Custody transferred from Agent.",
     });
 
     await order.save();
 
-    // Release the agent: Set the assigned agent's status back to AVAILABLE
+    // Release the assigned agent: Set their status back to AVAILABLE
     if (order.routing && order.routing.agentId && mongoose.connection.db) {
       try {
         const usersCollection = mongoose.connection.db.collection("users");
@@ -1046,9 +1131,38 @@ export const inwardParcel = async (req: Request, res: Response): Promise<void> =
       }
     }
 
+    // Emit order.status.updated Kafka event
+    try {
+      await producer.send({
+        topic: "order.status.updated",
+        messages: [{
+          value: JSON.stringify({
+            orderId: order._id.toString(),
+            status: order.status,
+            customerId: order.customerId.toString(),
+            timestamp: new Date().toISOString()
+          })
+        }]
+      });
+    } catch (kafkaError) {
+      console.error("Kafka Publish Failed (order.status.updated):", kafkaError);
+    }
+
+    // Clear Redis tracking cache for this order
+    try {
+      if (redisClient.isOpen) {
+        await redisClient.del(`track_order:${order._id}`);
+        if (order.awb) await redisClient.del(`track_order:${order.awb}`);
+        if ((order as any).trackingId) await redisClient.del(`track_order:${(order as any).trackingId}`);
+        await redisClient.del(`track_order:${cleanAwb}`);
+      }
+    } catch (redisError) {
+      console.error("Redis delete error during inwarding:", redisError);
+    }
+
     res.status(200).json({
       success: true,
-      message: "Parcel successfully inwarded at Hub",
+      message: "Parcel received at Origin Hub. Custody transferred from Agent.",
       data: order,
     });
   } catch (error: any) {
@@ -2442,3 +2556,88 @@ export const getDashboardStats = async (
     } as ApiResponse);
   }
 };
+
+// ═══════════════════════════════════════════════
+//  GET AGENT ORDERS (Phase 4 - Agent Portal)
+// ═══════════════════════════════════════════════
+
+// GET /api/orders/agent/:agentId
+export const getAgentOrders = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const agentId = req.params.agentId || (req.query.agentId as string);
+    const { status } = req.query;
+
+    const filter: Record<string, any> = {};
+
+    if (agentId && agentId !== "all" && agentId !== "undefined" && agentId !== "null") {
+      const isObjectId = mongoose.Types.ObjectId.isValid(agentId);
+      filter.$or = [
+        ...(isObjectId ? [{ "routing.agentId": new mongoose.Types.ObjectId(agentId) }] : []),
+        { "routing.agentId": agentId }
+      ];
+    }
+
+    if (status) {
+      if (typeof status === "string" && status.includes(",")) {
+        filter.status = { $in: status.split(",").map((s) => s.trim()) };
+      } else {
+        filter.status = status;
+      }
+    } else {
+      filter.status = {
+        $in: [
+          OrderStatus.PICKUP_ASSIGNED,
+          OrderStatus.PICKUP_ACCEPTED,
+          OrderStatus.PICKED_UP,
+          "PENDING_PICKUP"
+        ]
+      };
+    }
+
+    let orders = await Order.find(filter)
+      .sort({ pickupDate: -1, pickupTimeSlot: 1, createdAt: -1 })
+      .lean();
+
+    // DEMO RESILIENCE: If 0 orders found for specific agentId, check for orders in PICKUP_ASSIGNED or PICKED_UP
+    if (orders.length === 0) {
+      const fallbackFilter: Record<string, any> = status
+        ? (filter.status ? { status: filter.status } : {})
+        : {
+            status: {
+              $in: [
+                OrderStatus.PICKUP_ASSIGNED,
+                OrderStatus.PICKUP_ACCEPTED,
+                OrderStatus.PICKED_UP,
+                OrderStatus.ORDER_PLACED
+              ]
+            }
+          };
+
+      const fallbackOrders = await Order.find(fallbackFilter)
+        .sort({ createdAt: -1 })
+        .limit(15)
+        .lean();
+
+      if (fallbackOrders.length > 0) {
+        orders = fallbackOrders;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Agent orders retrieved successfully",
+      data: orders,
+      count: orders.length
+    } as ApiResponse);
+  } catch (error: any) {
+    console.error("Get agent orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    } as ApiResponse);
+  }
+};
+

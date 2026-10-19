@@ -1,42 +1,74 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Package, ScanLine, CheckCircle2, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
+import axios from 'axios';
 
 export default function HubInwardingPage() {
   const [trackingId, setTrackingId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [recentScans, setRecentScans] = useState<{ id: string; time: string; success: boolean }[]>([]);
+  const [recentScans, setRecentScans] = useState<{ id: string; time: string; success: boolean; message?: string }[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleInward = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!trackingId.trim()) return;
+    const scannedAwb = trackingId.trim();
+    if (!scannedAwb) return;
 
     setLoading(true);
     try {
-      // PUT /api/orders/:trackingId/inward using our standard backend service client wrapper
-      const res = await apiClient.put(`/orders/${trackingId}/inward`);
-      
-      if (res.data?.success) {
-        toast.success('Parcel Inwarded Successfully!');
+      let res;
+      try {
+        // Primary: POST /api/orders/inward with { awb }
+        res = await apiClient.post('/orders/inward', { awb: scannedAwb });
+      } catch (postErr: any) {
+        // Fallback 1: Direct Order Service port 4004
+        try {
+          res = await axios.post('http://localhost:4004/api/orders/inward', { awb: scannedAwb });
+        } catch (portErr: any) {
+          // Fallback 2: PUT /orders/:trackingId/inward
+          res = await apiClient.put(`/orders/${scannedAwb}/inward`);
+        }
+      }
+
+      if (res?.data?.success) {
+        toast.success(res.data.message || 'Parcel Inwarded Successfully!');
         setRecentScans((prev) => [
-          { id: trackingId, time: new Date().toLocaleTimeString(), success: true },
+          { 
+            id: scannedAwb, 
+            time: new Date().toLocaleTimeString(), 
+            success: true,
+            message: res.data.message || 'Inwarded Successfully'
+          },
           ...prev,
         ]);
-        setTrackingId('');
       } else {
-        throw new Error(res.data?.message || 'Failed to inward parcel');
+        throw new Error(res?.data?.message || 'Failed to inward parcel');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || error.message || 'Error inwarding parcel');
+      const errMsg = error.response?.data?.message || error.message || 'Error inwarding parcel';
+      toast.error(errMsg);
       setRecentScans((prev) => [
-        { id: trackingId, time: new Date().toLocaleTimeString(), success: false },
+        { 
+          id: scannedAwb, 
+          time: new Date().toLocaleTimeString(), 
+          success: false,
+          message: errMsg
+        },
         ...prev,
       ]);
     } finally {
       setLoading(false);
+      setTrackingId('');
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     }
   };
 
@@ -65,6 +97,7 @@ export default function HubInwardingPage() {
                 </label>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <input
+                    ref={inputRef}
                     type="text"
                     value={trackingId}
                     onChange={(e) => setTrackingId(e.target.value)}
@@ -135,7 +168,7 @@ export default function HubInwardingPage() {
                     )}
                     <div>
                       <p className="text-white font-mono font-bold tracking-tight">{scan.id}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{scan.success ? 'Inwarded Successfully' : 'Inward Failed'}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{scan.message || (scan.success ? 'Inwarded Successfully' : 'Inward Failed')}</p>
                     </div>
                   </div>
                   <div className="text-sm text-slate-400 font-mono">
