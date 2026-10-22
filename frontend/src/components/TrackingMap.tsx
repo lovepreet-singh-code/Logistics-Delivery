@@ -1,71 +1,151 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default marker icons in Next.js + Leaflet
-const iconTruck = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', // We can use custom icons later
+const defaultIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
-  className: 'hue-rotate-[240deg] filter' // make it look blue/indigo
+  shadowSize: [41, 41],
 });
 
-const iconBox = new L.Icon({
+const driverIcon = new L.Icon({
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/2769/2769339.png',
+  iconSize: [40, 40],
+  iconAnchor: [20, 20],
+  popupAnchor: [0, -20],
+});
+
+const destinationIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
-  className: 'hue-rotate-[120deg] filter' // make it look green
+  className: 'hue-rotate-[120deg] filter', // green tint
 });
 
-export default function TrackingMap({ orders, vehicles }: { orders: any[], vehicles: any[] }) {
-  // Center roughly in India
-  const center: [number, number] = [20.5937, 78.9629];
+const iconTruck = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  className: 'hue-rotate-[240deg] filter', // blue tint
+});
+
+interface TrackingMapProps {
+  orderData?: any;
+  driverLocation?: { lat: number; lng: number } | null;
+  orders?: any[];
+  vehicles?: any[];
+}
+
+export default function TrackingMap({
+  orderData,
+  driverLocation,
+  orders = [],
+  vehicles = [],
+}: TrackingMapProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-slate-900 text-slate-400 font-medium text-sm">
+        Initializing map...
+      </div>
+    );
+  }
+
+  // Determine map center
+  let center: [number, number] = [28.6139, 77.2090]; // Delhi default
+  if (driverLocation && driverLocation.lat && driverLocation.lng) {
+    center = [driverLocation.lat, driverLocation.lng];
+  } else if (orderData?.deliveryAddress?.lat && orderData?.deliveryAddress?.lng) {
+    center = [orderData.deliveryAddress.lat, orderData.deliveryAddress.lng];
+  } else if (orderData?.sender?.lat && orderData?.sender?.lng) {
+    center = [orderData.sender.lat, orderData.sender.lng];
+  } else if (orders.length > 0 && orders[0].location?.lat) {
+    center = [orders[0].location.lat, orders[0].location.lng];
+  }
 
   return (
-    <div className="w-full h-full rounded-3xl overflow-hidden shadow-xl border border-slate-800">
-      <MapContainer 
-        center={center} 
-        zoom={5} 
-        scrollWheelZoom={true} 
-        className="w-full h-full"
-        style={{ background: '#0f172a' }} // Dark theme fallback
+    <div className="w-full h-full min-h-[400px] rounded-xl overflow-hidden shadow-lg border border-slate-700/50">
+      <MapContainer
+        center={center}
+        zoom={12}
+        scrollWheelZoom={true}
+        style={{ height: '100%', width: '100%', minHeight: '400px' }}
       >
-        {/* Dark mode map tiles */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Vehicles */}
+        {/* Customer Tracking: Delivery Destination */}
+        {orderData?.deliveryAddress?.lat && orderData?.deliveryAddress?.lng && (
+          <Marker
+            position={[orderData.deliveryAddress.lat, orderData.deliveryAddress.lng]}
+            icon={destinationIcon}
+          >
+            <Popup>
+              <div className="text-xs font-sans">
+                <strong className="text-slate-900 block mb-1">Destination</strong>
+                <span className="text-slate-600">
+                  {orderData.deliveryAddress.fullAddress || "Delivery Address"}
+                </span>
+              </div>
+            </Popup>
+          </Marker>
+        )}
+
+        {/* Customer Tracking: Live Driver Location */}
+        {driverLocation && driverLocation.lat && driverLocation.lng && (
+          <Marker
+            position={[driverLocation.lat, driverLocation.lng]}
+            icon={driverIcon}
+          >
+            <Popup>
+              <div className="text-xs font-sans">
+                <strong className="text-indigo-600 block mb-1">Live Tracking</strong>
+                <span className="text-slate-700">Delivery Agent is en route</span>
+              </div>
+            </Popup>
+          </Marker>
+        )}
+
+        {/* Fleet / Admin Tracking Fallbacks */}
         {vehicles.map((v, i) => (
-          v.currentLocation && v.currentLocation.lat && v.currentLocation.lng && (
-            <Marker key={`v-${i}`} position={[v.currentLocation.lat, v.currentLocation.lng]} icon={iconTruck}>
-              <Popup className="bg-slate-900 border border-slate-800 text-slate-200">
-                <div className="font-bold">{v.registrationNumber}</div>
-                <div className="text-sm">Status: {v.status}</div>
-                <div className="text-sm">Capacity: {v.capacity.weight}kg</div>
+          v.currentLocation?.lat && v.currentLocation?.lng && (
+            <Marker
+              key={`v-${i}`}
+              position={[v.currentLocation.lat, v.currentLocation.lng]}
+              icon={iconTruck}
+            >
+              <Popup>
+                <div className="text-xs font-bold">{v.registrationNumber}</div>
+                <div className="text-xs">Status: {v.status}</div>
               </Popup>
             </Marker>
           )
         ))}
 
-        {/* Orders (Mock coordinates for demo if they don't have them) */}
         {orders.map((o, i) => {
-          // If we don't have exact lat/lng in order model yet, we can scatter them for the demo based on the center.
-          // Realistically, these would come from order.deliveryAddress.lat/lng
-          const lat = o.location?.lat || center[0] + (Math.random() - 0.5) * 10;
-          const lng = o.location?.lng || center[1] + (Math.random() - 0.5) * 10;
+          if (!o.location?.lat || !o.location?.lng) return null;
           return (
-            <Marker key={`o-${i}`} position={[lat, lng]} icon={iconBox}>
+            <Marker key={`o-${i}`} position={[o.location.lat, o.location.lng]} icon={defaultIcon}>
               <Popup>
-                <div className="font-bold text-slate-900">{o.orderId}</div>
-                <div className="text-sm text-slate-700">Status: {o.status}</div>
-                <div className="text-sm text-slate-700">Rev: ₹{o.pricing?.total}</div>
+                <div className="text-xs font-bold text-slate-900">{o.orderId}</div>
+                <div className="text-xs text-slate-700">Status: {o.status}</div>
               </Popup>
             </Marker>
           );

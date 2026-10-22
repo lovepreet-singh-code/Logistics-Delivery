@@ -4,23 +4,20 @@ import apiClient from '@/lib/apiClient';
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
-import 'leaflet/dist/leaflet.css';
 import dynamic from 'next/dynamic';
-import { Package, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin, ShieldAlert, Printer } from 'lucide-react';
+import { Package, PackageCheck, Truck, CheckCircle, Search, AlertTriangle, FileText, User, Phone, Clock, Car, Building, MapPin, ShieldAlert, Printer } from 'lucide-react';
 import { io } from "socket.io-client";
 import { useReactToPrint } from 'react-to-print';
 import ShippingLabel from '@/components/ShippingLabel';
 
-// Leaflet requires window
-let L: any;
-if (typeof window !== "undefined") {
-  L = require("leaflet");
-}
-
-const Map = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
-const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
-const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
-const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false });
+const TrackingMap = dynamic(() => import('@/components/TrackingMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full min-h-[500px] flex items-center justify-center bg-slate-900 text-slate-400 font-medium text-sm rounded-xl border border-slate-700/50">
+      Loading live map...
+    </div>
+  ),
+});
 
 export default function CustomerDashboard() {
   const [isMounted, setIsMounted] = useState(false);
@@ -111,33 +108,42 @@ export default function CustomerDashboard() {
     PENDING_PICKUP: 0,
     PICKUP_ASSIGNED: 0,
     PICKUP_ACCEPTED: 0,
+    
     PICKED_UP: 1,
     PICKUP_COMPLETED: 1,
-    AT_HUB: 1,
-    PENDING_INWARD: 1,
-    INWARDED_AT_HUB: 1,
-    IN_TRANSIT: 2,
-    OUTWARDED: 2,
-    DESTINATION_HUB: 3,
-    REACHED_DESTINATION_HUB: 3,
-    OUT_FOR_DELIVERY: 4,
-    OUT_FOR_DELIVERY_ASSIGNED: 4,
-    DELIVERED: 5,
-    COMPLETED: 5,
+    
+    INWARDED_AT_HUB: 2,
+    AT_HUB: 2,
+    PENDING_INWARD: 2,
+    
+    IN_TRANSIT: 3,
+    OUTWARDED: 3,
+    DISPATCHED: 3,
+    
+    DESTINATION_HUB: 4,
+    REACHED_DESTINATION_HUB: 4,
+    DESTINATION_INWARD: 4,
+    
+    OUT_FOR_DELIVERY: 5,
+    OUT_FOR_DELIVERY_ASSIGNED: 5,
+    
+    DELIVERED: 6,
+    COMPLETED: 6,
   };
 
   const stepOrder: Record<string, number> = {
     ORDER_PLACED: 0,
     PICKED_UP: 1,
-    IN_TRANSIT: 2,
-    DESTINATION_HUB: 3,
-    OUT_FOR_DELIVERY: 4,
-    DELIVERED: 5,
+    INWARDED_AT_HUB: 2,
+    IN_TRANSIT: 3,
+    DESTINATION_HUB: 4,
+    OUT_FOR_DELIVERY: 5,
+    DELIVERED: 6,
   };
 
   // Helper to determine step states
   const getStepStatus = (
-    step: 'ORDER_PLACED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DESTINATION_HUB' | 'OUT_FOR_DELIVERY' | 'DELIVERED',
+    step: 'ORDER_PLACED' | 'PICKED_UP' | 'INWARDED_AT_HUB' | 'IN_TRANSIT' | 'DESTINATION_HUB' | 'OUT_FOR_DELIVERY' | 'DELIVERED',
     currentStatus?: string
   ) => {
     if (!currentStatus) return 'pending';
@@ -171,24 +177,32 @@ export default function CustomerDashboard() {
         };
       case 'DESTINATION_HUB':
       case 'REACHED_DESTINATION_HUB':
+      case 'DESTINATION_INWARD':
         return {
-          label: 'REACHED DESTINATION HUB',
+          label: 'DESTINATION HUB',
           badgeClass: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
           title: 'At Destination Hub',
         };
       case 'IN_TRANSIT':
       case 'OUTWARDED':
+      case 'DISPATCHED':
         return {
           label: 'IN TRANSIT',
           badgeClass: 'bg-purple-100 text-purple-700 border border-purple-200',
           title: 'In Transit',
         };
-      case 'PICKED_UP':
       case 'INWARDED_AT_HUB':
       case 'AT_HUB':
+      case 'PENDING_INWARD':
+        return {
+          label: 'ORIGIN HUB',
+          badgeClass: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+          title: 'At Origin Hub',
+        };
+      case 'PICKED_UP':
       case 'PICKUP_COMPLETED':
         return {
-          label: status.replace(/_/g, ' '),
+          label: 'PICKED UP',
           badgeClass: 'bg-amber-100 text-amber-700 border border-amber-200',
           title: 'Picked Up',
         };
@@ -283,9 +297,9 @@ export default function CustomerDashboard() {
                       Print Shipping Label
                     </button>
                     {orderData.otp && (
-                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-sm font-bold shadow-sm" title="Development Testing OTP">
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-sm font-bold shadow-sm" title="Share with agent during pickup or delivery">
                         <ShieldAlert className="w-4 h-4 text-amber-600" />
-                        Delivery PIN: {orderData.otp}
+                        <span>Delivery PIN: <strong className="font-mono tracking-wider">{orderData.otp}</strong></span>
                       </div>
                     )}
                   </div>
@@ -407,7 +421,7 @@ export default function CustomerDashboard() {
                 </div>
               </div>
 
-              {/* Step 2: Picked Up - Origin Hub */}
+              {/* Step 2: Picked Up */}
               <div className="relative flex items-start gap-8 mb-10 group">
                 <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
                   getStepStatus('PICKED_UP', orderData.status) === 'completed'
@@ -416,17 +430,36 @@ export default function CustomerDashboard() {
                       ? 'bg-amber-500 border-amber-100 text-white shadow-[0_0_0_6px_rgba(245,158,11,0.15)] scale-105'
                       : 'bg-white border-slate-200 text-slate-300'
                 }`}>
-                  <Building className="w-6 h-6" />
+                  <PackageCheck className="w-6 h-6" />
                 </div>
                 <div className="pt-2">
                   <h3 className={`text-lg font-bold transition-colors ${
                     getStepStatus('PICKED_UP', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
-                  }`}>Picked Up - Origin Hub</h3>
-                  <p className="text-sm text-slate-500 mt-1">Package collected and scanned at origin.</p>
+                  }`}>Picked Up</h3>
+                  <p className="text-sm text-slate-500 mt-1">Package collected by Delivery Agent from the origin address.</p>
                 </div>
               </div>
 
-              {/* Step 3: In Transit */}
+              {/* Step 3: Origin Hub */}
+              <div className="relative flex items-start gap-8 mb-10 group">
+                <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
+                  getStepStatus('INWARDED_AT_HUB', orderData.status) === 'completed'
+                    ? 'bg-indigo-600 border-indigo-100 text-white shadow-lg' 
+                    : getStepStatus('INWARDED_AT_HUB', orderData.status) === 'active'
+                      ? 'bg-amber-500 border-amber-100 text-white shadow-[0_0_0_6px_rgba(245,158,11,0.15)] scale-105'
+                      : 'bg-white border-slate-200 text-slate-300'
+                }`}>
+                  <Building className="w-6 h-6" />
+                </div>
+                <div className="pt-2">
+                  <h3 className={`text-lg font-bold transition-colors ${
+                    getStepStatus('INWARDED_AT_HUB', orderData.status) !== 'pending' ? 'text-slate-800' : 'text-slate-400'
+                  }`}>Origin Hub</h3>
+                  <p className="text-sm text-slate-500 mt-1">Package inwarded and scanned at the origin facility.</p>
+                </div>
+              </div>
+
+              {/* Step 4: In Transit */}
               <div className="relative flex items-start gap-8 mb-10 group">
                 <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
                   getStepStatus('IN_TRANSIT', orderData.status) === 'completed'
@@ -445,7 +478,7 @@ export default function CustomerDashboard() {
                 </div>
               </div>
 
-              {/* Step 4: Reached Destination Hub */}
+              {/* Step 5: Reached Destination Hub */}
               <div className="relative flex items-start gap-8 mb-10 group">
                 <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
                   getStepStatus('DESTINATION_HUB', orderData.status) === 'completed'
@@ -464,7 +497,7 @@ export default function CustomerDashboard() {
                 </div>
               </div>
 
-              {/* Step 5: Out for Delivery */}
+              {/* Step 6: Out for Delivery */}
               <div className="relative flex items-start gap-8 mb-10 group">
                 <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
                   getStepStatus('OUT_FOR_DELIVERY', orderData.status) === 'completed'
@@ -483,7 +516,7 @@ export default function CustomerDashboard() {
                 </div>
               </div>
 
-              {/* Step 6: Delivered */}
+              {/* Step 7: Delivered */}
               <div className="relative flex items-start gap-8 group">
                 <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-[4px] transition-all duration-500 ${
                   getStepStatus('DELIVERED', orderData.status) === 'completed' || getStepStatus('DELIVERED', orderData.status) === 'active'
@@ -538,13 +571,13 @@ export default function CustomerDashboard() {
               </div>
 
               {/* Secure OTP Display */}
-              {String(orderData.status).toUpperCase().trim() === 'OUT_FOR_DELIVERY' && orderData.otp && (
+              {orderData.otp && String(orderData.status).toUpperCase().trim() !== 'DELIVERED' && (
                 <div className="mt-8 p-6 bg-indigo-50 border-2 border-indigo-100 rounded-2xl relative overflow-hidden group shadow-inner ml-4 sm:ml-8 max-w-sm">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-200/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                   <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4 text-indigo-600" /> Secure Delivery OTP
+                    <ShieldAlert className="w-4 h-4 text-indigo-600" /> Secure Verification PIN
                   </h4>
-                  <p className="text-xs text-indigo-700/80 mb-4 font-medium">Share this pin with the delivery agent to receive your package.</p>
+                  <p className="text-xs text-indigo-700/80 mb-4 font-medium">Please share this PIN with the agent during pickup or delivery to verify your order.</p>
                   <div className="bg-white px-6 py-4 rounded-xl border border-indigo-100 shadow-sm inline-block">
                     <span className="text-3xl font-black text-indigo-600 tracking-[0.25em] font-mono">{orderData.otp}</span>
                   </div>
@@ -555,42 +588,12 @@ export default function CustomerDashboard() {
 
               {/* Map Container */}
               <div className="relative w-full h-[500px] rounded-xl overflow-hidden shadow-lg border border-slate-700/50 lg:col-span-5">
-                <Map 
-                  center={
-                    driverLocation 
-                      ? [driverLocation.lat, driverLocation.lng]
-                      : orderData.deliveryAddress?.lat 
-                      ? [orderData.deliveryAddress.lat, orderData.deliveryAddress.lng] 
-                      : [28.6139, 77.2090]
-                  } 
-                  zoom={12} 
-                  style={{ height: '100%', width: '100%' }}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                {isMounted && (
+                  <TrackingMap 
+                    orderData={orderData} 
+                    driverLocation={driverLocation} 
                   />
-                  
-                  {/* Delivery Destination Marker */}
-                  {orderData.deliveryAddress?.lat && (
-                     <Marker position={[orderData.deliveryAddress.lat, orderData.deliveryAddress.lng]}>
-                       <Popup>Destination: {orderData.deliveryAddress.fullAddress}</Popup>
-                     </Marker>
-                  )}
-
-                  {/* Live Driver Marker */}
-                  {driverLocation && (
-                     <Marker 
-                       position={[driverLocation.lat, driverLocation.lng]}
-                       icon={new L.Icon({
-                         iconUrl: 'https://cdn-icons-png.flaticon.com/512/2769/2769339.png',
-                         iconSize: [40, 40]
-                       })}
-                     >
-                       <Popup>Live Tracking: Delivery Agent</Popup>
-                     </Marker>
-                  )}
-                </Map>
+                )}
               </div>
 
             </div>

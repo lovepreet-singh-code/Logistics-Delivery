@@ -422,5 +422,29 @@ Simply double-click `start-all.bat` or run `.\start-all.bat` from the root termi
   docker-compose up -d --build --no-cache order-service
   ```
 
+### ✅ Customer Tracking Timeline Refinement (IMPLEMENTED & VERIFIED)
+- **Frontend Tracking Page (`frontend/src/app/customer/track/page.tsx`):**
+  - **Split Timeline Step**: Split the combined "Picked Up - Origin Hub" step into two distinct steps:
+    - **Step 2 ("Picked Up")**: Package collected by Delivery Agent from the origin address (`PICKED_UP`). Icon: `<PackageCheck />`.
+    - **Step 3 ("Origin Hub")**: Package inwarded and scanned at the origin facility (`INWARDED_AT_HUB` / `AT_HUB`). Icon: `<Building />`.
+  - **7-Stage Lifecycle Order**:
+    `ORDER_PLACED (0) -> PICKED_UP (1) -> INWARDED_AT_HUB (2) -> IN_TRANSIT (3) -> DESTINATION_HUB (4) -> OUT_FOR_DELIVERY (5) -> DELIVERED (6)`.
+  - **Status Hierarchy & Helper**:
+    - Updated `statusHierarchy`, `stepOrder`, and `getStepStatus` to respect all real-world statuses (including aliases like `AT_HUB`, `PENDING_INWARD`, `DISPATCHED`, `DESTINATION_INWARD`).
+    - Maintained unbroken vertical connecting line (`top-8 bottom-8`) spanning all 7 steps.
+  - **OTP Reminder**:
+    - Header badge displays `Delivery PIN: <OTP>` with tooltip *"Share with agent during pickup or delivery"*.
+    - Prominent Secure Verification PIN card displayed below timeline for all active (undelivered) orders with instruction: *"Please share this PIN with the agent during pickup or delivery to verify your order."*
+
+### ✅ Leaflet SSR Crash Resolution (IMPLEMENTED & VERIFIED)
+- **Root Cause:** In Next.js App Router, dynamically importing `react-leaflet` components piecemeal (`MapContainer`, `TileLayer`, `Marker`, `Popup` separately) or executing top-level `require("leaflet")` triggered `Uncaught TypeError: Cannot read properties of undefined (reading 'appendChild') at NewClass._initContainer` because child components mounted before the parent Leaflet DOM container was initialized.
+- **Resolution:**
+  - Encapsulated all Leaflet initialization and JSX inside a dedicated client component [`frontend/src/components/TrackingMap.tsx`](file:///g:/Love%20Project%20%28Backend%29/Logistics%20Delivery/frontend/src/components/TrackingMap.tsx).
+  - Configured custom icons for Driver and Destination marker points.
+  - Dynamically imported `TrackingMap` inside [`frontend/src/app/customer/track/page.tsx`](file:///g:/Love%20Project%20%28Backend%29/Logistics%20Delivery/frontend/src/app/customer/track/page.tsx) with `{ ssr: false }` and wrapped it in an `isMounted` guard.
+  - Fixed route crash and eliminated 404s while preserving the exact file route.
+
+
+
 
 
